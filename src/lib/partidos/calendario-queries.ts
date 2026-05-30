@@ -7,7 +7,7 @@ import {
 import type { Partido } from "@/types/database";
 
 const PARTIDO_SELECT =
-  "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual";
+  "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, metadata";
 
 export interface CalendarioPartidosData {
   partidos: Partido[];

@@ -107,6 +107,18 @@ export function getFlagImageUrl(
   return `https://flagcdn.com/${size}/${iso}.png`;
 }
 
+/** Escudo del club si existe; si no, bandera por código/nombre. */
+export function getTeamImageUrl(
+  codigo: string,
+  size: "w40" | "w80" = "w80",
+  teamName?: string,
+  escudoUrl?: string | null,
+): string {
+  const url = escudoUrl?.trim();
+  if (url) return url;
+  return getFlagImageUrl(codigo, size, teamName);
+}
+
 export function getFlagEmoji(codigo: string, teamName?: string): string {
   const iso = resolveIso(codigo, teamName);
   if (!iso || iso.includes("-") || iso === "un") return "🏳️";

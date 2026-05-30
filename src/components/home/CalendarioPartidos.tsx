@@ -9,7 +9,8 @@ import {
   toMexicoDateKey,
 } from "@/lib/datetime/mexico";
 import { getCanalDisplay, isPartidoEnVivo } from "@/lib/partidos/labels";
-import { getFlagImageUrl } from "@/lib/teams/flags";
+import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
+import { getTeamImageUrl } from "@/lib/teams/flags";
 import type { Partido } from "@/types/database";
 
 export interface CalendarioPartidosProps {
@@ -195,15 +196,16 @@ function CalendarioPartidoCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Image
-            src={getFlagImageUrl(
+            src={getTeamImageUrl(
               partido.equipo_local_codigo,
               "w40",
               partido.equipo_local_nombre,
+              getEscudoFromMetadata(partido.metadata, "local"),
             )}
             alt=""
             width={28}
-            height={18}
-            className="h-4 w-6 shrink-0 rounded object-cover"
+            height={28}
+            className="h-7 w-7 shrink-0 rounded object-contain"
             unoptimized
           />
           <span className="truncate text-xs font-semibold text-white">
@@ -219,15 +221,16 @@ function CalendarioPartidoCard({
             <span className="shrink-0 text-[10px] text-zinc-600">vs</span>
           )}
           <Image
-            src={getFlagImageUrl(
+            src={getTeamImageUrl(
               partido.equipo_visitante_codigo,
               "w40",
               partido.equipo_visitante_nombre,
+              getEscudoFromMetadata(partido.metadata, "visitante"),
             )}
             alt=""
             width={28}
-            height={18}
-            className="h-4 w-6 shrink-0 rounded object-cover"
+            height={28}
+            className="h-7 w-7 shrink-0 rounded object-contain"
             unoptimized
           />
           <span className="truncate text-xs font-semibold text-white">

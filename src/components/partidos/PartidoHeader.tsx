@@ -5,9 +5,9 @@ import {
   MarcadorDisplay,
   usePartidoRealtime,
 } from "@/components/home/MarcadorLive";
-import { getFlagImageUrl } from "@/lib/teams/flags";
+import { getTeamImageUrl } from "@/lib/teams/flags";
+import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
 import {
-  getCanalDisplay,
   isPartidoEnVivo,
   labelEstatus,
   labelFase,
@@ -25,12 +25,13 @@ export function PartidoHeader({ partido }: PartidoHeaderProps) {
     marcadorVisitante: partido.marcador_visitante,
     estatus: partido.estatus,
     minutoActual: partido.minuto_actual,
+    metadata: partido.metadata ?? null,
+    fechaKickoff: partido.fecha_kickoff,
   });
 
   const enJuego = isPartidoEnVivo(live.estatus);
   const finalizado = live.estatus === "finalizado";
   const showMarcador = enJuego || finalizado;
-  const canal = getCanalDisplay(partido.canal_transmision);
   const grupoLabel = partido.grupo ? `Grupo ${partido.grupo}` : null;
 
   return (
@@ -60,6 +61,7 @@ export function PartidoHeader({ partido }: PartidoHeaderProps) {
         <TeamBlock
           nombre={partido.equipo_local_nombre}
           codigo={partido.equipo_local_codigo}
+          escudoUrl={getEscudoFromMetadata(partido.metadata, "local")}
           align="left"
         />
 
@@ -74,20 +76,11 @@ export function PartidoHeader({ partido }: PartidoHeaderProps) {
         <TeamBlock
           nombre={partido.equipo_visitante_nombre}
           codigo={partido.equipo_visitante_codigo}
+          escudoUrl={getEscudoFromMetadata(partido.metadata, "visitante")}
           align="right"
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-        <span
-          className={`inline-flex items-center rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wide ring-1 ring-inset ${canal.className}`}
-        >
-          📺 {canal.label}
-        </span>
-        {canal.sublabel && (
-          <span className="text-[10px] text-zinc-500">{canal.sublabel}</span>
-        )}
-      </div>
     </section>
   );
 }
@@ -95,12 +88,15 @@ export function PartidoHeader({ partido }: PartidoHeaderProps) {
 function TeamBlock({
   nombre,
   codigo,
+  escudoUrl,
   align,
 }: {
   nombre: string;
   codigo: string;
+  escudoUrl?: string | null;
   align: "left" | "right";
 }) {
+  const isEscudo = Boolean(escudoUrl?.trim());
   return (
     <div
       className={`flex flex-col gap-2 ${
@@ -108,11 +104,15 @@ function TeamBlock({
       }`}
     >
       <Image
-        src={getFlagImageUrl(codigo, "w80", nombre)}
+        src={getTeamImageUrl(codigo, "w80", nombre, escudoUrl)}
         alt=""
         width={56}
-        height={38}
-        className="h-9 w-14 rounded object-cover shadow-md"
+        height={56}
+        className={
+          isEscudo
+            ? "h-14 w-14 rounded object-contain shadow-md"
+            : "h-9 w-14 rounded object-cover shadow-md"
+        }
         unoptimized
       />
       <span className="max-w-[6.5rem] text-sm font-bold leading-tight text-white">

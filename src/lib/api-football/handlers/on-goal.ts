@@ -5,6 +5,7 @@ import {
   extractScoreFromPayload,
   extractTeamNames,
 } from "@/lib/api-football/map-fixture-to-partido";
+import { queuePartidoPushNotifications } from "@/lib/apifootball/webhook/notifications";
 import type { ApiFootballWebhookPayload, WebhookHandlerResult } from "@/types/api-football";
 
 interface OnGoalContext {
@@ -77,34 +78,14 @@ export async function handleGoalEvent(
     return { ok: false, message: chatError.message };
   }
 
-  // Cola de notificaciones: fan-out a miembros con push habilitado (envío en worker aparte)
-  const { data: miembros } = await supabase
-    .from("liga_miembros")
-    .select("usuario_id")
-    .eq("liga_id", LIGA_GLOBAL_ID);
-
-  if (miembros?.length) {
-    const ids = miembros.map((m) => m.usuario_id);
-    const { data: usuariosPush } = await supabase
-      .from("usuarios")
-      .select("id")
-      .in("id", ids)
-      .eq("push_habilitado", true);
-
-    const rows = (usuariosPush ?? []).map((u) => ({
-      usuario_id: u.id,
-      tipo: "gol" as const,
-      titulo: `⚽ Gol: ${teams.local} ${score.local}-${score.visitante} ${teams.visitante}`,
-      cuerpo: frase.contenido,
-      partido_id: partidoId,
-      liga_id: LIGA_GLOBAL_ID,
-      metadata: { narrador: frase.narrador },
-    }));
-
-    if (rows.length > 0) {
-      await supabase.from("notificaciones").insert(rows);
-    }
-  }
+  await queuePartidoPushNotifications(
+    supabase,
+    partidoId,
+    "gol",
+    `⚽ Gol: ${teams.local} ${score.local}-${score.visitante} ${teams.visitante}`,
+    frase.contenido,
+    { narrador: frase.narrador, fuente: "api-football-webhook" },
+  );
 
   return { ok: true, message: "Gol procesado" };
 }

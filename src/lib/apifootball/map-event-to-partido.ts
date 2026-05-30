@@ -1,5 +1,13 @@
 import { buildKickoffIsoFromApi } from "@/lib/datetime/kickoff";
 import type { ApifootballEvent } from "@/lib/apifootball/types";
+import {
+  buildClockState,
+  hasPenaltyShootoutPayload,
+  mapApifootballLiveStatus,
+  parseApiMatchMinute,
+  parsePenaltyScores,
+  relojToMetadata,
+} from "@/lib/partidos/match-clock";
 import { getTeamStorageCode } from "@/lib/utils";
 import type { EstatusPartido, FaseMundial } from "@/types/database";
 
@@ -17,36 +25,23 @@ export interface PartidoUpsertRow {
   estatus: EstatusPartido;
   marcador_local: number | null;
   marcador_visitante: number | null;
-  canal_transmision: "sin_asignar";
   minuto_actual: number | null;
   metadata: Record<string, unknown>;
 }
 
-const MATCH_STATUS_MAP: Record<string, EstatusPartido> = {
-  "not started": "programado",
-  ns: "programado",
-  scheduled: "programado",
-  live: "en_vivo",
-  "1h": "en_vivo",
-  "2h": "en_vivo",
-  "half time": "medio_tiempo",
-  ht: "medio_tiempo",
-  finished: "finalizado",
-  ft: "finalizado",
-  "after pen.": "finalizado",
-  "after et": "finalizado",
-  postponed: "aplazado",
-  cancelled: "cancelado",
-  canceled: "cancelado",
-  abandoned: "suspendido",
-  suspended: "suspendido",
-};
-
-function mapMatchStatus(status: string): EstatusPartido {
-  const key = status.trim().toLowerCase();
-  return MATCH_STATUS_MAP[key] ?? "programado";
+function parseScore(value: string | undefined): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number.parseInt(String(value), 10);
+  return Number.isNaN(n) ? null : n;
 }
 
+function mapMatchStatus(status: string, matchLive?: string): EstatusPartido {
+  return mapApifootballLiveStatus(status, matchLive);
+}
+
+function parseMinuteFromEvent(event: ApifootballEvent): number | null {
+  return parseApiMatchMinute(event.match_status ?? "");
+}
 function teamCode(name: string, teamId?: string): string {
   const code = getTeamStorageCode(name);
   if (code !== "UN") return code;
@@ -91,12 +86,6 @@ function parseFase(event: ApifootballEvent): {
   return { fase: "grupos", grupo: null, jornada: null };
 }
 
-function parseScore(value: string | undefined): number | null {
-  if (value === undefined || value === null || value === "") return null;
-  const n = Number.parseInt(String(value), 10);
-  return Number.isNaN(n) ? null : n;
-}
-
 /** Combina match_date + match_time → ISO UTC (hora en timezone del torneo, default CDMX) */
 export function toKickoffISO(
   matchDate: string,
@@ -121,7 +110,21 @@ export function mapEventToPartidoRow(
       ? { timezone: timezoneOrOptions }
       : timezoneOrOptions;
   const timezone = options.timezone ?? "America/Mexico_City";
-  const estatus = mapMatchStatus(event.match_status);
+  const estatus = mapMatchStatus(event.match_status, event.match_live);
+  const apiMinute = parseMinuteFromEvent(event);
+  const pen = parsePenaltyScores(event);
+  const reloj = buildClockState(
+    event.match_status ?? "",
+    estatus,
+    apiMinute,
+    null,
+    {
+      hasPenaltyScores:
+        pen.local != null ||
+        pen.visitante != null ||
+        hasPenaltyShootoutPayload(event),
+    },
+  );
   const { fase, grupo, jornada } = parseFase(event);
   const localScore = parseScore(event.match_hometeam_score);
   const awayScore = parseScore(event.match_awayteam_score);
@@ -148,8 +151,7 @@ export function mapEventToPartidoRow(
     estatus,
     marcador_local: hasScore ? localScore : null,
     marcador_visitante: hasScore ? awayScore : null,
-    canal_transmision: "sin_asignar",
-    minuto_actual: event.match_live === "1" ? null : null,
+    minuto_actual: reloj.ticking ? reloj.anchorMinute : null,
     metadata: {
       ...(options.pilot
         ? {
@@ -157,6 +159,15 @@ export function mapEventToPartidoRow(
             pilot: true,
             competencia_label: options.pilot.label,
           }
+        : {}),
+      reloj: relojToMetadata(reloj),
+      ...(pen.local != null ? { marcador_penales_local: pen.local } : {}),
+      ...(pen.visitante != null ? { marcador_penales_visitante: pen.visitante } : {}),
+      ...(event.team_home_badge
+        ? { escudo_local: event.team_home_badge }
+        : {}),
+      ...(event.team_away_badge
+        ? { escudo_visitante: event.team_away_badge }
         : {}),
       apifootball: {
         match_id: event.match_id,
@@ -166,6 +177,12 @@ export function mapEventToPartidoRow(
         match_round: event.match_round,
         match_status: event.match_status,
         timezone,
+        ...(event.team_home_badge
+          ? { team_home_badge: event.team_home_badge }
+          : {}),
+        ...(event.team_away_badge
+          ? { team_away_badge: event.team_away_badge }
+          : {}),
       },
     },
   };

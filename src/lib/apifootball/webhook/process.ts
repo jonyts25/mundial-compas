@@ -6,15 +6,35 @@ import {
 } from "@/lib/datos-mamalones/pick";
 import {
   generarNarracionFase,
+  generarNarracionCampeon,
   generarNarracionGol,
+  generarNarracionPenalAnotado,
+  generarNarracionPenalFallado,
   generarNarracionRoja,
   PLANTILLAS_FIN,
   PLANTILLAS_INICIO,
   PLANTILLAS_MEDIO_TIEMPO,
+  PLANTILLAS_SEGUNDO_TIEMPO,
 } from "@/lib/narracion/comentaristas";
+import {
+  buildClockState,
+  parseRelojFromMetadata,
+  relojToMetadata,
+} from "@/lib/partidos/match-clock";
 import { normalizeLivePayload } from "@/lib/apifootball/webhook/normalize";
-import { queuePartidoGoalNotifications } from "@/lib/apifootball/webhook/notifications";
+import { queuePartidoPushNotifications } from "@/lib/apifootball/webhook/notifications";
+import { buildPhasePushMessage, isFinalMatch } from "@/lib/apifootball/webhook/phase-push";
+import {
+  buildGoalPushTitle,
+  buildPenaltyMissedPushTitle,
+  buildPenaltyScoredPushTitle,
+  resolveMatchWinner,
+  resolvePenaltyScores,
+  scoresForLiveDisplay,
+} from "@/lib/apifootball/webhook/push-score";
 import type { NormalizedLiveEvent } from "@/lib/apifootball/webhook/types";
+import type { PenaltyScorePair } from "@/lib/apifootball/webhook/push-score";
+import type { FaseMundial } from "@/types/database";
 
 export const VAR_DISPLAY_NAME = "🤖 VAR";
 
@@ -66,55 +86,89 @@ function buildPhaseMessage(
   visitante: string,
   marcadorLocal: number,
   marcadorVisitante: number,
+  penaltyScores: PenaltyScorePair | null,
 ): { texto: string; estilo: string } {
   const marcadorStr = formatMarcador(marcadorLocal, marcadorVisitante);
   switch (event.phase) {
     case "kickoff":
       return generarNarracionFase(PLANTILLAS_INICIO, local, visitante);
     case "halftime":
+    case "extra_time_halftime":
       return generarNarracionFase(PLANTILLAS_MEDIO_TIEMPO, local, visitante, marcadorStr);
-    case "fulltime":
+    case "second_half":
+    case "extra_time_1st":
+    case "extra_time_2nd":
+      return generarNarracionFase(PLANTILLAS_SEGUNDO_TIEMPO, local, visitante, marcadorStr);
+    case "penalties":
+      return {
+        texto: `¡A penales! ${local} ${marcadorStr} ${visitante}. Nervios a flor de piel.`,
+        estilo: "VAR Compas",
+      };
+    case "fulltime": {
+      const winner = resolveMatchWinner({
+        localName: local,
+        visitanteName: visitante,
+        homeScore: marcadorLocal,
+        awayScore: marcadorVisitante,
+        penaltyScores,
+      });
+      if (winner.wonOnPenalties && penaltyScores) {
+        const { home, away } = penaltyScores;
+        return {
+          texto: `Final. ${local} ${marcadorStr} ${visitante} (${winner.winner} gana ${home}-${away} en penales).`,
+          estilo: "VAR Compas",
+        };
+      }
+      if (!winner.isDraw) {
+        return {
+          texto: `¡Final! ${local} ${marcadorStr} ${visitante}. Gana ${winner.winner}.`,
+          estilo: "VAR Compas",
+        };
+      }
       return generarNarracionFase(PLANTILLAS_FIN, local, visitante, marcadorStr);
+    }
     default:
       return { texto: "Actualización del partido.", estilo: "VAR Compas" };
   }
 }
 
-async function wasEventProcessed(
+/** Reserva el evento antes de procesarlo (evita duplicados por relays concurrentes). */
+async function tryClaimWebhookEvent(
   supabase: SupabaseClient,
   eventKey: string,
+  partidoId: string,
+  tipo: string,
 ): Promise<boolean> {
-  const { data } = await supabase
-    .from("webhook_eventos")
-    .select("id, procesado")
-    .eq("proveedor", "apifootball")
-    .eq("evento_externo_id", eventKey)
-    .maybeSingle();
+  const { error } = await supabase.from("webhook_eventos").insert({
+    proveedor: "apifootball",
+    evento_externo_id: eventKey,
+    tipo_evento: tipo,
+    payload: {},
+    partido_id: partidoId,
+    procesado: false,
+  });
 
-  return Boolean(data?.procesado);
+  if (!error) return true;
+  if (error.code === "23505") return false;
+  throw new Error(error.message);
 }
 
 async function markEventProcessed(
   supabase: SupabaseClient,
   eventKey: string,
-  partidoId: string,
-  tipo: string,
   payload: Record<string, unknown>,
   error?: string | null,
 ): Promise<void> {
-  await supabase.from("webhook_eventos").upsert(
-    {
-      proveedor: "apifootball",
-      evento_externo_id: eventKey,
-      tipo_evento: tipo,
+  await supabase
+    .from("webhook_eventos")
+    .update({
       payload,
-      partido_id: partidoId,
       procesado: !error,
       error: error ?? null,
       processed_at: new Date().toISOString(),
-    },
-    { onConflict: "proveedor,evento_externo_id" },
-  );
+    })
+    .eq("proveedor", "apifootball")
+    .eq("evento_externo_id", eventKey);
 }
 
 async function insertVarChatMessage(
@@ -166,22 +220,38 @@ function readStatusFromPayload(body: unknown): string {
   );
 }
 
+function readMatchRound(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const p = body as Record<string, unknown>;
+  const match =
+    (p.match as Record<string, unknown> | undefined) ??
+    (Array.isArray(p) ? (p[0] as Record<string, unknown>) : p);
+  if (match.match_round != null) return String(match.match_round);
+  if (match.league_round != null) return String(match.league_round);
+  return undefined;
+}
+
 export async function processFootballWebhook(
   supabase: SupabaseClient,
   rawBody: unknown,
 ): Promise<ProcessWebhookResult> {
-  const snapshot = normalizeLivePayload(rawBody);
-  if (!snapshot) {
+  const preview = normalizeLivePayload(rawBody);
+  if (!preview) {
     return { ok: false, message: "Payload sin match_id / fixture.id válido" };
   }
 
   const { data: partido, error: partidoError } = await supabase
     .from("partidos")
     .select(
-      "id, metadata, estatus, equipo_local_nombre, equipo_visitante_nombre",
+      "id, fase, metadata, estatus, equipo_local_nombre, equipo_visitante_nombre",
     )
-    .eq("api_football_fixture_id", snapshot.fixtureId)
+    .eq("api_football_fixture_id", preview.fixtureId)
     .maybeSingle();
+
+  const snapshot = normalizeLivePayload(rawBody, partido?.metadata);
+  if (!snapshot) {
+    return { ok: false, message: "Error al normalizar payload" };
+  }
 
   if (partidoError) {
     return { ok: false, message: partidoError.message };
@@ -194,29 +264,46 @@ export async function processFootballWebhook(
     };
   }
 
-  const prevStatus = readPrevApifootballStatus(partido.metadata);
-  const snapshotWithPhase = normalizeLivePayload(rawBody, prevStatus);
-  if (!snapshotWithPhase) {
-    return { ok: false, message: "Error al normalizar payload" };
-  }
-
-  const statusRaw = readStatusFromPayload(rawBody);
+  const prevReloj = parseRelojFromMetadata(partido.metadata);
+  const reloj = buildClockState(
+    snapshot.statusRaw,
+    snapshot.estatus,
+    snapshot.minute,
+    prevReloj,
+    {
+      hasPenaltyScores:
+        snapshot.period === "PEN" ||
+        snapshot.homePenaltyScore != null ||
+        snapshot.awayPenaltyScore != null,
+    },
+  );
+  const displayMinute = reloj.ticking ? reloj.anchorMinute : null;
 
   const { error: updateError } = await supabase
     .from("partidos")
     .update({
-      marcador_local: snapshotWithPhase.homeScore,
-      marcador_visitante: snapshotWithPhase.awayScore,
-      estatus: snapshotWithPhase.estatus,
-      minuto_actual: snapshotWithPhase.minute,
+      marcador_local: snapshot.homeScore,
+      marcador_visitante: snapshot.awayScore,
+      estatus: snapshot.estatus,
+      minuto_actual: displayMinute,
       updated_at: new Date().toISOString(),
       metadata: {
         ...(typeof partido.metadata === "object" && partido.metadata !== null
           ? (partido.metadata as Record<string, unknown>)
           : {}),
-        apifootball_status_raw: statusRaw,
-        apifootball_last_status: snapshotWithPhase.estatus,
+        apifootball_status_raw: snapshot.statusRaw,
+        apifootball_last_status: snapshot.estatus,
         apifootball_last_sync: new Date().toISOString(),
+        reloj: relojToMetadata(reloj),
+        ...(snapshot.homePenaltyScore != null
+          ? { marcador_penales_local: snapshot.homePenaltyScore }
+          : {}),
+        ...(snapshot.awayPenaltyScore != null
+          ? { marcador_penales_visitante: snapshot.awayPenaltyScore }
+          : {}),
+        ...(snapshot.penaltyKeysToPersist.length > 0
+          ? { penales_kicks_vistos: snapshot.penaltyKeysToPersist }
+          : {}),
       },
     })
     .eq("id", partido.id);
@@ -228,35 +315,79 @@ export async function processFootballWebhook(
   let processed = 0;
   let skipped = 0;
 
-  for (const event of snapshotWithPhase.events) {
-    const eventKey = `${snapshotWithPhase.fixtureId}-${event.eventKey}`;
+  const penaltyScores = resolvePenaltyScores(
+    snapshot.homePenaltyScore,
+    snapshot.awayPenaltyScore,
+  );
+  const matchRound = readMatchRound(rawBody);
+  const esFinal = isFinalMatch(partido.fase as FaseMundial, matchRound);
 
-    if (await wasEventProcessed(supabase, eventKey)) {
+  for (const event of snapshot.events) {
+    const eventKey = `${snapshot.fixtureId}-${event.eventKey}`;
+
+    if (!(await tryClaimWebhookEvent(supabase, eventKey, partido.id, event.kind))) {
       skipped += 1;
       continue;
     }
 
     let contenido = "";
     const meta: Record<string, unknown> = {
-      fixture_id: snapshotWithPhase.fixtureId,
+      fixture_id: snapshot.fixtureId,
       event_kind: event.kind,
     };
 
     let narradorEstilo: string | undefined;
 
     if (event.kind === "goal") {
+      const liveScore = scoresForLiveDisplay({
+        period: snapshot.period,
+        homeScore: snapshot.homeScore,
+        awayScore: snapshot.awayScore,
+        homePenaltyScore: snapshot.homePenaltyScore,
+        awayPenaltyScore: snapshot.awayPenaltyScore,
+      });
       const narracion = buildGoalMessageFull(
         event,
-        snapshotWithPhase.homeName,
-        snapshotWithPhase.awayName,
-        snapshotWithPhase.homeScore,
-        snapshotWithPhase.awayScore,
+        snapshot.homeName,
+        snapshot.awayName,
+        liveScore.local,
+        liveScore.visitante,
       );
       contenido = narracion.texto;
       narradorEstilo = narracion.estilo;
       meta.player = event.player;
       meta.team = event.teamName;
       meta.minute = event.minute;
+    } else if (event.kind === "penalty_scored") {
+      const narracion = generarNarracionPenalAnotado({
+        local: snapshot.homeName,
+        visitante: snapshot.awayName,
+        penHome: event.penHome,
+        penAway: event.penAway,
+        goleador: event.player,
+        equipo: event.teamName,
+      });
+      contenido = narracion.texto;
+      narradorEstilo = narracion.estilo;
+      meta.player = event.player;
+      meta.team = event.teamName;
+      meta.pen_home = event.penHome;
+      meta.pen_away = event.penAway;
+    } else if (event.kind === "penalty_missed") {
+      const narracion = generarNarracionPenalFallado({
+        local: snapshot.homeName,
+        visitante: snapshot.awayName,
+        penHome: event.penHome,
+        penAway: event.penAway,
+        jugador: event.player,
+        equipo: event.teamName,
+      });
+      contenido = narracion.texto;
+      narradorEstilo = narracion.estilo;
+      meta.player = event.player;
+      meta.team = event.teamName;
+      meta.pen_home = event.penHome;
+      meta.pen_away = event.penAway;
     } else if (event.kind === "red_card") {
       const narracion = buildRedMessage(event);
       contenido = narracion.texto;
@@ -265,7 +396,7 @@ export async function processFootballWebhook(
       meta.team = event.teamName;
     } else if (event.kind === "match_phase") {
       meta.phase = event.phase;
-      if (event.phase === "halftime" || event.phase === "fulltime") {
+      if (event.phase === "halftime") {
         const dato = await pickDatoMamalonVariado(supabase, {
           ligaId: LIGA_GLOBAL_ID,
           partidoId: partido.id,
@@ -277,10 +408,34 @@ export async function processFootballWebhook(
         } else {
           const narracion = buildPhaseMessage(
             event,
-            snapshotWithPhase.homeName,
-            snapshotWithPhase.awayName,
-            snapshotWithPhase.homeScore,
-            snapshotWithPhase.awayScore,
+            snapshot.homeName,
+            snapshot.awayName,
+            snapshot.homeScore,
+            snapshot.awayScore,
+            penaltyScores,
+          );
+          contenido = narracion.texto;
+          narradorEstilo = narracion.estilo;
+        }
+      } else if (event.phase === "fulltime") {
+        if (esFinal) {
+          const narracion = generarNarracionCampeon({
+            local: snapshot.homeName,
+            visitante: snapshot.awayName,
+            marcadorLocal: snapshot.homeScore,
+            marcadorVisitante: snapshot.awayScore,
+            penaltyScores,
+          });
+          contenido = narracion.texto;
+          narradorEstilo = narracion.estilo;
+        } else {
+          const narracion = buildPhaseMessage(
+            event,
+            snapshot.homeName,
+            snapshot.awayName,
+            snapshot.homeScore,
+            snapshot.awayScore,
+            penaltyScores,
           );
           contenido = narracion.texto;
           narradorEstilo = narracion.estilo;
@@ -288,10 +443,11 @@ export async function processFootballWebhook(
       } else {
         const narracion = buildPhaseMessage(
           event,
-          snapshotWithPhase.homeName,
-          snapshotWithPhase.awayName,
-          snapshotWithPhase.homeScore,
-          snapshotWithPhase.awayScore,
+          snapshot.homeName,
+          snapshot.awayName,
+          snapshot.homeScore,
+          snapshot.awayScore,
+          penaltyScores,
         );
         contenido = narracion.texto;
         narradorEstilo = narracion.estilo;
@@ -312,8 +468,6 @@ export async function processFootballWebhook(
     await markEventProcessed(
       supabase,
       eventKey,
-      partido.id,
-      event.kind,
       meta as Record<string, unknown>,
       chatError,
     );
@@ -325,12 +479,94 @@ export async function processFootballWebhook(
     if (event.kind === "goal") {
       const local = String(partido.equipo_local_nombre ?? "Local");
       const visitante = String(partido.equipo_visitante_nombre ?? "Visitante");
-      await queuePartidoGoalNotifications(
+      await queuePartidoPushNotifications(
         supabase,
         partido.id,
-        `⚽ Gol: ${local} ${snapshotWithPhase.homeScore}-${snapshotWithPhase.awayScore} ${visitante}`,
+        "gol",
+        buildGoalPushTitle({
+          localName: local,
+          visitanteName: visitante,
+          homeScore: snapshot.homeScore,
+          awayScore: snapshot.awayScore,
+          homePenaltyScore: snapshot.homePenaltyScore,
+          awayPenaltyScore: snapshot.awayPenaltyScore,
+          period: snapshot.period,
+        }),
         contenido,
-        { fuente: "apifootball-webhook", fixture_id: snapshotWithPhase.fixtureId },
+        { fuente: "apifootball-webhook", fixture_id: snapshot.fixtureId },
+      );
+    } else if (event.kind === "penalty_scored") {
+      const local = String(partido.equipo_local_nombre ?? snapshot.homeName);
+      const visitante = String(
+        partido.equipo_visitante_nombre ?? snapshot.awayName,
+      );
+      await queuePartidoPushNotifications(
+        supabase,
+        partido.id,
+        "gol",
+        buildPenaltyScoredPushTitle({
+          localName: local,
+          visitanteName: visitante,
+          penHome: event.penHome,
+          penAway: event.penAway,
+        }),
+        contenido,
+        { fuente: "apifootball-webhook", fixture_id: snapshot.fixtureId },
+      );
+    } else if (event.kind === "penalty_missed") {
+      const local = String(partido.equipo_local_nombre ?? snapshot.homeName);
+      const visitante = String(
+        partido.equipo_visitante_nombre ?? snapshot.awayName,
+      );
+      await queuePartidoPushNotifications(
+        supabase,
+        partido.id,
+        "penal_fallado",
+        buildPenaltyMissedPushTitle({
+          localName: local,
+          visitanteName: visitante,
+          penHome: event.penHome,
+          penAway: event.penAway,
+        }),
+        contenido,
+        { fuente: "apifootball-webhook", fixture_id: snapshot.fixtureId },
+      );
+    } else if (event.kind === "red_card") {
+      const local = String(partido.equipo_local_nombre ?? "Local");
+      const visitante = String(partido.equipo_visitante_nombre ?? "Visitante");
+      await queuePartidoPushNotifications(
+        supabase,
+        partido.id,
+        "tarjeta_roja",
+        `🟥 Tarjeta roja: ${local} vs ${visitante}`,
+        contenido,
+        { fuente: "apifootball-webhook", fixture_id: snapshot.fixtureId },
+      );
+    } else if (event.kind === "match_phase") {
+      const local = String(partido.equipo_local_nombre ?? snapshot.homeName);
+      const visitante = String(
+        partido.equipo_visitante_nombre ?? snapshot.awayName,
+      );
+      const push = buildPhasePushMessage(
+        event.phase,
+        local,
+        visitante,
+        snapshot.homeScore,
+        snapshot.awayScore,
+        penaltyScores,
+        { isFinalMatch: esFinal },
+      );
+      await queuePartidoPushNotifications(
+        supabase,
+        partido.id,
+        push.tipo,
+        push.titulo,
+        push.cuerpo,
+        {
+          fuente: "apifootball-webhook",
+          fixture_id: snapshot.fixtureId,
+          phase: event.phase,
+        },
       );
     }
 

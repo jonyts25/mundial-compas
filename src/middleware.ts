@@ -9,6 +9,10 @@ const SKIP_AUTH_PREFIXES = [
   "/actualizar-contrasena",
   "/api/webhooks",
   "/api/admin",
+  "/api/push/vapid-public-key",
+  "/sw.js",
+  "/manifest.webmanifest",
+  "/icons",
 ];
 
 function skipsAuthRedirect(pathname: string): boolean {

@@ -64,6 +64,8 @@ function apply(
     equipo: string;
     minuto: string;
     extra: string;
+    campeon?: string;
+    detalle_penales?: string;
   },
 ): string {
   return plantilla
@@ -73,7 +75,9 @@ function apply(
     .replaceAll("{goleador}", p.goleador)
     .replaceAll("{equipo}", p.equipo)
     .replaceAll("{minuto}", p.minuto)
-    .replaceAll("{extra}", p.extra);
+    .replaceAll("{extra}", p.extra)
+    .replaceAll("{campeon}", p.campeon ?? "")
+    .replaceAll("{detalle_penales}", p.detalle_penales ?? "");
 }
 
 // --- Gol (plantillas con contexto del partido) ---
@@ -371,6 +375,24 @@ export const PLANTILLAS_MEDIO_TIEMPO: readonly PlantillaNarracion[] = [
   ...PLANTILLAS_MEDIO_MEXICO_EXTRA,
 ];
 
+export const PLANTILLAS_SEGUNDO_TIEMPO: readonly PlantillaNarracion[] = [
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla: "¡Arranca el segundo tiempo! {local} {marcador} {visitante}. ¡A remontar la quiniela!",
+  },
+  {
+    region: "espana",
+    estilo: "Montes (parodia)",
+    plantilla: "¡Segunda parte en marcha! Marcador {marcador}. ¡Que siga el show!",
+  },
+  {
+    region: "general",
+    estilo: "VAR Compas",
+    plantilla: "¡Segundo tiempo! {local} {marcador} {visitante}. ¿Quién la tiene bien?",
+  },
+];
+
 export const PLANTILLAS_FIN: readonly PlantillaNarracion[] = [
   {
     region: "mexico",
@@ -388,6 +410,45 @@ export const PLANTILLAS_FIN: readonly PlantillaNarracion[] = [
     plantilla: "¡Se acabó! Marcador final {marcador}. Gracias por acompañar en el chat.",
   },
   ...PLANTILLAS_FIN_MEXICO_EXTRA,
+];
+
+export const PLANTILLAS_CAMPEON: readonly PlantillaNarracion[] = [
+  {
+    region: "mexico",
+    estilo: "Perro Bermúdez (parodia)",
+    plantilla:
+      "¡{campeon} es campeón! Marcador {marcador}{detalle_penales}. ¡Se nos eriza la piel, compadres! ¡Así se escribe la historia!",
+  },
+  {
+    region: "argentina",
+    estilo: "Ruggeri (parodia)",
+    plantilla:
+      "¡Levanten las manos! {campeon} lo logró. {marcador}{detalle_penales}. ¡Dale dale dale, campeón!",
+  },
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡Señoras y señores! {campeon} levanta la copa. {local} {marcador} {visitante}{detalle_penales}. ¿Quién es tu daddy? ¡El campeón!",
+  },
+  {
+    region: "colombia",
+    estilo: "Castro (parodia)",
+    plantilla:
+      "¡Gol de la gloria colectiva! {campeon} es campeón. Marcador {marcador}{detalle_penales}. ¡Qué manera de cerrar la noche!",
+  },
+  {
+    region: "espana",
+    estilo: "García (parodia)",
+    plantilla:
+      "¡Pitazo final y corona para {campeon}! {marcador}{detalle_penales}. Se acabó, señoras y señores. ¡Qué barbaridad de final!",
+  },
+  {
+    region: "general",
+    estilo: "VAR Compas",
+    plantilla:
+      "¡Campeón: {campeon}! Marcador final {marcador}{detalle_penales}. Gracias por vivirlo con nosotros en el chat.",
+  },
 ];
 
 /** Frases cortas sueltas (fallback si no hay plantilla con datos) */
@@ -476,6 +537,137 @@ export function generarNarracionFase(
   };
 }
 
+type PenaltyScorePair = { home: number; away: number };
+
+export function generarNarracionCampeon(params: {
+  local: string;
+  visitante: string;
+  marcadorLocal: number;
+  marcadorVisitante: number;
+  penaltyScores?: PenaltyScorePair | null;
+}): { texto: string; estilo: string } {
+  const marcadorStr = marcador(params.marcadorLocal, params.marcadorVisitante);
+  let campeon = "";
+  let detallePenales = "";
+
+  if (params.penaltyScores) {
+    const { home, away } = params.penaltyScores;
+    if (home !== away) {
+      campeon = home > away ? params.local : params.visitante;
+      detallePenales = ` (${campeon} gana ${home}-${away} en penales)`;
+    }
+  } else if (params.marcadorLocal !== params.marcadorVisitante) {
+    campeon =
+      params.marcadorLocal > params.marcadorVisitante
+        ? params.local
+        : params.visitante;
+  }
+
+  const tpl = pickRandom(PLANTILLAS_CAMPEON);
+  return {
+    texto: apply(tpl.plantilla, {
+      local: params.local,
+      visitante: params.visitante,
+      marcador: marcadorStr,
+      goleador: "",
+      equipo: "",
+      minuto: "—",
+      extra: "",
+      campeon: campeon || "—",
+      detalle_penales: detallePenales,
+    }),
+    estilo: tpl.estilo,
+  };
+}
+
 export function fraseCortaAleatoria(): string {
   return pickRandom(FRASES_GOL_CORTAS);
+}
+
+const PLANTILLAS_PENAL_FALLADO: readonly PlantillaNarracion[] = [
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¿De qué te vas a disfrazar? {goleador} falló el penal. Penales {marcador}. ¡Señoras y señores, esto es drama puro!",
+  },
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡No inventen! {goleador} la mandó a la luna. Penales {marcador}. ¿Quién es tu daddy? ¡El portero!",
+  },
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡Falló! {goleador} quiso hacerla bonita y la pagó cara. Penales {marcador}. ¡Nervios a flor de piel!",
+  },
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡La botó! {equipo} sufre en la tanda. Penales {marcador}. ¡Esto no se acaba hasta que alguien falle… o no!",
+  },
+];
+
+const PLANTILLAS_PENAL_FALLADO_SIN_NOMBRE: readonly PlantillaNarracion[] = [
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¿De qué te vas a disfrazar? ¡Falló el penal de {equipo}! Penales {marcador}.",
+  },
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡La mandó afuera! {equipo} falla desde los 12 pasos. Penales {marcador}.",
+  },
+];
+
+export function generarNarracionPenalFallado(params: {
+  local: string;
+  visitante: string;
+  penHome: number;
+  penAway: number;
+  jugador: string | null;
+  equipo: string;
+}): { texto: string; estilo: string } {
+  const marcadorStr = marcador(params.penHome, params.penAway);
+  const plantillas = params.jugador
+    ? PLANTILLAS_PENAL_FALLADO
+    : PLANTILLAS_PENAL_FALLADO_SIN_NOMBRE;
+  const tpl = pickRandom(plantillas);
+  return {
+    texto: apply(tpl.plantilla, {
+      local: params.local,
+      visitante: params.visitante,
+      marcador: marcadorStr,
+      goleador: params.jugador ?? "El cobrador",
+      equipo: params.equipo,
+      minuto: "—",
+      extra: "",
+    }),
+    estilo: tpl.estilo,
+  };
+}
+
+export function generarNarracionPenalAnotado(params: {
+  local: string;
+  visitante: string;
+  penHome: number;
+  penAway: number;
+  goleador: string;
+  equipo: string;
+}): { texto: string; estilo: string } {
+  return generarNarracionGol({
+    local: params.local,
+    visitante: params.visitante,
+    marcadorLocal: params.penHome,
+    marcadorVisitante: params.penAway,
+    goleador: params.goleador,
+    equipo: params.equipo,
+    isPenalty: true,
+  });
 }

@@ -51,6 +51,7 @@ export interface Partido {
   marcador_visitante: number | null;
   canal_transmision: CanalTransmision;
   minuto_actual: number | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export type TipoMensajeChat =

@@ -1,38 +1,23 @@
-import type { EstatusPartido } from "@/types/database";
+import {
+  detectPhaseTransition,
+  hasPenaltyShootoutPayload,
+  mapApifootballLiveStatus,
+  parseApiMatchMinute,
+  parsePenaltyScores,
+  parseRelojFromMetadata,
+  resolveMatchPeriod,
+} from "@/lib/partidos/match-clock";
 import type {
   ApifootballCardRow,
   ApifootballGoalscorerRow,
   ApifootballLiveMatchPayload,
+  MatchPhaseKind,
   NormalizedLiveEvent,
   NormalizedMatchSnapshot,
   WebhookIncident,
 } from "@/lib/apifootball/webhook/types";
-
-const STATUS_MAP: Record<string, EstatusPartido> = {
-  "not started": "programado",
-  ns: "programado",
-  scheduled: "programado",
-  live: "en_vivo",
-  "1h": "en_vivo",
-  "2h": "en_vivo",
-  "half time": "medio_tiempo",
-  ht: "medio_tiempo",
-  finished: "finalizado",
-  ft: "finalizado",
-  "after pen.": "finalizado",
-  "after et": "finalizado",
-  "after penalties": "finalizado",
-  postponed: "aplazado",
-  cancelled: "cancelado",
-  canceled: "cancelado",
-  abandoned: "suspendido",
-  suspended: "suspendido",
-};
-
-function mapStatus(raw: string | undefined): EstatusPartido {
-  if (!raw) return "programado";
-  return STATUS_MAP[raw.trim().toLowerCase()] ?? "programado";
-}
+import { extractPenaltyShootoutEvents } from "@/lib/apifootball/webhook/penalty-shootout";
+import type { EstatusPartido } from "@/types/database";
 
 function parseNum(v: string | number | null | undefined): number {
   if (v === null || v === undefined || v === "") return 0;
@@ -69,37 +54,8 @@ function resolveFixtureId(payload: ApifootballLiveMatchPayload): number | null {
   return null;
 }
 
-function phaseFromStatus(
-  status: string,
-  prevStatus: string | undefined,
-): NormalizedLiveEvent | null {
-  const s = status.trim().toLowerCase();
-  const prev = prevStatus?.trim().toLowerCase();
-
-  if (
-    (s === "half time" || s === "ht") &&
-    prev !== "half time" &&
-    prev !== "ht"
-  ) {
-    return { kind: "match_phase", eventKey: "phase-halftime", phase: "halftime" };
-  }
-
-  if (
-    (s === "finished" || s === "ft" || s.startsWith("after")) &&
-    prev !== s &&
-    !prev?.startsWith("after")
-  ) {
-    return { kind: "match_phase", eventKey: "phase-fulltime", phase: "fulltime" };
-  }
-
-  if (
-    (s === "live" || s === "1h" || s === "2h") &&
-    (prev === "not started" || prev === "ns" || prev === "scheduled" || !prev)
-  ) {
-    return { kind: "match_phase", eventKey: "phase-kickoff", phase: "kickoff" };
-  }
-
-  return null;
+function phaseEvent(phase: MatchPhaseKind): NormalizedLiveEvent {
+  return { kind: "match_phase", eventKey: `phase-${phase}`, phase };
 }
 
 function goalFromIncident(inc: WebhookIncident, index: number): NormalizedLiveEvent | null {
@@ -145,6 +101,11 @@ function cardFromIncident(inc: WebhookIncident, index: number): NormalizedLiveEv
   };
 }
 
+function isPenaltyGoalscorerRow(row: ApifootballGoalscorerRow): boolean {
+  if ((row.score_info_time ?? "").trim().toLowerCase() === "penalty") return true;
+  return /\(pen\.?\)/i.test(row.home_scorer ?? "") || /\(pen\.?\)/i.test(row.away_scorer ?? "");
+}
+
 function goalsFromApifootballRows(
   rows: ApifootballGoalscorerRow[],
   homeName: string,
@@ -153,6 +114,8 @@ function goalsFromApifootballRows(
   const events: NormalizedLiveEvent[] = [];
 
   rows.forEach((row, index) => {
+    if (isPenaltyGoalscorerRow(row)) return;
+
     const homeScorer = row.home_scorer?.trim();
     const awayScorer = row.away_scorer?.trim();
     if (!homeScorer && !awayScorer) return;
@@ -226,7 +189,7 @@ function redsFromApifootballCards(
 
 export function normalizeLivePayload(
   body: unknown,
-  prevMatchStatus?: string,
+  prevMetadata?: unknown,
 ): NormalizedMatchSnapshot | null {
   const payload = unwrapPayload(body);
   const fixtureId = resolveFixtureId(payload);
@@ -244,38 +207,87 @@ export function normalizeLivePayload(
       ? parseNum(payload.fixture.goals.away)
       : parseNum(payload.match_awayteam_score);
 
-  const statusRaw =
-    payload.fixture?.status?.short ??
-    payload.match_status ??
-    "programado";
-  const estatus = mapStatus(String(statusRaw));
-  const minute =
-    payload.fixture?.status?.elapsed ??
-    parseMinute(
-      payload.goalscorer?.[payload.goalscorer.length - 1]?.time ??
-        payload.cards?.[payload.cards.length - 1]?.time,
-    );
+  const statusRaw = String(
+    payload.fixture?.status?.short ?? payload.match_status ?? "programado",
+  );
+  const penaltyScores = hasPenaltyShootoutPayload(payload);
+  const pen = parsePenaltyScores(payload);
+  const prevReloj = parseRelojFromMetadata(prevMetadata);
+  const minute = parseApiMatchMinute(
+    statusRaw,
+    payload.fixture?.status?.elapsed,
+  );
+  const estatus = mapApifootballLiveStatus(statusRaw, payload.match_live);
+  const period = resolveMatchPeriod(statusRaw, estatus, minute, {
+    hasPenaltyScores: penaltyScores,
+    prevPeriod: prevReloj?.period ?? null,
+    prevAnchorMinute: prevReloj?.anchorMinute ?? null,
+  });
+
+  const prevPeriod = prevReloj?.period ?? "NS";
+  const phaseKind = detectPhaseTransition(prevPeriod, period);
+
+  const inShootout =
+    period === "PEN" ||
+    period === "AP" ||
+    penaltyScores ||
+    statusRaw.toLowerCase().includes("penalt");
 
   const events: NormalizedLiveEvent[] = [];
-
-  const phase = phaseFromStatus(String(statusRaw), prevMatchStatus);
-  if (phase) events.push(phase);
+  if (phaseKind) events.push(phaseEvent(phaseKind));
 
   if (Array.isArray(payload.incidents)) {
     payload.incidents.forEach((inc, i) => {
-      const g = goalFromIncident(inc, i);
-      if (g) events.push(g);
+      if (!inShootout) {
+        const g = goalFromIncident(inc, i);
+        if (g) events.push(g);
+      }
       const c = cardFromIncident(inc, i);
       if (c) events.push(c);
     });
   }
 
-  if (Array.isArray(payload.goalscorer)) {
+  if (Array.isArray(payload.goalscorer) && !inShootout) {
     events.push(...goalsFromApifootballRows(payload.goalscorer, homeName, awayName));
   }
 
   if (Array.isArray(payload.cards)) {
     events.push(...redsFromApifootballCards(payload.cards, homeName, awayName));
+  }
+
+  let penaltyKeysToPersist: string[] = [];
+
+  if (inShootout && Array.isArray(payload.goalscorer)) {
+    const penResult = extractPenaltyShootoutEvents(
+      payload.goalscorer,
+      homeName,
+      awayName,
+      prevMetadata,
+    );
+    penaltyKeysToPersist = penResult.keysToPersist;
+    for (const pe of penResult.events) {
+      if (pe.kind === "penalty_scored") {
+        events.push({
+          kind: "penalty_scored",
+          eventKey: pe.eventKey,
+          player: pe.player,
+          teamName: pe.teamName,
+          isHome: pe.isHome,
+          penHome: pe.penHome,
+          penAway: pe.penAway,
+        });
+      } else {
+        events.push({
+          kind: "penalty_missed",
+          eventKey: pe.eventKey,
+          player: pe.player,
+          teamName: pe.teamName,
+          isHome: pe.isHome,
+          penHome: pe.penHome,
+          penAway: pe.penAway,
+        });
+      }
+    }
   }
 
   return {
@@ -286,6 +298,11 @@ export function normalizeLivePayload(
     awayScore,
     estatus,
     minute,
+    statusRaw,
+    period,
+    homePenaltyScore: pen.local,
+    awayPenaltyScore: pen.visitante,
+    penaltyKeysToPersist: inShootout ? penaltyKeysToPersist : [],
     events,
   };
 }

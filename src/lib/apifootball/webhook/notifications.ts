@@ -1,10 +1,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { dispatchPushForNotifications } from "@/lib/push/send";
 
-/** Encola notificaciones en BD para miembros con push_habilitado (sin worker de envío aún). */
-export async function queuePartidoGoalNotifications(
+export type PartidoPushTipo =
+  | "gol"
+  | "tarjeta_roja"
+  | "inicio_partido"
+  | "medio_tiempo"
+  | "inicio_segundo_tiempo"
+  | "inicio_tiempo_extra"
+  | "inicio_penales"
+  | "penal_fallado"
+  | "fin_partido"
+  | "alineaciones";
+
+/** Encola notificaciones y las envía por Web Push si hay suscripción activa. */
+export async function queuePartidoPushNotifications(
   supabase: SupabaseClient,
   partidoId: string,
+  tipo: PartidoPushTipo,
   titulo: string,
   cuerpo: string,
   metadata: Record<string, unknown> = {},
@@ -25,7 +39,7 @@ export async function queuePartidoGoalNotifications(
 
   const rows = (usuariosPush ?? []).map((u) => ({
     usuario_id: u.id,
-    tipo: "gol" as const,
+    tipo,
     titulo,
     cuerpo,
     partido_id: partidoId,
@@ -33,7 +47,32 @@ export async function queuePartidoGoalNotifications(
     metadata,
   }));
 
-  if (rows.length > 0) {
-    await supabase.from("notificaciones").insert(rows);
+  if (rows.length === 0) return;
+
+  const { data: inserted } = await supabase
+    .from("notificaciones")
+    .insert(rows)
+    .select("id, usuario_id, titulo, cuerpo, partido_id");
+
+  if (inserted?.length) {
+    await dispatchPushForNotifications(supabase, inserted);
   }
+}
+
+/** @deprecated Usar queuePartidoPushNotifications */
+export async function queuePartidoGoalNotifications(
+  supabase: SupabaseClient,
+  partidoId: string,
+  titulo: string,
+  cuerpo: string,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  return queuePartidoPushNotifications(
+    supabase,
+    partidoId,
+    "gol",
+    titulo,
+    cuerpo,
+    metadata,
+  );
 }

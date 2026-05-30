@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useMatchClockDisplay } from "@/hooks/useMatchClock";
 import type { EstatusPartido } from "@/types/database";
 
 export interface PartidoLiveState {
@@ -10,6 +11,8 @@ export interface PartidoLiveState {
   marcadorVisitante: number | null;
   estatus: EstatusPartido;
   minutoActual: number | null;
+  metadata?: Record<string, unknown> | null;
+  fechaKickoff?: string;
 }
 
 interface PartidoRowUpdate {
@@ -17,6 +20,7 @@ interface PartidoRowUpdate {
   marcador_visitante?: number | null;
   minuto_actual?: number | null;
   estatus?: EstatusPartido;
+  metadata?: Record<string, unknown> | null;
 }
 
 function mapRowToLiveState(
@@ -34,12 +38,14 @@ function mapRowToLiveState(
     estatus: row.estatus ?? prev.estatus,
     minutoActual:
       row.minuto_actual !== undefined ? row.minuto_actual : prev.minutoActual,
+    metadata:
+      row.metadata !== undefined ? row.metadata : prev.metadata,
+    fechaKickoff: prev.fechaKickoff,
   };
 }
 
 /**
  * Suscripción Realtime a UPDATE en public.partidos filtrado por id.
- * Llama a supabase.removeChannel al desmontar.
  */
 export function usePartidoRealtime(initial: PartidoLiveState): PartidoLiveState {
   const [live, setLive] = useState<PartidoLiveState>(initial);
@@ -52,6 +58,8 @@ export function usePartidoRealtime(initial: PartidoLiveState): PartidoLiveState 
     initial.marcadorVisitante,
     initial.estatus,
     initial.minutoActual,
+    initial.metadata,
+    initial.fechaKickoff,
   ]);
 
   useEffect(() => {
@@ -87,13 +95,19 @@ interface MarcadorDisplayProps {
   animateOnChange?: boolean;
 }
 
-/** UI del marcador (sin suscripción — usar con `live` del hook). */
+/** UI del marcador con reloj local que avanza entre syncs de la API. */
 export function MarcadorDisplay({
   live,
   animateOnChange = true,
 }: MarcadorDisplayProps) {
   const prevScore = useRef(`${live.marcadorLocal}-${live.marcadorVisitante}`);
   const [pulse, setPulse] = useState(false);
+  const clock = useMatchClockDisplay({
+    estatus: live.estatus,
+    minutoActual: live.minutoActual,
+    metadata: live.metadata,
+    fechaKickoff: live.fechaKickoff,
+  });
 
   useEffect(() => {
     const key = `${live.marcadorLocal}-${live.marcadorVisitante}`;
@@ -128,16 +142,24 @@ export function MarcadorDisplay({
         <span className="text-lg text-zinc-500">:</span>
         <span data-score-visitante>{visitante}</span>
       </div>
-      {enVivo && live.minutoActual != null && (
+      {clock.text && (
         <span
           data-match-minute
           className={`mt-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-            live.estatus === "medio_tiempo" ? "text-amber-400" : "text-emerald-400"
+            clock.text.includes("penal") || live.estatus === "medio_tiempo"
+              ? "text-amber-400"
+              : "text-emerald-400"
           }`}
         >
-          {live.estatus === "medio_tiempo"
-            ? "Medio tiempo"
-            : `${live.minutoActual}'`}
+          {clock.text}
+        </span>
+      )}
+      {clock.penaltyLine && (
+        <span
+          data-penalty-score
+          className="mt-0.5 font-mono text-sm font-bold tabular-nums text-amber-300"
+        >
+          ({clock.penaltyLine})
         </span>
       )}
     </div>
@@ -146,7 +168,6 @@ export function MarcadorDisplay({
 
 type MarcadorLiveProps = PartidoLiveState & { animateOnChange?: boolean };
 
-/** Marcador con suscripción propia (una instancia = un canal). */
 export function MarcadorLive({
   animateOnChange = true,
   ...initial

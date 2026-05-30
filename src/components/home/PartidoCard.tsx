@@ -7,7 +7,8 @@ import {
   usePartidoRealtime,
 } from "@/components/home/MarcadorLive";
 import { formatMexicoTime } from "@/lib/datetime/mexico";
-import { getFlagImageUrl } from "@/lib/teams/flags";
+import { getTeamImageUrl } from "@/lib/teams/flags";
+import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
 import {
   getCanalDisplay,
   isPartidoEnVivo,
@@ -28,6 +29,8 @@ export function PartidoCard({ partido, compact = false }: PartidoCardProps) {
     marcadorVisitante: partido.marcador_visitante,
     estatus: partido.estatus,
     minutoActual: partido.minuto_actual,
+    metadata: partido.metadata ?? null,
+    fechaKickoff: partido.fecha_kickoff,
   });
 
   const enVivo = live.estatus === "en_vivo";
@@ -91,6 +94,7 @@ export function PartidoCard({ partido, compact = false }: PartidoCardProps) {
           <TeamColumn
             nombre={partido.equipo_local_nombre}
             codigo={partido.equipo_local_codigo}
+            escudoUrl={getEscudoFromMetadata(partido.metadata, "local")}
             align="left"
             compact={compact}
           />
@@ -109,6 +113,7 @@ export function PartidoCard({ partido, compact = false }: PartidoCardProps) {
           <TeamColumn
             nombre={partido.equipo_visitante_nombre}
             codigo={partido.equipo_visitante_codigo}
+            escudoUrl={getEscudoFromMetadata(partido.metadata, "visitante")}
             align="right"
             compact={compact}
           />
@@ -132,14 +137,17 @@ export function PartidoCard({ partido, compact = false }: PartidoCardProps) {
 function TeamColumn({
   nombre,
   codigo,
+  escudoUrl,
   align,
   compact,
 }: {
   nombre: string;
   codigo: string;
+  escudoUrl?: string | null;
   align: "left" | "right";
   compact?: boolean;
 }) {
+  const isEscudo = Boolean(escudoUrl?.trim());
   return (
     <div
       className={`flex flex-col gap-1.5 ${
@@ -147,11 +155,19 @@ function TeamColumn({
       }`}
     >
       <Image
-        src={getFlagImageUrl(codigo, compact ? "w40" : "w80", nombre)}
+        src={getTeamImageUrl(codigo, compact ? "w40" : "w80", nombre, escudoUrl)}
         alt=""
         width={compact ? 36 : 48}
-        height={compact ? 24 : 32}
-        className={`rounded shadow-md ${compact ? "h-6 w-9" : "h-8 w-12"} object-cover`}
+        height={compact ? 36 : 48}
+        className={`rounded shadow-md ${
+          isEscudo
+            ? compact
+              ? "h-9 w-9 object-contain"
+              : "h-12 w-12 object-contain"
+            : compact
+              ? "h-6 w-9 object-cover"
+              : "h-8 w-12 object-cover"
+        }`}
         unoptimized
       />
       <span

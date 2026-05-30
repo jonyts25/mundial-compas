@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/home/AppHeader";
 import { CalendarioPartidos } from "@/components/home/CalendarioPartidos";
 import { HeroSection } from "@/components/home/HeroSection";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
+import { LiveHomeRefresh } from "@/components/home/LiveHomeRefresh";
 import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
 import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
 import { fetchCalendarioPartidosData } from "@/lib/partidos/calendario-queries";
@@ -30,6 +31,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <LiveHomeRefresh enabled={pilot.showBanner || partidosEnVivo.length > 0} />
       <AppHeader usuario={usuario} />
       <main className="px-4 pb-24 pt-4">
         {pilot.showBanner && (

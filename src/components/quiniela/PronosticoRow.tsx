@@ -9,7 +9,8 @@ import {
   QUINIELA_LOCK_MINUTES_BEFORE,
 } from "@/lib/quiniela/lock";
 import { formatMexicoKickoff } from "@/lib/datetime/mexico";
-import { getFlagImageUrl } from "@/lib/teams/flags";
+import { getTeamImageUrl } from "@/lib/teams/flags";
+import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
 import { labelFase } from "@/lib/partidos/labels";
 import type { PronosticoUsuario } from "@/lib/quiniela/queries";
 import type { Partido } from "@/types/database";
@@ -99,6 +100,7 @@ export function PronosticoRow({
         <TeamMini
           nombre={partido.equipo_local_nombre}
           codigo={partido.equipo_local_codigo}
+          escudoUrl={getEscudoFromMetadata(partido.metadata, "local")}
         />
 
         <div className="flex items-center gap-1.5">
@@ -120,6 +122,7 @@ export function PronosticoRow({
         <TeamMini
           nombre={partido.equipo_visitante_nombre}
           codigo={partido.equipo_visitante_codigo}
+          escudoUrl={getEscudoFromMetadata(partido.metadata, "visitante")}
           align="right"
         />
       </div>
@@ -195,12 +198,15 @@ function ScoreInput({
 function TeamMini({
   nombre,
   codigo,
+  escudoUrl,
   align = "left",
 }: {
   nombre: string;
   codigo: string;
+  escudoUrl?: string | null;
   align?: "left" | "right";
 }) {
+  const isEscudo = Boolean(escudoUrl?.trim());
   return (
     <div
       className={`flex flex-col gap-1 ${
@@ -208,11 +214,15 @@ function TeamMini({
       }`}
     >
       <Image
-        src={getFlagImageUrl(codigo, "w40", nombre)}
+        src={getTeamImageUrl(codigo, "w40", nombre, escudoUrl)}
         alt=""
         width={36}
-        height={24}
-        className="h-6 w-9 rounded object-cover shadow"
+        height={36}
+        className={
+          isEscudo
+            ? "h-9 w-9 rounded object-contain shadow"
+            : "h-6 w-9 rounded object-cover shadow"
+        }
         unoptimized
       />
       <span className="max-w-[4.5rem] text-[10px] font-semibold leading-tight text-zinc-300">

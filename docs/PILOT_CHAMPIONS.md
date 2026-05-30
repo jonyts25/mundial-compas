@@ -45,13 +45,48 @@ curl -X POST "https://TU-DOMINIO/api/admin/cargar-partidos?modo=pilot" \
 
 Respuesta esperada: `modo: "pilot"`, `upserted: N`.
 
-## 4. Webhook en vivo (apifootball.com)
+## 4. Livescore en vivo (WebSocket relay)
 
-En el panel de apifootball, configura el relay/webhook hacia:
+apifootball **no** hace POST HTTP a tu servidor. El push en tiempo real va por **WebSocket**:
 
-`https://TU-DOMINIO/api/webhooks/football`
+`wss://wss.apifootball.com/livescore?APIkey=...`
 
-Con el mismo `API_FOOTBALL_WEBHOOK_SECRET` que en Railway. Sin esto no habrá goles automáticos ni frases del VAR en chat.
+Tu endpoint `/api/webhooks/football` recibe el JSON **si un relay** lo reenvía. Opciones:
+
+### A) Relay en Railway (recomendado para el pilot)
+
+1. Genera un secret real (no el placeholder):
+
+```powershell
+railway variables set API_FOOTBALL_WEBHOOK_SECRET="(openssl rand -hex 32 o password largo)"
+```
+
+2. Segundo servicio en Railway (mismo repo), **Start command**:
+
+```bash
+node scripts/apifootball-livescore-relay.mjs
+```
+
+Variables: las mismas que la app (`API_FOOTBALL_KEY`, `API_FOOTBALL_WEBHOOK_SECRET`, `NEXT_PUBLIC_APP_URL`, `APIFOOTBALL_PILOT_LEAGUE_ID=3`).
+
+3. Prueba local:
+
+```powershell
+npm run livescore-relay
+```
+
+### B) Polling fallback (sin goles automáticos en chat)
+
+Cron cada minuto: `node scripts/sync-live-cron.mjs` — actualiza marcador, **no** encola goles/push.
+
+### C) Probar el endpoint HTTP
+
+```powershell
+npm run test-webhook
+```
+
+URL: `https://TU-DOMINIO/api/webhooks/football`  
+Auth: `Authorization: Bearer <API_FOOTBALL_WEBHOOK_SECRET>`
 
 ## 5. Qué probar con el grupo
 
@@ -59,7 +94,7 @@ Con el mismo `API_FOOTBALL_WEBHOOK_SECRET` que en Railway. Sin esto no habrá go
 2. **Quiniela** — pronósticos hasta T-5 antes del pitido.
 3. **Partido** (`/partidos/[id]`) — chat desde 10 min antes; mensajes en vivo.
 4. **Chat general** — conversación de liga + trivia VAR en días sin partidos del Mundial.
-5. **Notificaciones** — en Supabase tabla `notificaciones` (`enviada = false`); aún no llegan al teléfono sin un worker push.
+5. **Notificaciones** — push al teléfono si activaste la PWA y corre el relay livescore (o webhook con payload de gol).
 
 ## 6. Después del fin de semana
 

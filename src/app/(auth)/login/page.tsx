@@ -4,7 +4,13 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { buildAuthCallbackUrl } from "@/lib/auth/app-url";
 import { applyPendingHonorTermsIfAny } from "@/lib/auth/apply-honor-terms";
+import {
+  getAuthErrorMessage,
+  isSignupPendingEmailConfirmation,
+  VERIFY_EMAIL_MESSAGE,
+} from "@/lib/auth/messages";
 
 type AuthMode = "login" | "register";
 
@@ -36,6 +42,25 @@ function LoginForm() {
     router.refresh();
   }
 
+  async function handleGoogleSignIn() {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: buildAuthCallbackUrl(next),
+        },
+      });
+      if (oauthError) throw oauthError;
+    } catch (err) {
+      setError(getAuthErrorMessage(err, "login"));
+      setLoading(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -54,12 +79,11 @@ function LoginForm() {
         return;
       }
 
-      const origin = window.location.origin;
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${origin}/callback?next=${encodeURIComponent(next)}`,
+          emailRedirectTo: buildAuthCallbackUrl(next),
           data: {
             nombre_visible: nombreVisible.trim() || email.split("@")[0],
           },
@@ -67,6 +91,12 @@ function LoginForm() {
       });
 
       if (signUpError) throw signUpError;
+
+      if (isSignupPendingEmailConfirmation(data)) {
+        setMessage(VERIFY_EMAIL_MESSAGE);
+        setMode("login");
+        return;
+      }
 
       if (!data.user) {
         throw new Error("No se pudo crear la cuenta");
@@ -77,10 +107,10 @@ function LoginForm() {
         return;
       }
 
-      setMessage("Revisa tu correo para confirmar la cuenta.");
+      setMessage(VERIFY_EMAIL_MESSAGE);
+      setMode("login");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Ocurrió un error";
-      setError(msg);
+      setError(getAuthErrorMessage(err, mode));
     } finally {
       setLoading(false);
     }
@@ -198,7 +228,10 @@ function LoginForm() {
           </p>
         )}
         {message && (
-          <p className="rounded-lg bg-emerald-950/80 px-3 py-2 text-sm text-emerald-200">
+          <p
+            className="rounded-lg border border-emerald-800/60 bg-emerald-950/80 px-3 py-3 text-sm leading-relaxed text-emerald-100"
+            role="status"
+          >
             {message}
           </p>
         )}
@@ -213,6 +246,42 @@ function LoginForm() {
             : mode === "login"
               ? "Entrar a la quiniela"
               : "Crear cuenta y unirme"}
+        </button>
+
+        <div className="relative py-2">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-zinc-700" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-zinc-900/60 px-2 text-zinc-500">o continúa con</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => void handleGoogleSignIn()}
+          className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-700 bg-zinc-950 py-3 text-sm font-medium text-white transition hover:bg-zinc-900 disabled:opacity-60"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="#4285F4"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+            />
+          </svg>
+          Google
         </button>
       </form>
 

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Mundial Compas">
+  <rect width="192" height="192" rx="40" fill="#065f46"/>
+  <circle cx="96" cy="96" r="52" fill="none" stroke="#ecfdf5" stroke-width="6"/>
+  <path d="M96 44 L96 148 M44 96 L148 96" stroke="#ecfdf5" stroke-width="4"/>
+  <circle cx="96" cy="96" r="14" fill="#34d399"/>
+</svg>

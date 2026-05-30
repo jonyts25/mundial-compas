@@ -30,7 +30,7 @@ export async function fetchHomePageData(userId: string): Promise<HomePageData> {
   const { data: partidosDelDia } = await supabase
     .from("partidos")
     .select(
-      "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual",
+      "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, metadata",
     )
     .gte("fecha_kickoff", start.toISOString())
     .lte("fecha_kickoff", end.toISOString())
@@ -39,7 +39,7 @@ export async function fetchHomePageData(userId: string): Promise<HomePageData> {
   const { data: todosPartidos } = await supabase
     .from("partidos")
     .select(
-      "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual",
+      "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, metadata",
     )
     .in("estatus", ["en_vivo", "medio_tiempo"]);
 

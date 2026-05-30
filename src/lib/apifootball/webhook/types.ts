@@ -1,3 +1,4 @@
+import type { MatchPeriod } from "@/lib/partidos/match-clock";
 import type { EstatusPartido } from "@/types/database";
 
 /** Formato estilo API-Sports / relay con arreglo incidents */
@@ -22,6 +23,7 @@ export interface ApifootballGoalscorerRow {
   info?: string;
   home_assist?: string;
   away_assist?: string;
+  score_info_time?: string;
 }
 
 export interface ApifootballCardRow {
@@ -38,6 +40,8 @@ export interface ApifootballLiveMatchPayload {
   match_awayteam_name?: string;
   match_hometeam_score?: string | number;
   match_awayteam_score?: string | number;
+  match_hometeam_penalty_score?: string | number | null;
+  match_awayteam_penalty_score?: string | number | null;
   match_status?: string;
   match_live?: string | number;
   goalscorer?: ApifootballGoalscorerRow[];
@@ -51,7 +55,15 @@ export interface ApifootballLiveMatchPayload {
   [key: string]: unknown;
 }
 
-export type MatchPhaseKind = "kickoff" | "halftime" | "fulltime";
+export type MatchPhaseKind =
+  | "kickoff"
+  | "halftime"
+  | "second_half"
+  | "extra_time_1st"
+  | "extra_time_halftime"
+  | "extra_time_2nd"
+  | "penalties"
+  | "fulltime";
 
 export type NormalizedLiveEvent =
   | {
@@ -71,7 +83,25 @@ export type NormalizedLiveEvent =
       teamName: string;
       minute: number | null;
     }
-  | { kind: "match_phase"; eventKey: string; phase: MatchPhaseKind };
+  | { kind: "match_phase"; eventKey: string; phase: MatchPhaseKind }
+  | {
+      kind: "penalty_scored";
+      eventKey: string;
+      player: string;
+      teamName: string;
+      isHome: boolean;
+      penHome: number;
+      penAway: number;
+    }
+  | {
+      kind: "penalty_missed";
+      eventKey: string;
+      player: string | null;
+      teamName: string;
+      isHome: boolean;
+      penHome: number;
+      penAway: number;
+    };
 
 export interface NormalizedMatchSnapshot {
   fixtureId: number;
@@ -81,5 +111,10 @@ export interface NormalizedMatchSnapshot {
   awayScore: number;
   estatus: EstatusPartido;
   minute: number | null;
+  statusRaw: string;
+  period: MatchPeriod;
+  homePenaltyScore: number | null;
+  awayPenaltyScore: number | null;
+  penaltyKeysToPersist: string[];
   events: NormalizedLiveEvent[];
 }

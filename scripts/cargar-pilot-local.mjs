@@ -5,8 +5,11 @@
  */
 import { readFileSync } from "fs";
 import { createClient } from "@supabase/supabase-js";
+import { loadEnvLocal } from "./load-env-local.mjs";
 
 function loadEnv() {
+  loadEnvLocal();
+  if (process.env.API_FOOTBALL_KEY) return;
   const raw = readFileSync(".env.local", "utf8");
   for (const line of raw.split("\n")) {
     const m = line.match(/^([^#=]+)=(.*)$/);
@@ -16,12 +19,24 @@ function loadEnv() {
 
 loadEnv();
 
+function readArg(name) {
+  const prefix = `--${name}=`;
+  const hit = process.argv.find((a) => a.startsWith(prefix));
+  return hit ? hit.slice(prefix.length).trim() : undefined;
+}
+
 const apiKey = process.env.API_FOOTBALL_KEY;
-const from = process.env.APIFOOTBALL_PILOT_FROM || "2026-05-23";
-const to = process.env.APIFOOTBALL_PILOT_TO || "2026-05-24";
-const leagueId = process.env.APIFOOTBALL_PILOT_LEAGUE_ID || "3";
+const todayMx = new Date().toLocaleDateString("en-CA", {
+  timeZone: process.env.APIFOOTBALL_TIMEZONE || "America/Mexico_City",
+});
+const from = readArg("from") || process.env.APIFOOTBALL_PILOT_FROM || todayMx;
+const to = readArg("to") || process.env.APIFOOTBALL_PILOT_TO || todayMx;
+const leagueId =
+  readArg("league") || process.env.APIFOOTBALL_PILOT_LEAGUE_ID || "3";
 const label =
-  process.env.APIFOOTBALL_PILOT_LABEL || "UEFA Champions League — prueba";
+  readArg("label") ||
+  process.env.APIFOOTBALL_PILOT_LABEL ||
+  "UEFA Champions League — prueba";
 const timezone = process.env.APIFOOTBALL_TIMEZONE || "America/Mexico_City";
 
 const base = "https://apiv3.apifootball.com/";
@@ -29,7 +44,12 @@ const base = "https://apiv3.apifootball.com/";
 async function apifootball(action, params) {
   const q = new URLSearchParams({ action, APIkey: apiKey, ...params });
   const res = await fetch(`${base}?${q}`);
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`API respondió HTML/no-JSON (${res.status}): ${text.slice(0, 200)}`);
+  }
 }
 
 function teamCode(name, teamId) {
@@ -42,8 +62,12 @@ function teamCode(name, teamId) {
   return n.slice(0, 3).toUpperCase();
 }
 
-function mapStatus(s) {
-  const k = String(s || "").toLowerCase();
+function mapStatus(s, matchLive) {
+  const raw = String(s || "").trim();
+  const k = raw.toLowerCase();
+  if (matchLive === "1") return "en_vivo";
+  if (/^\d+$/.test(raw)) return "en_vivo";
+  if (k.includes("1st") || k.includes("2nd") || k.includes("extra")) return "en_vivo";
   const m = {
     "not started": "programado",
     ns: "programado",
@@ -54,8 +78,20 @@ function mapStatus(s) {
     "half time": "medio_tiempo",
     finished: "finalizado",
     ft: "finalizado",
+    "after pen.": "finalizado",
   };
   return m[k] ?? "programado";
+}
+
+function parseMinute(ev) {
+  const st = String(ev.match_status || "").trim();
+  if (/^\d+$/.test(st)) return parseInt(st, 10);
+  const gs = ev.goalscorer;
+  if (Array.isArray(gs) && gs.length) {
+    const m = parseInt(String(gs[gs.length - 1]?.time ?? ""), 10);
+    if (!Number.isNaN(m)) return m;
+  }
+  return null;
 }
 
 const MEXICO_TZ = "America/Mexico_City";
@@ -135,8 +171,20 @@ function buildKickoffIsoFromApi(matchDate, matchTime, timeZone = MEXICO_TZ) {
   ).toISOString();
 }
 
+function parseFase(ev) {
+  const stage = (ev.stage_name ?? "").toLowerCase();
+  const round = (ev.match_round ?? "").toLowerCase();
+  if (round.includes("16") || stage.includes("round of 16")) return "dieciseisavos";
+  if (round.includes("8") || stage.includes("quarter")) return "cuartos";
+  if (stage.includes("semi")) return "semifinal";
+  if (stage.includes("3rd") || stage.includes("third")) return "tercer_lugar";
+  if (stage.includes("final") && !stage.includes("semi")) return "final";
+  if (round === "final" || round.endsWith(" - final")) return "final";
+  return "grupos";
+}
+
 function mapRow(ev) {
-  const estatus = mapStatus(ev.match_status);
+  const estatus = mapStatus(ev.match_status, ev.match_live);
   const local = parseInt(ev.match_hometeam_score, 10);
   const away = parseInt(ev.match_awayteam_score, 10);
   const hasScore =
@@ -144,7 +192,7 @@ function mapRow(ev) {
 
   return {
     api_football_fixture_id: parseInt(ev.match_id, 10),
-    fase: "semifinal",
+    fase: parseFase(ev),
     grupo: null,
     jornada: null,
     equipo_local_codigo: teamCode(ev.match_hometeam_name, ev.match_hometeam_id),
@@ -159,27 +207,37 @@ function mapRow(ev) {
     estatus,
     marcador_local: hasScore ? local : null,
     marcador_visitante: hasScore ? away : null,
-    canal_transmision: "sin_asignar",
-    minuto_actual: null,
+    minuto_actual: parseMinute(ev),
     metadata: {
       competencia: "pilot",
       pilot: true,
       competencia_label: label,
+      ...(ev.team_home_badge ? { escudo_local: ev.team_home_badge } : {}),
+      ...(ev.team_away_badge ? { escudo_visitante: ev.team_away_badge } : {}),
       apifootball: {
         match_id: ev.match_id,
         league_id: ev.league_id,
         league_name: ev.league_name,
+        stage_name: ev.stage_name,
         match_round: ev.match_round,
         match_status: ev.match_status,
         timezone,
+        ...(ev.team_home_badge ? { team_home_badge: ev.team_home_badge } : {}),
+        ...(ev.team_away_badge ? { team_away_badge: ev.team_away_badge } : {}),
       },
     },
   };
 }
 
 async function main() {
+  if (!apiKey) {
+    console.error("ERROR: Falta API_FOOTBALL_KEY en .env.local");
+    console.error("Sincroniza desde Railway: powershell -File scripts/sync-env-from-railway.ps1");
+    process.exit(1);
+  }
+
   console.log(
-    `Buscando UCL league_id=${leagueId} from=${from} to=${to}…`,
+    `Buscando liga pilot league_id=${leagueId} from=${from} to=${to}…`,
   );
 
   const events = await apifootball("get_events", {
@@ -227,6 +285,11 @@ async function main() {
   }
 
   console.log(`\n✅ ${rows.length} partido(s) cargados en Supabase (modo pilot).`);
+  rows.forEach((r) => {
+    console.log(
+      `   → ${r.equipo_local_nombre} ${r.marcador_local ?? "-"}-${r.marcador_visitante ?? "-"} ${r.equipo_visitante_nombre} | ${r.estatus}${r.minuto_actual != null ? ` (${r.minuto_actual}')` : ""}`,
+    );
+  });
   console.log("Activa PILOT_MODE_ENABLED=true en Railway para ver el banner.");
 }
 

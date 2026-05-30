@@ -5,16 +5,23 @@ import {
   createServerDataClient,
 } from "@/lib/supabase/server-data";
 import { fetchMensajesChatHistorial } from "@/lib/partidos/chat-queries";
+import { syncPartidoLineups } from "@/lib/partidos/sync-lineups";
+import { readLineupsFromMetadata } from "@/lib/partidos/lineups-types";
 import { createClient } from "@/lib/supabase/server";
 import type { Partido, PronosticoPartido, Usuario } from "@/types/database";
 import type { MensajeChatConAutor } from "@/types/chat";
 
 const PARTIDO_SELECT =
-  "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual";
+  "id, api_football_fixture_id, fase, grupo, jornada, sede, metadata, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual";
+
+export type PartidoDetalle = Partido & {
+  sede: string | null;
+  metadata: Record<string, unknown> | null;
+};
 
 export interface PartidoDetallePageData {
   usuario: Usuario;
-  partido: Partido;
+  partido: PartidoDetalle;
   pronostico: PronosticoPartido | null;
   mensajes: MensajeChatConAutor[];
   esAdmin: boolean;
@@ -55,9 +62,26 @@ export async function fetchPartidoDetallePageData(
 
   const mensajesVisibles = await fetchMensajesChatHistorial(partidoId, esAdmin);
 
+  let partidoDetalle = partido as PartidoDetalle;
+  if (
+    !readLineupsFromMetadata(partido.metadata) &&
+    partido.api_football_fixture_id
+  ) {
+    const sync = await syncPartidoLineups(admin, partido);
+    if (sync.lineups) {
+      partidoDetalle = {
+        ...partidoDetalle,
+        metadata: {
+          ...(partido.metadata ?? {}),
+          alineaciones: sync.lineups,
+        },
+      };
+    }
+  }
+
   return {
     usuario: usuario as Usuario,
-    partido: partido as Partido,
+    partido: partidoDetalle,
     pronostico: pronostico as PronosticoPartido | null,
     mensajes: mensajesVisibles,
     esAdmin,

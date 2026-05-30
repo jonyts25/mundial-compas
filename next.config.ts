@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: "flagcdn.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "apiv3.apifootball.com",
+        pathname: "/badges/**",
+      },
     ],
   },
 };

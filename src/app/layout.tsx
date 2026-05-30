@@ -16,10 +16,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Mundial Compas",
   description: "Quiniela y chat en tiempo real para el Mundial 2026",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Mundial Compas",
+  },
+  icons: {
+    apple: "/icons/icon-192.svg",
   },
 };
 
