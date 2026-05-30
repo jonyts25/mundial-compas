@@ -1,0 +1,155 @@
+[
+  {
+    "tipo": "hito",
+    "titulo": "La Mano de Dios (y la del siglo)",
+    "contenido": "En México 86, Maradona anotó contra Inglaterra con la mano y minutos después hizo el gol considerado el del siglo. Un mismo partido, dos leyendas… y cero VAR.",
+    "mundial_anio": 1986,
+    "tags": ["argentina", "inglaterra", "maradona", "controversia"],
+    "contexto": ["medio_tiempo", "idle"],
+    "prioridad": 10,
+    "metadata": { "equipos": ["ARG", "ENG"] }
+  },
+  {
+    "tipo": "trivia",
+    "titulo": "¿Quién fue campeón en Sudáfrica 2010?",
+    "contenido": "España ganó su primer Mundial. El gol de la final lo marcó Andrés Iniesta en prórroga contra Países Bajos.",
+    "mundial_anio": 2010,
+    "tags": ["españa", "final", "trivia"],
+    "contexto": ["idle", "cualquiera"],
+    "prioridad": 5,
+    "metadata": {
+      "respuesta": "España",
+      "opciones": ["España", "Holanda", "Alemania", "Brasil"]
+    }
+  },
+  {
+    "tipo": "record",
+    "titulo": "El Mundial más goleador",
+    "contenido": "Catar 2022 ostenta el récord absoluto con 172 goles anotados en 64 partidos, superando por uno los torneos de Francia 1998 y Brasil 2014.",
+    "mundial_anio": 2022,
+    "tags": ["goles", "record"],
+    "contexto": ["post_gol", "idle"],
+    "prioridad": 7,
+    "metadata": {}
+  },
+  {
+    "tipo": "curiosidad",
+    "titulo": "Zinedine Zidane y el cabezazo de Berlín",
+    "contenido": "En la final de 2006, Zidane vio la roja por un cabezazo a Materazzi. Su último partido profesional terminó con una expulsión histórica.",
+    "mundial_anio": 2006,
+    "tags": ["francia", "italia", "final", "roja"],
+    "contexto": ["medio_tiempo", "idle"],
+    "prioridad": 9,
+    "metadata": {}
+  },
+  {
+    "tipo": "meme_historico",
+    "titulo": "Brasil 7 - Alemania 1",
+    "contenido": "Semifinal en casa, 2014. El Mineirão se quedó en un silencio sepulcral ante la mayor goleada recibida por la verdeamarela en su historia.",
+    "mundial_anio": 2014,
+    "tags": ["brasil", "alemania", "goleada"],
+    "contexto": ["post_gol", "idle"],
+    "prioridad": 10,
+    "metadata": {}
+  },
+  {
+    "tipo": "hito",
+    "titulo": "Corea del Sur 2002: la fiesta asiática",
+    "contenido": "Corea llegó a semifinales siendo anfitriona, eliminando a Italia y España en partidos cargados de polémica arbitral.",
+    "mundial_anio": 2002,
+    "tags": ["corea", "sorpresa"],
+    "contexto": ["idle"],
+    "prioridad": 6,
+    "metadata": {}
+  },
+  {
+    "tipo": "trivia",
+    "titulo": "México: sede tres veces",
+    "contenido": "México será el primer país en organizar tres Mundiales (1970, 1986 y 2026). En 70 y 86 también jugó el partido inaugural como local.",
+    "mundial_anio": 2026,
+    "tags": ["mexico", "sede", "trivia"],
+    "contexto": ["cualquiera", "idle"],
+    "prioridad": 8,
+    "metadata": { "respuesta": "México", "local": true }
+  },
+  {
+    "tipo": "curiosidad",
+    "titulo": "Grosso y el penal de la gloria",
+    "contenido": "Italia 2006: el lateral Fabio Grosso, que no era el cobrador habitual, pidió tirar el quinto penal definitivo de la tanda contra Francia para coronar a la Azzurra.",
+    "mundial_anio": 2006,
+    "tags": ["italia", "penales", "final"],
+    "contexto": ["idle", "medio_tiempo"],
+    "prioridad": 4,
+    "metadata": {}
+  },
+  {
+    "tipo": "hito",
+    "titulo": "Roger Milla y el baile en 1990",
+    "contenido": "A los 38 años, Milla llevó a Camerún a cuartos de final y celebró cada gol con un icónico bailecito en el banderín de córner.",
+    "mundial_anio": 1990,
+    "tags": ["camerun", "celebracion"],
+    "contexto": ["idle"],
+    "prioridad": 5,
+    "metadata": {}
+  },
+  {
+    "tipo": "record",
+    "titulo": "Miroslav Klose, rey de goles",
+    "contenido": "Con 16 goles en cuatro Mundiales, el alemán Klose superó el récord del 'Fenómeno' Ronaldo Nazário precisamente jugando en Brasil 2014.",
+    "mundial_anio": 2014,
+    "tags": ["goleador", "alemania", "record"],
+    "contexto": ["post_gol", "idle"],
+    "prioridad": 6,
+    "metadata": {}
+  },
+  {
+    "tipo": "curiosidad",
+    "titulo": "El Mundial de los 13 invitados",
+    "contenido": "En Uruguay 1930 sólo participaron 13 selecciones por invitación. Muchos equipos europeos se negaron a viajar dos semanas en barco.",
+    "mundial_anio": 1930,
+    "tags": ["uruguay", "historia"],
+    "contexto": ["idle"],
+    "prioridad": 3,
+    "metadata": {}
+  },
+  {
+    "tipo": "meme_historico",
+    "titulo": "El trauma de Bulgaria 94",
+    "contenido": "México cayó en octavos contra Bulgaria en penales tras empatar 1-1. Quedó marcado por el golazo de Aspe y las mallas del arco rotas por Marcelino Bernal.",
+    "mundial_anio": 1994,
+    "tags": ["mexico", "bulgaria", "fail"],
+    "contexto": ["idle", "post_gol"],
+    "prioridad": 7,
+    "metadata": {}
+  },
+  {
+    "tipo": "trivia",
+    "titulo": "¿Cuántas Copas tiene Brasil?",
+    "contenido": "Brasil es el máximo ganador con 5 títulos (1958, 1962, 1970, 1994, 2002). Sigue siendo el único pentacampeón del planeta.",
+    "mundial_anio": 2002,
+    "tags": ["brasil", "trivia", "record"],
+    "contexto": ["cualquiera", "idle"],
+    "prioridad": 5,
+    "metadata": { "respuesta": "5" }
+  },
+  {
+    "tipo": "hito",
+    "titulo": "Paolo Rossi renace en España 82",
+    "contenido": "Tras estar suspendido por un escándalo de apuestas, Rossi volvió para marcar un hat-trick histórico que eliminó al Brasil de Zico y dar el título a Italia.",
+    "mundial_anio": 1982,
+    "tags": ["italia", "brasil", "rossi"],
+    "contexto": ["idle", "medio_tiempo"],
+    "prioridad": 8,
+    "metadata": {}
+  },
+  {
+    "tipo": "curiosidad",
+    "titulo": "La compensación más larga",
+    "contenido": "En Catar 2022, el partido Inglaterra vs Irán tuvo la compensación más larga en fase de grupos: casi 24 minutos añadidos en total debido a la conmoción del portero iraní.",
+    "mundial_anio": 2022,
+    "tags": ["lesion", "arbitro"],
+    "contexto": ["medio_tiempo", "idle"],
+    "prioridad": 4,
+    "metadata": {}
+  }
+]
