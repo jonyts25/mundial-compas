@@ -11,6 +11,7 @@ import {
 import { formatMexicoKickoff } from "@/lib/datetime/mexico";
 import { getTeamImageUrl } from "@/lib/teams/flags";
 import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
+import { SilenciarPartidoToggle } from "@/components/push/SilenciarPartidoToggle";
 import { labelFase } from "@/lib/partidos/labels";
 import type { PronosticoUsuario } from "@/lib/quiniela/queries";
 import type { Partido } from "@/types/database";
@@ -87,13 +88,16 @@ export function PronosticoRow({
             {fechaPartido} · {horaPartido} CDMX
           </p>
         </div>
-        {locked ? (
-          <span className="flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-1 text-[10px] font-bold text-zinc-400">
-            🔒 Cerrado
-          </span>
-        ) : (
-          <span className="text-[10px] text-zinc-500">{cierreLabel}</span>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {locked ? (
+            <span className="flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-1 text-[10px] font-bold text-zinc-400">
+              🔒 Cerrado
+            </span>
+          ) : (
+            <span className="text-[10px] text-zinc-500">{cierreLabel}</span>
+          )}
+          <SilenciarPartidoToggle partidoId={partido.id} />
+        </div>
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">

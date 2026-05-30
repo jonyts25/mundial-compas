@@ -30,7 +30,20 @@ export async function queuePartidoPushNotifications(
 
   if (!miembros?.length) return;
 
-  const ids = miembros.map((m) => m.usuario_id);
+  const { data: silenciados } = await supabase
+    .from("push_partidos_silenciados")
+    .select("usuario_id")
+    .eq("partido_id", partidoId);
+
+  const silenciadosSet = new Set(
+    (silenciados ?? []).map((r) => r.usuario_id as string),
+  );
+
+  const ids = miembros
+    .map((m) => m.usuario_id)
+    .filter((id) => !silenciadosSet.has(id));
+  if (ids.length === 0) return;
+
   const { data: usuariosPush } = await supabase
     .from("usuarios")
     .select("id")

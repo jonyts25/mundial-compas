@@ -25,6 +25,7 @@ export interface PartidoDetallePageData {
   pronostico: PronosticoPartido | null;
   mensajes: MensajeChatConAutor[];
   esAdmin: boolean;
+  pushPartidoSilenciado: boolean;
 }
 
 export async function fetchPartidoDetallePageData(
@@ -36,7 +37,7 @@ export async function fetchPartidoDetallePageData(
   const supabase = await createClient();
   const admin = createServerDataClient();
 
-  const [{ data: usuario, error: userError }, { data: partido, error: partidoError }] =
+  const [{ data: usuario, error: userError }, { data: partido, error: partidoError }, { data: muteRow }] =
     await Promise.all([
       supabase
         .from("usuarios")
@@ -44,6 +45,12 @@ export async function fetchPartidoDetallePageData(
         .eq("id", userId)
         .single(),
       supabase.from("partidos").select(PARTIDO_SELECT).eq("id", partidoId).single(),
+      supabase
+        .from("push_partidos_silenciados")
+        .select("partido_id")
+        .eq("usuario_id", userId)
+        .eq("partido_id", partidoId)
+        .maybeSingle(),
     ]);
 
   if (userError || !usuario || partidoError || !partido) {
@@ -85,5 +92,6 @@ export async function fetchPartidoDetallePageData(
     pronostico: pronostico as PronosticoPartido | null,
     mensajes: mensajesVisibles,
     esAdmin,
+    pushPartidoSilenciado: Boolean(muteRow),
   };
 }

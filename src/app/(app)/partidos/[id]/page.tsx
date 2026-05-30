@@ -4,6 +4,7 @@ import { ChatPartido } from "@/components/partidos/ChatPartido";
 import { PartidoInfoPanel } from "@/components/partidos/PartidoInfoPanel";
 import { PartidoHeader } from "@/components/partidos/PartidoHeader";
 import { PronosticoReminder } from "@/components/partidos/PronosticoReminder";
+import { SilenciarNotificacionesPartido } from "@/components/partidos/SilenciarNotificacionesPartido";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchPartidoDetallePageData } from "@/lib/partidos/detail-queries";
 import { createClient } from "@/lib/supabase/server";
@@ -44,6 +45,7 @@ export default async function PartidoPage({
 
       <main className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <PartidoHeader partido={data.partido} />
+        <SilenciarNotificacionesPartido partidoId={data.partido.id} />
         <PartidoInfoPanel partido={data.partido} />
         <PronosticoReminder partido={data.partido} pronostico={data.pronostico} />
         <ChatPartido

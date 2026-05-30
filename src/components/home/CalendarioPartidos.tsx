@@ -8,6 +8,7 @@ import {
   formatMexicoTime,
   toMexicoDateKey,
 } from "@/lib/datetime/mexico";
+import { SilenciarPartidoToggle } from "@/components/push/SilenciarPartidoToggle";
 import { getCanalDisplay, isPartidoEnVivo } from "@/lib/partidos/labels";
 import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
 import { getTeamImageUrl } from "@/lib/teams/flags";
@@ -176,88 +177,95 @@ function CalendarioPartidoCard({
   const grupo = partido.grupo ? `Grp ${partido.grupo}` : null;
 
   return (
-    <Link
-      href={`/partidos/${partido.id}`}
-      className={`flex items-center gap-3 rounded-xl border bg-zinc-900/70 px-3 py-2.5 transition active:scale-[0.99] ${
+    <div
+      className={`flex items-center gap-1 rounded-xl border bg-zinc-900/70 transition ${
         enVivo
           ? "border-emerald-500/40 ring-1 ring-emerald-500/20"
           : "border-zinc-800 hover:border-zinc-700"
       }`}
     >
-      <div className="w-11 shrink-0 text-center">
-        <span className="text-xs font-bold tabular-nums text-emerald-400">{hora}</span>
-        {enVivo && (
-          <span className="mt-0.5 block text-[8px] font-bold uppercase text-red-400">
-            Live
-          </span>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <Image
-            src={getTeamImageUrl(
-              partido.equipo_local_codigo,
-              "w40",
-              partido.equipo_local_nombre,
-              getEscudoFromMetadata(partido.metadata, "local"),
-            )}
-            alt=""
-            width={28}
-            height={28}
-            className="h-7 w-7 shrink-0 rounded object-contain"
-            unoptimized
-          />
-          <span className="truncate text-xs font-semibold text-white">
-            {partido.equipo_local_nombre}
-          </span>
-          {partido.estatus === "finalizado" &&
-          partido.marcador_local != null &&
-          partido.marcador_visitante != null ? (
-            <span className="shrink-0 font-mono text-xs font-bold text-zinc-300">
-              {partido.marcador_local}-{partido.marcador_visitante}
+      <Link
+        href={`/partidos/${partido.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 active:scale-[0.99]"
+      >
+        <div className="w-11 shrink-0 text-center">
+          <span className="text-xs font-bold tabular-nums text-emerald-400">{hora}</span>
+          {enVivo && (
+            <span className="mt-0.5 block text-[8px] font-bold uppercase text-red-400">
+              Live
             </span>
-          ) : (
-            <span className="shrink-0 text-[10px] text-zinc-600">vs</span>
           )}
-          <Image
-            src={getTeamImageUrl(
-              partido.equipo_visitante_codigo,
-              "w40",
-              partido.equipo_visitante_nombre,
-              getEscudoFromMetadata(partido.metadata, "visitante"),
-            )}
-            alt=""
-            width={28}
-            height={28}
-            className="h-7 w-7 shrink-0 rounded object-contain"
-            unoptimized
-          />
-          <span className="truncate text-xs font-semibold text-white">
-            {partido.equipo_visitante_nombre}
-          </span>
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {esPilot && (
-            <span className="rounded bg-amber-950/80 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-400">
-              Prueba
-            </span>
-          )}
-          {grupo && (
-            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-zinc-400">
-              {grupo}
-            </span>
-          )}
-          <span
-            className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${canal.className}`}
-          >
-            📺 {canal.label}
-          </span>
-        </div>
-      </div>
 
-      <PronosticoBadge guardado={tienePronostico} />
-    </Link>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Image
+              src={getTeamImageUrl(
+                partido.equipo_local_codigo,
+                "w40",
+                partido.equipo_local_nombre,
+                getEscudoFromMetadata(partido.metadata, "local"),
+              )}
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 shrink-0 rounded object-contain"
+              unoptimized
+            />
+            <span className="truncate text-xs font-semibold text-white">
+              {partido.equipo_local_nombre}
+            </span>
+            {partido.estatus === "finalizado" &&
+            partido.marcador_local != null &&
+            partido.marcador_visitante != null ? (
+              <span className="shrink-0 font-mono text-xs font-bold text-zinc-300">
+                {partido.marcador_local}-{partido.marcador_visitante}
+              </span>
+            ) : (
+              <span className="shrink-0 text-[10px] text-zinc-600">vs</span>
+            )}
+            <Image
+              src={getTeamImageUrl(
+                partido.equipo_visitante_codigo,
+                "w40",
+                partido.equipo_visitante_nombre,
+                getEscudoFromMetadata(partido.metadata, "visitante"),
+              )}
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 shrink-0 rounded object-contain"
+              unoptimized
+            />
+            <span className="truncate text-xs font-semibold text-white">
+              {partido.equipo_visitante_nombre}
+            </span>
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {esPilot && (
+              <span className="rounded bg-amber-950/80 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-400">
+                Prueba
+              </span>
+            )}
+            {grupo && (
+              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-zinc-400">
+                {grupo}
+              </span>
+            )}
+            <span
+              className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${canal.className}`}
+            >
+              📺 {canal.label}
+            </span>
+          </div>
+        </div>
+      </Link>
+
+      <SilenciarPartidoToggle partidoId={partido.id} />
+      <div className="pr-2">
+        <PronosticoBadge guardado={tienePronostico} />
+      </div>
+    </div>
   );
 }
 

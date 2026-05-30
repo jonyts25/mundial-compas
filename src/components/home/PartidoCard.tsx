@@ -15,6 +15,7 @@ import {
   labelEstatus,
   labelFase,
 } from "@/lib/partidos/labels";
+import { SilenciarPartidoToggle } from "@/components/push/SilenciarPartidoToggle";
 import type { Partido } from "@/types/database";
 
 interface PartidoCardProps {
@@ -126,9 +127,12 @@ export function PartidoCard({ partido, compact = false }: PartidoCardProps) {
         >
           📺 {canal.label}
         </span>
-        {canal.sublabel && (
-          <span className="text-[10px] text-zinc-500">{canal.sublabel}</span>
-        )}
+        <div className="flex items-center gap-2">
+          {canal.sublabel && (
+            <span className="text-[10px] text-zinc-500">{canal.sublabel}</span>
+          )}
+          <SilenciarPartidoToggle partidoId={partido.id} />
+        </div>
       </div>
     </article>
   );
