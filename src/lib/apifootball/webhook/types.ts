@@ -59,6 +59,8 @@ export type MatchPhaseKind =
   | "kickoff"
   | "halftime"
   | "second_half"
+  /** Fin del 90' empatado en eliminatoria (antes del tiempo extra). */
+  | "regulation_end"
   | "extra_time_1st"
   | "extra_time_halftime"
   | "extra_time_2nd"
@@ -101,6 +103,17 @@ export type NormalizedLiveEvent =
       isHome: boolean;
       penHome: number;
       penAway: number;
+    }
+  | {
+      kind: "goal_cancelled";
+      eventKey: string;
+      player: string | null;
+      teamName: string;
+      isHome: boolean;
+      prevHome: number;
+      prevAway: number;
+      newHome: number;
+      newAway: number;
     };
 
 export interface NormalizedMatchSnapshot {

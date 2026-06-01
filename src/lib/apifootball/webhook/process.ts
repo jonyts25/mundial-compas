@@ -8,14 +8,22 @@ import {
   generarNarracionFase,
   generarNarracionCampeon,
   generarNarracionGol,
+  generarNarracionGolAnulado,
   generarNarracionPenalAnotado,
   generarNarracionPenalFallado,
   generarNarracionRoja,
   PLANTILLAS_FIN,
   PLANTILLAS_INICIO,
   PLANTILLAS_MEDIO_TIEMPO,
+  PLANTILLAS_REGULATION_END,
   PLANTILLAS_SEGUNDO_TIEMPO,
 } from "@/lib/narracion/comentaristas";
+import {
+  announcedGoalsToMetadata,
+  fingerprintRegulationGoals,
+  readAnnouncedGoals,
+  type AnnouncedGoal,
+} from "@/lib/apifootball/webhook/goal-sync";
 import {
   buildClockState,
   parseRelojFromMetadata,
@@ -95,6 +103,13 @@ function buildPhaseMessage(
     case "halftime":
     case "extra_time_halftime":
       return generarNarracionFase(PLANTILLAS_MEDIO_TIEMPO, local, visitante, marcadorStr);
+    case "regulation_end":
+      return generarNarracionFase(
+        PLANTILLAS_REGULATION_END,
+        local,
+        visitante,
+        marcadorStr,
+      );
     case "second_half":
     case "extra_time_1st":
     case "extra_time_2nd":
@@ -235,7 +250,7 @@ export async function processFootballWebhook(
   supabase: SupabaseClient,
   rawBody: unknown,
 ): Promise<ProcessWebhookResult> {
-  const preview = normalizeLivePayload(rawBody);
+  const preview = normalizeLivePayload(rawBody, {});
   if (!preview) {
     return { ok: false, message: "Payload sin match_id / fixture.id válido" };
   }
@@ -243,12 +258,17 @@ export async function processFootballWebhook(
   const { data: partido, error: partidoError } = await supabase
     .from("partidos")
     .select(
-      "id, fase, metadata, estatus, equipo_local_nombre, equipo_visitante_nombre",
+      "id, fase, metadata, estatus, marcador_local, marcador_visitante, equipo_local_nombre, equipo_visitante_nombre",
     )
     .eq("api_football_fixture_id", preview.fixtureId)
     .maybeSingle();
 
-  const snapshot = normalizeLivePayload(rawBody, partido?.metadata);
+  const snapshot = normalizeLivePayload(rawBody, {
+    prevMetadata: partido?.metadata,
+    prevHomeScore: partido?.marcador_local ?? preview.homeScore,
+    prevAwayScore: partido?.marcador_visitante ?? preview.awayScore,
+    fase: partido?.fase ?? null,
+  });
   if (!snapshot) {
     return { ok: false, message: "Error al normalizar payload" };
   }
@@ -279,6 +299,25 @@ export async function processFootballWebhook(
   );
   const displayMinute = reloj.ticking ? reloj.anchorMinute : null;
 
+  const metadataAfterSync: Record<string, unknown> = {
+    ...(typeof partido.metadata === "object" && partido.metadata !== null
+      ? (partido.metadata as Record<string, unknown>)
+      : {}),
+    apifootball_status_raw: snapshot.statusRaw,
+    apifootball_last_status: snapshot.estatus,
+    apifootball_last_sync: new Date().toISOString(),
+    reloj: relojToMetadata(reloj),
+    ...(snapshot.homePenaltyScore != null
+      ? { marcador_penales_local: snapshot.homePenaltyScore }
+      : {}),
+    ...(snapshot.awayPenaltyScore != null
+      ? { marcador_penales_visitante: snapshot.awayPenaltyScore }
+      : {}),
+    ...(snapshot.penaltyKeysToPersist.length > 0
+      ? { penales_kicks_vistos: snapshot.penaltyKeysToPersist }
+      : {}),
+  };
+
   const { error: updateError } = await supabase
     .from("partidos")
     .update({
@@ -287,24 +326,7 @@ export async function processFootballWebhook(
       estatus: snapshot.estatus,
       minuto_actual: displayMinute,
       updated_at: new Date().toISOString(),
-      metadata: {
-        ...(typeof partido.metadata === "object" && partido.metadata !== null
-          ? (partido.metadata as Record<string, unknown>)
-          : {}),
-        apifootball_status_raw: snapshot.statusRaw,
-        apifootball_last_status: snapshot.estatus,
-        apifootball_last_sync: new Date().toISOString(),
-        reloj: relojToMetadata(reloj),
-        ...(snapshot.homePenaltyScore != null
-          ? { marcador_penales_local: snapshot.homePenaltyScore }
-          : {}),
-        ...(snapshot.awayPenaltyScore != null
-          ? { marcador_penales_visitante: snapshot.awayPenaltyScore }
-          : {}),
-        ...(snapshot.penaltyKeysToPersist.length > 0
-          ? { penales_kicks_vistos: snapshot.penaltyKeysToPersist }
-          : {}),
-      },
+      metadata: metadataAfterSync,
     })
     .eq("id", partido.id);
 
@@ -321,6 +343,7 @@ export async function processFootballWebhook(
   );
   const matchRound = readMatchRound(rawBody);
   const esFinal = isFinalMatch(partido.fase as FaseMundial, matchRound);
+  let golesAnunciados: AnnouncedGoal[] = readAnnouncedGoals(partido.metadata);
 
   for (const event of snapshot.events) {
     const eventKey = `${snapshot.fixtureId}-${event.eventKey}`;
@@ -338,7 +361,31 @@ export async function processFootballWebhook(
 
     let narradorEstilo: string | undefined;
 
-    if (event.kind === "goal") {
+    if (event.kind === "goal_cancelled") {
+      const narracion = generarNarracionGolAnulado({
+        goleador: event.player,
+        marcadorLocal: event.newHome,
+        marcadorVisitante: event.newAway,
+      });
+      contenido = narracion.texto;
+      narradorEstilo = narracion.estilo;
+      meta.var_reversal = true;
+      meta.player = event.player;
+      meta.team = event.teamName;
+      meta.marcador_anterior = `${event.prevHome}-${event.prevAway}`;
+      meta.marcador_nuevo = `${event.newHome}-${event.newAway}`;
+      if (event.player) {
+        const idx = golesAnunciados.findLastIndex(
+          (g) =>
+            g.isHome === event.isHome &&
+            g.player.toLowerCase() === event.player!.toLowerCase(),
+        );
+        if (idx >= 0) golesAnunciados.splice(idx, 1);
+      } else {
+        const idx = golesAnunciados.findLastIndex((g) => g.isHome === event.isHome);
+        if (idx >= 0) golesAnunciados.splice(idx, 1);
+      }
+    } else if (event.kind === "goal") {
       const liveScore = scoresForLiveDisplay({
         period: snapshot.period,
         homeScore: snapshot.homeScore,
@@ -358,6 +405,15 @@ export async function processFootballWebhook(
       meta.player = event.player;
       meta.team = event.teamName;
       meta.minute = event.minute;
+      if (!golesAnunciados.some((g) => g.key === event.eventKey)) {
+        golesAnunciados.push({
+          key: event.eventKey,
+          player: event.player,
+          teamName: event.teamName,
+          isHome: event.isHome,
+          minute: event.minute,
+        });
+      }
     } else if (event.kind === "penalty_scored") {
       const narracion = generarNarracionPenalAnotado({
         local: snapshot.homeName,
@@ -476,7 +532,18 @@ export async function processFootballWebhook(
       return { ok: false, message: chatError, processed, skipped };
     }
 
-    if (event.kind === "goal") {
+    if (event.kind === "goal_cancelled") {
+      const local = String(partido.equipo_local_nombre ?? "Local");
+      const visitante = String(partido.equipo_visitante_nombre ?? "Visitante");
+      await queuePartidoPushNotifications(
+        supabase,
+        partido.id,
+        "gol_anulado",
+        `🤖 VAR: gol anulado · ${local} ${event.newHome}-${event.newAway} ${visitante}`,
+        contenido,
+        { fuente: "apifootball-webhook", fixture_id: snapshot.fixtureId },
+      );
+    } else if (event.kind === "goal") {
       const local = String(partido.equipo_local_nombre ?? "Local");
       const visitante = String(partido.equipo_visitante_nombre ?? "Visitante");
       await queuePartidoPushNotifications(
@@ -572,6 +639,16 @@ export async function processFootballWebhook(
 
     processed += 1;
   }
+
+  await supabase
+    .from("partidos")
+    .update({
+      metadata: {
+        ...metadataAfterSync,
+        goles_anunciados: announcedGoalsToMetadata(golesAnunciados),
+      },
+    })
+    .eq("id", partido.id);
 
   return {
     ok: true,

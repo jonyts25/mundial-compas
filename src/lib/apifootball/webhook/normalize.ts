@@ -1,6 +1,12 @@
 import {
-  detectPhaseTransition,
+  detectGoalCancellations,
+  fingerprintRegulationGoals,
+  readAnnouncedGoals,
+} from "@/lib/apifootball/webhook/goal-sync";
+import {
+  detectPhaseTransitions,
   hasPenaltyShootoutPayload,
+  isEliminatoriaFase,
   mapApifootballLiveStatus,
   parseApiMatchMinute,
   parsePenaltyScores,
@@ -54,8 +60,12 @@ function resolveFixtureId(payload: ApifootballLiveMatchPayload): number | null {
   return null;
 }
 
-function phaseEvent(phase: MatchPhaseKind): NormalizedLiveEvent {
-  return { kind: "match_phase", eventKey: `phase-${phase}`, phase };
+function phaseEvent(phase: MatchPhaseKind, suffix = ""): NormalizedLiveEvent {
+  return {
+    kind: "match_phase",
+    eventKey: `phase-${phase}${suffix}`,
+    phase,
+  };
 }
 
 function goalFromIncident(inc: WebhookIncident, index: number): NormalizedLiveEvent | null {
@@ -187,10 +197,18 @@ function redsFromApifootballCards(
   return events;
 }
 
+export type NormalizeLiveContext = {
+  prevMetadata?: unknown;
+  prevHomeScore?: number;
+  prevAwayScore?: number;
+  fase?: string | null;
+};
+
 export function normalizeLivePayload(
   body: unknown,
-  prevMetadata?: unknown,
+  ctx: NormalizeLiveContext = {},
 ): NormalizedMatchSnapshot | null {
+  const prevMetadata = ctx.prevMetadata;
   const payload = unwrapPayload(body);
   const fixtureId = resolveFixtureId(payload);
   if (fixtureId === null) return null;
@@ -225,7 +243,11 @@ export function normalizeLivePayload(
   });
 
   const prevPeriod = prevReloj?.period ?? "NS";
-  const phaseKind = detectPhaseTransition(prevPeriod, period);
+  const phaseKinds = detectPhaseTransitions(prevPeriod, period, {
+    homeScore,
+    awayScore,
+    isEliminatoria: isEliminatoriaFase(ctx.fase),
+  });
 
   const inShootout =
     period === "PEN" ||
@@ -234,7 +256,42 @@ export function normalizeLivePayload(
     statusRaw.toLowerCase().includes("penalt");
 
   const events: NormalizedLiveEvent[] = [];
-  if (phaseKind) events.push(phaseEvent(phaseKind));
+  const isDraw = homeScore === awayScore;
+  const elim = isEliminatoriaFase(ctx.fase);
+  phaseKinds.forEach((pk, i) => {
+    let phase = pk;
+    if (
+      phase === "fulltime" &&
+      elim &&
+      isDraw &&
+      !penaltyScores &&
+      period !== "AP"
+    ) {
+      phase = "regulation_end";
+    }
+    events.push(phaseEvent(phase, phaseKinds.length > 1 ? `-${i}` : ""));
+  });
+
+  const prevHome = ctx.prevHomeScore ?? homeScore;
+  const prevAway = ctx.prevAwayScore ?? awayScore;
+  if (!inShootout && (prevHome !== homeScore || prevAway !== awayScore)) {
+    const announced = readAnnouncedGoals(prevMetadata);
+    const currentGoals = fingerprintRegulationGoals(
+      payload.goalscorer,
+      homeName,
+      awayName,
+    );
+    events.push(
+      ...detectGoalCancellations({
+        prevHome,
+        prevAway,
+        newHome: homeScore,
+        newAway: awayScore,
+        announced,
+        currentGoals,
+      }),
+    );
+  }
 
   if (Array.isArray(payload.incidents)) {
     payload.incidents.forEach((inc, i) => {

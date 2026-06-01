@@ -4,10 +4,12 @@ import { dispatchPushForNotifications } from "@/lib/push/send";
 
 export type PartidoPushTipo =
   | "gol"
+  | "gol_anulado"
   | "tarjeta_roja"
   | "inicio_partido"
   | "medio_tiempo"
   | "inicio_segundo_tiempo"
+  | "fin_tiempo_reglamentario"
   | "inicio_tiempo_extra"
   | "inicio_penales"
   | "penal_fallado"

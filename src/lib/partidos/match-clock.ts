@@ -7,6 +7,8 @@ export type MatchPeriod =
   | "1H"
   | "HT"
   | "2H"
+  /** Descanso entre 90' y tiempo extra (empate en eliminatoria). */
+  | "BRK_REG"
   | "ET1"
   | "ET_HT"
   | "ET2"
@@ -47,6 +49,7 @@ export function mapApifootballLiveStatus(
   }
   if (key === "half time" || key === "ht") return "medio_tiempo";
   if (key === "break time" || key === "break") return "medio_tiempo";
+  if (key.includes("half time")) return "medio_tiempo";
   if (FINISHED_STATUS[key]) return FINISHED_STATUS[key];
   if (
     key.includes("penalt") ||
@@ -60,14 +63,12 @@ export function mapApifootballLiveStatus(
   if (String(matchLive) === "1") return "en_vivo";
   if (/^\d+$/.test(trimmed)) return "en_vivo";
 
-  if (
-    key.includes("1st") ||
-    key.includes("2nd") ||
-    key.includes("extra") ||
-    key === "in play"
-  ) {
+  if (key.includes("1st") || key === "1h") return "en_vivo";
+  if (key.includes("2nd") || key === "2h") return "en_vivo";
+  if (key.includes("extra") || key === "et" || key.includes("aet")) {
     return "en_vivo";
   }
+  if (key === "in play") return "en_vivo";
 
   if (key.includes("postpon")) return "aplazado";
   if (key.includes("cancel")) return "cancelado";
@@ -190,18 +191,29 @@ export function resolveMatchPeriod(
 
   if (s === "break time" || s === "break") {
     if (prev === "ET2" || (prevMin != null && prevMin >= 105)) return "PEN";
-    if (prev === "ET1" || (prevMin != null && prevMin > 90)) return "ET_HT";
+    if (prev === "ET1" || (prevMin != null && prevMin > 90 && prevMin <= 105)) {
+      return "ET_HT";
+    }
+    if (prev === "2H" || (prevMin != null && prevMin >= 90 && prevMin <= 90)) {
+      return "BRK_REG";
+    }
     if (prev === "ET_HT") return "ET_HT";
+    if (prev === "BRK_REG") return "BRK_REG";
     return "HT";
   }
 
   if (estatus === "medio_tiempo") {
     if (prev === "ET2" || (prevMin != null && prevMin >= 105)) return "PEN";
+    if (prev === "2H" || (prevMin != null && prevMin >= 90 && prevMin < 105)) {
+      return "BRK_REG";
+    }
     if (minute != null && minute > 90) return "ET_HT";
     if (prev === "ET1" || (prevMin != null && prevMin > 90)) return "ET_HT";
     if (s.includes("extra")) return "ET_HT";
     return "HT";
   }
+
+  if (s.includes("half time") || s === "ht") return "HT";
 
   if (minute != null) {
     if (minute > 120) return "PEN";
@@ -213,7 +225,10 @@ export function resolveMatchPeriod(
 
   if (s.includes("2nd") || s === "2h") return "2H";
   if (s.includes("1st") || s === "1h") return "1H";
-  if (s.includes("extra")) return "ET1";
+  if (s.includes("extra") || s === "et" || s.includes("aet")) {
+    if (s.includes("2nd")) return "ET2";
+    return "ET1";
+  }
 
   return "1H";
 }
@@ -293,22 +308,86 @@ export function detectPhaseTransition(
   prevPeriod: MatchPeriod | null | undefined,
   nextPeriod: MatchPeriod,
 ): MatchPhaseKind | null {
-  if (!prevPeriod || prevPeriod === nextPeriod) return null;
+  const list = detectPhaseTransitions(prevPeriod, nextPeriod);
+  return list.length > 0 ? list[list.length - 1]! : null;
+}
+
+export type PhaseTransitionContext = {
+  homeScore?: number;
+  awayScore?: number;
+  isEliminatoria?: boolean;
+};
+
+/** Transiciones de fase (puede devolver varias si la API salta estados). */
+export function detectPhaseTransitions(
+  prevPeriod: MatchPeriod | null | undefined,
+  nextPeriod: MatchPeriod,
+  ctx: PhaseTransitionContext = {},
+): MatchPhaseKind[] {
+  if (!prevPeriod || prevPeriod === nextPeriod) return [];
 
   const map: Partial<
     Record<MatchPeriod, Partial<Record<MatchPeriod, MatchPhaseKind>>>
   > = {
-    NS: { "1H": "kickoff" },
+    NS: { "1H": "kickoff", "2H": "kickoff" },
     "1H": { HT: "halftime" },
     HT: { "2H": "second_half" },
-    "2H": { ET1: "extra_time_1st", PEN: "penalties", FT: "fulltime", AET: "fulltime" },
-    ET1: { ET_HT: "extra_time_halftime", PEN: "penalties", FT: "fulltime", AET: "fulltime" },
+    "2H": {
+      BRK_REG: "regulation_end",
+      ET1: "extra_time_1st",
+      PEN: "penalties",
+      FT: "fulltime",
+      AET: "fulltime",
+    },
+    BRK_REG: { ET1: "extra_time_1st", PEN: "penalties" },
+    ET1: {
+      ET_HT: "extra_time_halftime",
+      PEN: "penalties",
+      FT: "fulltime",
+      AET: "fulltime",
+    },
     ET_HT: { ET2: "extra_time_2nd", PEN: "penalties" },
-    ET2: { PEN: "penalties", FT: "fulltime", AET: "fulltime" },
+    ET2: { PEN: "penalties", FT: "fulltime", AET: "fulltime", BRK_REG: "penalties" },
     PEN: { FT: "fulltime", AP: "fulltime" },
   };
 
-  return map[prevPeriod]?.[nextPeriod] ?? null;
+  const single = map[prevPeriod]?.[nextPeriod];
+  const isDraw =
+    ctx.homeScore != null &&
+    ctx.awayScore != null &&
+    ctx.homeScore === ctx.awayScore;
+
+  if (prevPeriod === "1H" && nextPeriod === "2H") {
+    return ["halftime", "second_half"];
+  }
+
+  if (
+    prevPeriod === "2H" &&
+    nextPeriod === "ET1" &&
+    ctx.isEliminatoria &&
+    isDraw
+  ) {
+    return ["regulation_end", "extra_time_1st"];
+  }
+
+  if (prevPeriod === "2H" && nextPeriod === "BRK_REG" && ctx.isEliminatoria && isDraw) {
+    return ["regulation_end"];
+  }
+
+  if (prevPeriod === "BRK_REG" && nextPeriod === "ET1") {
+    return ["extra_time_1st"];
+  }
+
+  if (prevPeriod === "ET2" && nextPeriod === "PEN" && isDraw) {
+    return ["penalties"];
+  }
+
+  return single ? [single] : [];
+}
+
+export function isEliminatoriaFase(fase: string | null | undefined): boolean {
+  if (!fase || fase === "grupos") return false;
+  return true;
 }
 
 export function formatMatchClockDisplay(
@@ -344,6 +423,9 @@ export function formatMatchClockDisplay(
 
   if (period === "HT") {
     return { text: "Medio tiempo", minute: null, penaltyLine: null };
+  }
+  if (period === "BRK_REG") {
+    return { text: "Descanso · va TE", minute: null, penaltyLine: null };
   }
   if (period === "ET_HT") {
     return { text: "Descanso TE", minute: null, penaltyLine: null };

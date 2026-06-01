@@ -375,6 +375,48 @@ export const PLANTILLAS_MEDIO_TIEMPO: readonly PlantillaNarracion[] = [
   ...PLANTILLAS_MEDIO_MEXICO_EXTRA,
 ];
 
+export const PLANTILLAS_VAR_GOL_ANULADO: readonly PlantillaNarracion[] = [
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡NOOO! El VAR dice que no hay gol de {goleador}. ¡Se borró del marcador! Queda {marcador}.",
+  },
+  {
+    region: "mexico",
+    estilo: "Perro Bermúdez (parodia)",
+    plantilla:
+      "¡Mentira, compadre! Anularon el gol de {goleador}. Marcador {marcador}. El VAR se puso serio.",
+  },
+  {
+    region: "general",
+    estilo: "VAR Compas",
+    plantilla:
+      "🤖 VAR: gol de {goleador} cancelado. Marcador corregido: {marcador}. ¡Ni modo, compas!",
+  },
+  {
+    region: "espana",
+    estilo: "García (parodia)",
+    plantilla:
+      "¡Fuera de juego milimétrico! Se cae el gol de {goleador}. {marcador}. ¡Qué drama!",
+  },
+];
+
+export const PLANTILLAS_REGULATION_END: readonly PlantillaNarracion[] = [
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡Se acabaron los 90! {local} {marcador} {visitante}. Empate: ¡viene tiempo extra, no se vayan!",
+  },
+  {
+    region: "general",
+    estilo: "VAR Compas",
+    plantilla:
+      "Fin del tiempo reglamentario: {marcador}. Empate en eliminatoria — ¡habrá tiempo extra!",
+  },
+];
+
 export const PLANTILLAS_SEGUNDO_TIEMPO: readonly PlantillaNarracion[] = [
   {
     region: "mexico",
@@ -492,6 +534,27 @@ export function generarNarracionGol(params: ParamsGol): {
     texto: apply(tpl.plantilla, p),
     estilo: tpl.estilo,
     region: tpl.region,
+  };
+}
+
+export function generarNarracionGolAnulado(params: {
+  goleador: string | null;
+  marcadorLocal: number;
+  marcadorVisitante: number;
+}): { texto: string; estilo: string } {
+  const goleador = params.goleador?.trim() || "el jugador";
+  const tpl = pickRandom(PLANTILLAS_VAR_GOL_ANULADO);
+  return {
+    texto: apply(tpl.plantilla, {
+      local: "",
+      visitante: "",
+      marcador: marcador(params.marcadorLocal, params.marcadorVisitante),
+      goleador,
+      equipo: "",
+      minuto: "—",
+      extra: "",
+    }),
+    estilo: tpl.estilo,
   };
 }
 

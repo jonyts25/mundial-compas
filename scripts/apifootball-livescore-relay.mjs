@@ -59,11 +59,11 @@ const wsUrl = `wss://wss.apifootball.com/livescore?${params}`;
 let ws;
 let reconnectMs = 3000;
 let lastPostAt = 0;
+/** @type {Map<string, string>} */
+const lastStatusByMatch = new Map();
 
 async function forwardPayload(raw) {
   const now = Date.now();
-  if (now - lastPostAt < 500) return;
-  lastPostAt = now;
 
   let parsed;
   try {
@@ -75,6 +75,14 @@ async function forwardPayload(raw) {
   const items = Array.isArray(parsed) ? parsed : [parsed];
   for (const item of items) {
     if (!item?.match_id) continue;
+
+    const matchKey = String(item.match_id);
+    const status = String(item.match_status ?? "");
+    const statusChanged = lastStatusByMatch.get(matchKey) !== status;
+    lastStatusByMatch.set(matchKey, status);
+
+    if (!statusChanged && now - lastPostAt < 500) continue;
+    lastPostAt = now;
 
     const res = await fetch(webhookUrl, {
       method: "POST",
