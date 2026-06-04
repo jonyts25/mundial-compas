@@ -143,7 +143,13 @@ export async function fetchGrupoBySlug(
     .eq("usuario_id", userId)
     .maybeSingle();
 
-  if (!membresia) return null;
+  let rol: RolLiga | null = membresia?.rol as RolLiga | undefined ?? null;
+
+  if (!rol && liga.creador_id === userId) {
+    rol = "owner";
+  }
+
+  if (!rol) return null;
 
   const { data: memberCount } = await supabase.rpc("contar_miembros_liga", {
     p_liga_id: liga.id,
@@ -151,11 +157,9 @@ export async function fetchGrupoBySlug(
 
   const base = mapGrupoRow(
     liga as Record<string, unknown>,
-    membresia.rol as RolLiga,
+    rol,
     Number(memberCount ?? 0),
   );
-
-  const rol = membresia.rol as RolLiga;
 
   return {
     ...base,
@@ -165,27 +169,8 @@ export async function fetchGrupoBySlug(
   };
 }
 
-export async function fetchGrupoMiembros(
-  ligaId: string,
-): Promise<GrupoMiembroRow[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  const { data, error } = await supabase.rpc("listar_miembros_grupo", {
-    p_liga_id: ligaId,
-  });
-
-  if (error) throw new Error(error.message);
-
-  const result = data as Record<string, unknown> | null;
-  if (!result?.ok) return [];
-
-  const rows = result.miembros;
+function mapMiembroRowsFromRpc(rows: unknown): GrupoMiembroRow[] {
   if (!Array.isArray(rows)) return [];
-
   return rows.map((row) => {
     const r = row as Record<string, unknown>;
     const rolRaw = r.rol as string;
@@ -198,6 +183,69 @@ export async function fetchGrupoMiembros(
       joined_at: r.joined_at != null ? String(r.joined_at) : null,
     };
   });
+}
+
+function sortMiembros(rows: GrupoMiembroRow[]): GrupoMiembroRow[] {
+  const order: Record<RolLiga, number> = { owner: 0, admin: 1, miembro: 2 };
+  return [...rows].sort((a, b) => order[a.rol] - order[b.rol]);
+}
+
+/** Lista miembros; RPC si existe, si no consulta con service role tras validar membresía. */
+export async function fetchGrupoMiembros(
+  ligaId: string,
+  userId: string,
+): Promise<GrupoMiembroRow[]> {
+  assertAuthenticatedUserId(userId);
+
+  const userClient = await createClient();
+  const { data: rpcData, error: rpcError } = await userClient.rpc(
+    "listar_miembros_grupo",
+    { p_liga_id: ligaId },
+  );
+
+  if (!rpcError && rpcData) {
+    const result = rpcData as Record<string, unknown>;
+    if (result.ok === false) return [];
+    return mapMiembroRowsFromRpc(result.miembros);
+  }
+
+  const esMiembro = await assertUsuarioEsMiembro(userId, ligaId);
+  if (!esMiembro) return [];
+
+  const admin = createServerDataClient();
+  const { data: membresias, error: memError } = await admin
+    .from("liga_miembros")
+    .select("usuario_id, rol, joined_at")
+    .eq("liga_id", ligaId);
+
+  if (memError) throw new Error(memError.message);
+  if (!membresias?.length) return [];
+
+  const userIds = membresias.map((m) => m.usuario_id as string);
+  const { data: usuarios, error: usrError } = await admin
+    .from("usuarios")
+    .select("id, nombre_visible")
+    .in("id", userIds);
+
+  if (usrError) throw new Error(usrError.message);
+
+  const nombrePorId = new Map(
+    (usuarios ?? []).map((u) => [u.id as string, String(u.nombre_visible)]),
+  );
+
+  const rows = membresias.map((m) => {
+    const rolRaw = m.rol as string;
+    const rol: RolLiga =
+      rolRaw === "owner" || rolRaw === "admin" ? rolRaw : "miembro";
+    return {
+      usuario_id: m.usuario_id as string,
+      rol,
+      nombre_visible: nombrePorId.get(m.usuario_id as string) ?? "Compa",
+      joined_at: m.joined_at != null ? String(m.joined_at) : null,
+    };
+  });
+
+  return sortMiembros(rows);
 }
 
 export async function assertUsuarioEsMiembro(

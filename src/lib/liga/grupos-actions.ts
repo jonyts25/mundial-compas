@@ -101,8 +101,10 @@ export async function crearGrupoPrivado(input: {
 
     const result = data as Record<string, unknown> | null;
     if (result?.ok) {
+      const slugOk = String(result.slug);
       revalidatePath("/grupos");
-      return { ok: true, slug: String(result.slug) };
+      revalidatePath(`/grupos/${slugOk}`);
+      return { ok: true, slug: slugOk };
     }
 
     const errCode = String(result?.error ?? "");

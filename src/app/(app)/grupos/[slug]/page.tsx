@@ -37,7 +37,26 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
 
   if (!user) redirect(`/login?next=/grupos/${slug}`);
 
-  const grupo = await fetchGrupoBySlug(user.id, slug);
+  let grupo;
+  try {
+    grupo = await fetchGrupoBySlug(user.id, slug);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Error al cargar la quiniela";
+    return (
+      <>
+        <GrupoPageHeader title="Quiniela privada" backHref="/grupos" />
+        <main className="px-4 py-8 pb-24 text-center">
+          <p className="text-sm text-red-400">{message}</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Si acabas de crear la quiniela, aplica las migraciones Supabase pendientes
+            (roles + crear_grupo_privado).
+          </p>
+        </main>
+        <AppBottomNav />
+      </>
+    );
+  }
+
   if (!grupo) notFound();
 
   if (!grupo.activa) {
@@ -51,14 +70,36 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
     );
   }
 
-  const [miembros, quinielaData, leaderboardFilas] = await Promise.all([
-    fetchGrupoMiembros(grupo.id),
-    fetchQuinielaData(user.id, {
-      ligaId: grupo.id,
-      tipoQuiniela: grupo.tipo_quiniela,
-    }),
-    fetchLeaderboard(grupo.id).catch(() => []),
-  ]);
+  let miembros: Awaited<ReturnType<typeof fetchGrupoMiembros>> = [];
+  let quinielaData: Awaited<ReturnType<typeof fetchQuinielaData>>;
+  let leaderboardFilas: Awaited<ReturnType<typeof fetchLeaderboard>> = [];
+
+  try {
+    [miembros, quinielaData, leaderboardFilas] = await Promise.all([
+      fetchGrupoMiembros(grupo.id, user.id),
+      fetchQuinielaData(user.id, {
+        ligaId: grupo.id,
+        tipoQuiniela: grupo.tipo_quiniela,
+      }),
+      fetchLeaderboard(grupo.id).catch(() => []),
+    ]);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Error al cargar datos";
+    return (
+      <>
+        <GrupoPageHeader title={grupo.nombre} backHref="/grupos" />
+        <main className="px-4 py-8 pb-24 text-center">
+          <p className="text-sm text-red-400">{message}</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Slug: {slug} · Revisa migraciones{" "}
+            <code className="text-zinc-400">20260602120000</code> y{" "}
+            <code className="text-zinc-400">20260604120000</code> en Supabase.
+          </p>
+        </main>
+        <AppBottomNav />
+      </>
+    );
+  }
 
   const initialTab =
     tabParam && (TAB_IDS as readonly string[]).includes(tabParam)
