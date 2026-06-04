@@ -58,7 +58,8 @@ function parseFase(event: ApifootballEvent): {
   const round = (event.match_round ?? "").toLowerCase();
   const league = (event.league_name ?? "").toLowerCase();
 
-  const groupMatch = stage.match(/group\s+([a-h])/i) ?? round.match(/group\s+([a-h])/i);
+  const groupMatch =
+    stage.match(/group\s+([a-l])/i) ?? round.match(/group\s+([a-l])/i);
   if (groupMatch || stage.includes("group") || league.includes("group")) {
     return {
       fase: "grupos",

@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
-import { GroupStandings } from "@/components/standings/GroupStandings";
-import {
-  getCachedGroupStandings,
-  getStandingsRevalidateSeconds,
-} from "@/lib/standings/cache";
+import { GroupTabs } from "@/components/posiciones/GroupTabs";
+import { fetchPosicionesMundialData } from "@/lib/standings/posiciones-queries";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-function formatCacheHint(seconds: number): string {
-  const min = Math.round(seconds / 60);
-  if (min < 60) return `actualización cada ~${min} min`;
-  const h = Math.round(min / 60);
-  return `actualización cada ~${h} h`;
+function sourceLabel(source: string): string {
+  switch (source) {
+    case "partidos":
+      return "Tabla calculada desde partidos en la app (se actualiza con marcadores en vivo).";
+    case "api":
+      return "Tabla desde apifootball.com (caché). Los partidos abajo vienen de tu base de datos.";
+    default:
+      return "Tabla desde partidos; respaldo API si aún no hay resultados.";
+  }
 }
 
 export default async function PosicionesPage() {
@@ -27,13 +28,11 @@ export default async function PosicionesPage() {
     redirect("/login?next=/posiciones");
   }
 
-  const cacheSeconds = getStandingsRevalidateSeconds();
-
-  let snapshot;
+  let data;
   try {
-    snapshot = await getCachedGroupStandings();
+    data = await fetchPosicionesMundialData();
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al cargar posiciones";
+    const message = e instanceof Error ? e.message : "Error al cargar";
     return (
       <>
         <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
@@ -44,17 +43,11 @@ export default async function PosicionesPage() {
             >
               ←
             </Link>
-            <h1 className="text-lg font-bold text-white">Posiciones</h1>
+            <h1 className="text-lg font-bold text-white">Grupos del Mundial</h1>
           </div>
         </header>
         <main className="px-4 py-8 pb-24 text-center">
           <p className="text-sm text-red-400">{message}</p>
-          <p className="mt-2 text-xs text-zinc-500">
-            Verifica API_FOOTBALL_KEY y APIFOOTBALL_LEAGUE_ID=28 en Railway.
-          </p>
-          <Link href="/" className="mt-4 inline-block text-sm text-emerald-400">
-            ← Inicio
-          </Link>
         </main>
         <AppBottomNav />
       </>
@@ -72,28 +65,35 @@ export default async function PosicionesPage() {
             ←
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold text-white">Posiciones por grupo</h1>
+            <h1 className="text-lg font-bold text-white">Grupos del Mundial</h1>
             <p className="text-xs text-zinc-500">
-              {snapshot.leagueName ?? "Mundial FIFA"} ·{" "}
-              {formatCacheHint(cacheSeconds)}
+              12 grupos · 2 primeros + 8 mejores terceros a ronda de 32
             </p>
           </div>
         </div>
       </header>
 
       <main className="px-4 py-4 pb-28">
-        <div className="mb-4 rounded-xl border border-emerald-800/30 bg-emerald-950/20 px-3 py-2.5 text-[11px] text-emerald-200/90">
-          <span className="inline-block w-1 rounded-full bg-emerald-500 align-middle">
-            &nbsp;
-          </span>{" "}
-          Franja verde = puestos que avanzan de la fase de grupos (top 2).
+        <div className="mb-4 rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2.5 text-[11px] leading-relaxed text-zinc-400">
+          Consulta tablas y calendario por grupo. Independiente de quinielas
+          globales o privadas. Criterios de desempate según{" "}
+          <a
+            href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/groups-how-teams-qualify-tie-breakers"
+            className="text-emerald-500 hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            FIFA 2026
+          </a>
+          .
         </div>
 
-        <GroupStandings snapshot={snapshot} />
-
-        <p className="mt-4 text-center text-[10px] text-zinc-600">
-          Datos vía apifootball.com · caché servidor {formatCacheHint(cacheSeconds)}
-        </p>
+        <GroupTabs
+          groups={data.snapshot.groups}
+          partidosPorGrupo={data.partidosPorGrupo}
+          bestThirdPlaces={data.bestThirdPlaces}
+          dataSourceLabel={sourceLabel(data.source)}
+        />
       </main>
 
       <AppBottomNav />

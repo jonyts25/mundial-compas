@@ -41,6 +41,7 @@ export interface Partido {
   fase: FaseMundial;
   grupo: string | null;
   jornada: number | null;
+  sede: string | null;
   equipo_local_codigo: string;
   equipo_visitante_codigo: string;
   equipo_local_nombre: string;

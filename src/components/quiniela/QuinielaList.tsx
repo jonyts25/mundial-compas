@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { PronosticoRow } from "@/components/quiniela/PronosticoRow";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
+import type { TipoQuiniela } from "@/lib/liga/tipo-quiniela";
+import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
 import type { PronosticoUsuario } from "@/lib/quiniela/queries";
 import type { Partido } from "@/types/database";
 
@@ -12,12 +14,18 @@ interface QuinielaListProps {
   partidos: Partido[];
   pronosticosPorPartido: Record<string, PronosticoUsuario>;
   competenciaFinalizada?: boolean;
+  ligaId?: string;
+  tipoQuiniela?: TipoQuiniela;
+  emptyHint?: string;
 }
 
 export function QuinielaList({
   partidos,
   pronosticosPorPartido,
   competenciaFinalizada = false,
+  ligaId,
+  tipoQuiniela,
+  emptyHint,
 }: QuinielaListProps) {
   const [filtro, setFiltro] = useState<Filtro>("todos");
 
@@ -49,12 +57,20 @@ export function QuinielaList({
   }, [partidos, pronosticosPorPartido]);
 
   if (partidos.length === 0) {
+    const tipoLabel = tipoQuiniela ? TIPO_QUINIELA_LABELS[tipoQuiniela] : null;
     return (
       <div className="rounded-2xl border border-dashed border-zinc-700 p-8 text-center">
-        <p className="text-sm text-zinc-400">No hay partidos cargados.</p>
-        <p className="mt-2 text-xs text-zinc-600">
-          Ejecuta POST /api/admin/cargar-partidos con tu secret de admin.
+        <p className="text-sm text-zinc-400">
+          {emptyHint ??
+            (tipoLabel
+              ? `No hay partidos para «${tipoLabel}» en este momento.`
+              : "No hay partidos cargados.")}
         </p>
+        {!emptyHint && !tipoQuiniela && (
+          <p className="mt-2 text-xs text-zinc-600">
+            Ejecuta POST /api/admin/cargar-partidos con tu secret de admin.
+          </p>
+        )}
       </div>
     );
   }
@@ -98,6 +114,7 @@ export function QuinielaList({
               partido={partido}
               pronostico={pronosticosPorPartido[partido.id]}
               soloLectura={competenciaFinalizada}
+              ligaId={ligaId}
             />
           </li>
         ))}

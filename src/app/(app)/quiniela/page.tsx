@@ -86,7 +86,10 @@ export default async function QuinielaPage() {
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold text-white">Mi Quiniela</h1>
             <p className="text-xs text-zinc-500">
-              Gratis para todos · Bolsa 👑 solo con Contrato de Honor
+              Liga global ·{" "}
+              <Link href="/grupos" className="text-emerald-500 hover:underline">
+                Mis grupos
+              </Link>
             </p>
           </div>
         </div>

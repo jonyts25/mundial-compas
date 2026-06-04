@@ -50,6 +50,12 @@ export function getMexicoDayBounds(reference = new Date()): {
   return { start, end };
 }
 
+/** Fecha calendario YYYY-MM-DD en Ciudad de México. */
+export function todayMexicoDate(reference = new Date()): string {
+  const { year, month, day } = getPartsInMexico(reference);
+  return `${year}-${month}-${day}`;
+}
+
 /** Hora corta 24h para chat (ej. 14:32) */
 export function formatMexicoTimeShort(iso: string): string {
   return new Intl.DateTimeFormat("es-MX", {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { assertUsuarioEsMiembro } from "@/lib/liga/grupos-queries";
 import { fetchCompetenciaLiga } from "@/lib/liga/competencia-queries";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
 import { createClient } from "@/lib/supabase/server";
@@ -14,6 +15,7 @@ export async function savePronostico(
   partidoId: string,
   golesLocal: number,
   golesVisitante: number,
+  ligaId: string = LIGA_GLOBAL_ID,
 ): Promise<SavePronosticoResult> {
   const supabase = await createClient();
   const {
@@ -24,11 +26,30 @@ export async function savePronostico(
     return { ok: false, error: "Debes iniciar sesión" };
   }
 
-  const competencia = await fetchCompetenciaLiga().catch(() => ({
-    estado: "activa" as const,
-  }));
-  if (competencia.estado !== "activa") {
-    return { ok: false, error: "La competencia ya finalizó" };
+  const esGlobal = ligaId === LIGA_GLOBAL_ID;
+  if (esGlobal) {
+    const competencia = await fetchCompetenciaLiga().catch(() => ({
+      estado: "activa" as const,
+    }));
+    if (competencia.estado !== "activa") {
+      return { ok: false, error: "La competencia ya finalizó" };
+    }
+  } else {
+    const esMiembro = await assertUsuarioEsMiembro(user.id, ligaId);
+    if (!esMiembro) {
+      return { ok: false, error: "No eres miembro de este grupo" };
+    }
+    const { data: liga } = await supabase
+      .from("ligas_privadas")
+      .select("activa, es_sistema")
+      .eq("id", ligaId)
+      .maybeSingle();
+    if (!liga || liga.es_sistema) {
+      return { ok: false, error: "Grupo no encontrado" };
+    }
+    if (!liga.activa) {
+      return { ok: false, error: "Este grupo ya no está activo" };
+    }
   }
 
   if (
@@ -66,7 +87,7 @@ export async function savePronostico(
   const { data: existente } = await supabase
     .from("pronosticos")
     .select("id")
-    .eq("liga_id", LIGA_GLOBAL_ID)
+    .eq("liga_id", ligaId)
     .eq("usuario_id", user.id)
     .eq("partido_id", partidoId)
     .maybeSingle();
@@ -86,7 +107,7 @@ export async function savePronostico(
     }
   } else {
     const { error } = await supabase.from("pronosticos").insert({
-      liga_id: LIGA_GLOBAL_ID,
+      liga_id: ligaId,
       usuario_id: user.id,
       partido_id: partidoId,
       goles_local: golesLocal,
@@ -100,6 +121,17 @@ export async function savePronostico(
 
   revalidatePath("/quiniela");
   revalidatePath("/");
+  if (!esGlobal) {
+    const { data: ligaRow } = await supabase
+      .from("ligas_privadas")
+      .select("slug")
+      .eq("id", ligaId)
+      .maybeSingle();
+    if (ligaRow?.slug) {
+      revalidatePath(`/grupos/${ligaRow.slug}/quiniela`);
+      revalidatePath(`/grupos/${ligaRow.slug}`);
+    }
+  }
 
   return { ok: true };
 }

@@ -82,7 +82,7 @@ function parseFaseAndGrupo(round: string | null | undefined): {
 
   const r = round.toLowerCase();
 
-  const groupMatch = r.match(/group\s+([a-h])/i);
+  const groupMatch = r.match(/group\s+([a-l])/i);
   if (groupMatch || r.includes("group")) {
     const grupo = groupMatch?.[1]?.toUpperCase() ?? null;
     const jornadaMatch = r.match(/-?\s*(\d+)\s*$/);

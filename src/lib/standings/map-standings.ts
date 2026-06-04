@@ -13,7 +13,7 @@ export function extractGroupKey(row: ApifootballStandingRow): string {
   for (const raw of candidates) {
     const text = raw.trim();
     const letterMatch =
-      text.match(/(?:group|grupo)\s*([A-Z])/i) ??
+      text.match(/(?:group|grupo)\s*([A-L])/i) ??
       text.match(/^([A-Z])$/i);
     if (letterMatch?.[1]) {
       return letterMatch[1].toUpperCase();

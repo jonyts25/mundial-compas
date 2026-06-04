@@ -20,12 +20,14 @@ interface PronosticoRowProps {
   partido: Partido;
   pronostico?: PronosticoUsuario;
   soloLectura?: boolean;
+  ligaId?: string;
 }
 
 export function PronosticoRow({
   partido,
   pronostico,
   soloLectura = false,
+  ligaId,
 }: PronosticoRowProps) {
   const [local, setLocal] = useState(pronostico?.goles_local ?? 0);
   const [visitante, setVisitante] = useState(pronostico?.goles_visitante ?? 0);
@@ -61,7 +63,7 @@ export function PronosticoRow({
   function handleSave() {
     setMessage(null);
     startTransition(async () => {
-      const result = await savePronostico(partido.id, local, visitante);
+      const result = await savePronostico(partido.id, local, visitante, ligaId);
       if (result.ok) {
         setMessage("Guardado ✓");
       } else {
