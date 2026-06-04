@@ -48,7 +48,7 @@ export function CrearGrupoForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Nombre del grupo
+          Nombre de la quiniela
         </label>
         <input
           type="text"
@@ -161,7 +161,7 @@ export function CrearGrupoForm() {
         disabled={isPending}
         className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
       >
-        {isPending ? "Creando…" : "Crear grupo"}
+        {isPending ? "Creando…" : "Crear quiniela"}
       </button>
     </form>
   );

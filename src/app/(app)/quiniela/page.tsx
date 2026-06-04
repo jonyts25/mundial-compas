@@ -94,7 +94,7 @@ export default async function QuinielaPage() {
             <p className="text-xs text-zinc-500">
               Liga global ·{" "}
               <Link href="/grupos" className="text-emerald-500 hover:underline">
-                Mis grupos
+                Mis quinielas
               </Link>
             </p>
           </div>

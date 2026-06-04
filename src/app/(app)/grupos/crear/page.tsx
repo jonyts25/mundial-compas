@@ -16,7 +16,7 @@ export default async function CrearGrupoPage() {
 
   return (
     <>
-      <GrupoPageHeader title="Crear grupo" backHref="/grupos" />
+      <GrupoPageHeader title="Nueva quiniela" backHref="/grupos" />
       <main className="mx-auto max-w-lg px-4 py-4 pb-28">
         <CrearGrupoForm />
       </main>

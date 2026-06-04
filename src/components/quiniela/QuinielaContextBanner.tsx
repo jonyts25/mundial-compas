@@ -61,7 +61,7 @@ export function QuinielaContextBanner({
       {esGlobal && (
         <p className="mt-2 text-[11px]">
           <Link href="/grupos" className="text-emerald-500 hover:underline">
-            Mis grupos privados
+            Mis quinielas
           </Link>
         </p>
       )}

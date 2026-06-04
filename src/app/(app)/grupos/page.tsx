@@ -21,9 +21,9 @@ export default async function GruposPage() {
   return (
     <>
       <GrupoPageHeader
-        title="Mis grupos"
+        title="Mis quinielas"
         subtitle="Quinielas privadas con tus compas"
-        backHref="/"
+        backHref="/quiniela"
       />
 
       <main className="mx-auto max-w-lg px-4 py-4 pb-28">
@@ -32,7 +32,7 @@ export default async function GruposPage() {
             href="/grupos/crear"
             className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-center text-sm font-bold text-white"
           >
-            + Crear
+            + Nueva quiniela
           </Link>
           <Link
             href="/grupos/unirse"
@@ -45,11 +45,11 @@ export default async function GruposPage() {
         <MisGruposList grupos={grupos} />
 
         <p className="mt-6 text-center text-xs text-zinc-600">
-          La{" "}
+          La quiniela global{" "}
           <Link href="/quiniela" className="text-emerald-500 hover:underline">
-            quiniela global
+            Mundial Compas
           </Link>{" "}
-          sigue igual para todos.
+          es independiente de tus quinielas privadas.
         </p>
       </main>
 

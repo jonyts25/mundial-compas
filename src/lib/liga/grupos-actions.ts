@@ -84,48 +84,44 @@ export async function crearGrupoPrivado(input: {
   let intentos = 0;
 
   while (intentos < 5) {
-    const { data: liga, error: insertError } = await supabase
-      .from("ligas_privadas")
-      .insert({
-        slug,
-        nombre,
-        descripcion: input.descripcion?.trim() || null,
-        codigo_invitacion: codigo,
-        creador_id: user.id,
-        es_publica: false,
-        es_sistema: false,
-        activa: true,
-        configuracion: buildConfiguracionLiga({
-          tipoQuiniela: tipo,
-          modoCompetencia: modo,
-        }),
-      })
-      .select("id, slug")
-      .single();
+    const { data, error: rpcError } = await supabase.rpc("crear_grupo_privado", {
+      p_nombre: nombre,
+      p_slug: slug,
+      p_codigo_invitacion: codigo,
+      p_descripcion: input.descripcion?.trim() || null,
+      p_configuracion: buildConfiguracionLiga({
+        tipoQuiniela: tipo,
+        modoCompetencia: modo,
+      }),
+    });
 
-    if (!insertError && liga) {
-      const { error: memberError } = await supabase.from("liga_miembros").insert({
-        liga_id: liga.id,
-        usuario_id: user.id,
-        rol: "owner",
-      });
-
-      if (memberError) {
-        return { ok: false, error: memberError.message };
-      }
-
-      revalidatePath("/grupos");
-      return { ok: true, slug: String(liga.slug) };
+    if (rpcError) {
+      return { ok: false, error: rpcError.message };
     }
 
-    if (insertError?.code === "23505") {
+    const result = data as Record<string, unknown> | null;
+    if (result?.ok) {
+      revalidatePath("/grupos");
+      return { ok: true, slug: String(result.slug) };
+    }
+
+    const errCode = String(result?.error ?? "");
+    if (errCode === "slug_o_codigo_duplicado") {
       intentos += 1;
       slug = `${slugifyNombre(nombre)}-${Math.random().toString(36).slice(2, 6)}`;
       codigo = generarCodigoInvitacion();
       continue;
     }
 
-    return { ok: false, error: insertError?.message ?? "No se pudo crear el grupo" };
+    const messages: Record<string, string> = {
+      no_autenticado: "Debes iniciar sesión",
+      nombre_invalido: "El nombre debe tener entre 3 y 80 caracteres",
+      parametros_invalidos: "No se pudo generar el grupo, intenta de nuevo",
+    };
+    return {
+      ok: false,
+      error: messages[errCode] ?? (errCode || "No se pudo crear la quiniela"),
+    };
   }
 
   return { ok: false, error: "No se pudo generar un slug único, intenta otro nombre" };

@@ -13,7 +13,7 @@ export function MisGruposList({ grupos }: MisGruposListProps) {
   if (grupos.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-zinc-700 p-8 text-center">
-        <p className="text-sm text-zinc-400">Aún no tienes grupos privados.</p>
+        <p className="text-sm text-zinc-400">Aún no tienes quinielas privadas.</p>
         <p className="mt-2 text-xs text-zinc-600">
           Crea uno con tus compas o únete con un código de invitación.
         </p>
@@ -22,7 +22,7 @@ export function MisGruposList({ grupos }: MisGruposListProps) {
             href="/grupos/crear"
             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white"
           >
-            Crear grupo
+            Nueva quiniela
           </Link>
           <Link
             href="/grupos/unirse"
