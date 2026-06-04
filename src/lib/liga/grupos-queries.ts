@@ -209,10 +209,15 @@ export async function fetchGrupoMiembros(
     return mapMiembroRowsFromRpc(result.miembros);
   }
 
-  const esMiembro = await assertUsuarioEsMiembro(userId, ligaId);
-  if (!esMiembro) return [];
-
   const admin = createServerDataClient();
+  const { data: propiaMembresia } = await admin
+    .from("liga_miembros")
+    .select("usuario_id")
+    .eq("liga_id", ligaId)
+    .eq("usuario_id", userId)
+    .maybeSingle();
+
+  if (!propiaMembresia) return [];
   const { data: membresias, error: memError } = await admin
     .from("liga_miembros")
     .select("usuario_id, rol, joined_at")
@@ -253,11 +258,14 @@ export async function assertUsuarioEsMiembro(
   ligaId: string,
 ): Promise<boolean> {
   if (ligaId === LIGA_GLOBAL_ID) return true;
+  assertAuthenticatedUserId(userId);
   const supabase = createServerDataClient();
-  const { data, error } = await supabase.rpc("es_miembro_de_liga", {
-    p_liga_id: ligaId,
-    p_usuario_id: userId,
-  });
+  const { data, error } = await supabase
+    .from("liga_miembros")
+    .select("usuario_id")
+    .eq("liga_id", ligaId)
+    .eq("usuario_id", userId)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   return Boolean(data);
 }

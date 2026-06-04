@@ -49,7 +49,7 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
           <p className="text-sm text-red-400">{message}</p>
           <p className="mt-2 text-xs text-zinc-500">
             Si acabas de crear la quiniela, aplica las migraciones Supabase pendientes
-            (roles + crear_grupo_privado).
+            (desde 20260601120000 hasta 20260605120000).
           </p>
         </main>
         <AppBottomNav />
@@ -91,9 +91,7 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
         <main className="px-4 py-8 pb-24 text-center">
           <p className="text-sm text-red-400">{message}</p>
           <p className="mt-2 text-xs text-zinc-500">
-            Slug: {slug} · Revisa migraciones{" "}
-            <code className="text-zinc-400">20260602120000</code> y{" "}
-            <code className="text-zinc-400">20260604120000</code> en Supabase.
+            Slug: {slug} · Revisa migraciones Supabase (quinielas privadas).
           </p>
         </main>
         <AppBottomNav />
