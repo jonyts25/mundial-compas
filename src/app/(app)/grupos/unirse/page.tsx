@@ -6,7 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function UnirseGrupoPage() {
+interface PageProps {
+  searchParams: Promise<{ codigo?: string }>;
+}
+
+export default async function UnirseGrupoPage({ searchParams }: PageProps) {
+  const { codigo } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -21,7 +26,7 @@ export default async function UnirseGrupoPage() {
         <p className="mb-4 text-sm text-zinc-400">
           Pide el código a quien creó el grupo (8 caracteres).
         </p>
-        <UnirseGrupoForm />
+        <UnirseGrupoForm codigoInicial={codigo?.trim() ?? ""} />
       </main>
       <AppBottomNav />
     </>

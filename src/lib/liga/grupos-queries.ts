@@ -4,6 +4,10 @@ import {
   type RolLiga,
 } from "@/lib/liga/roles";
 import {
+  parseModoCompetenciaFromConfig,
+  type ModoCompetencia,
+} from "@/lib/liga/modo-competencia";
+import {
   parseTipoQuinielaFromConfig,
   type TipoQuiniela,
 } from "@/lib/liga/tipo-quiniela";
@@ -21,6 +25,7 @@ export interface GrupoResumen {
   /** Completo solo para owner/admin; null para miembros normales. */
   codigo_invitacion: string | null;
   tipo_quiniela: TipoQuiniela;
+  modo_competencia: ModoCompetencia;
   rol: RolLiga;
   miembros_count: number;
   activa: boolean;
@@ -53,6 +58,7 @@ function mapGrupoRow(
     descripcion: (liga.descripcion as string | null) ?? null,
     codigo_invitacion: maskCodigoInvitacion(codigoRaw, rol),
     tipo_quiniela: parseTipoQuinielaFromConfig(liga.configuracion),
+    modo_competencia: parseModoCompetenciaFromConfig(liga.configuracion),
     rol,
     miembros_count: miembrosCount,
     activa: Boolean(liga.activa),

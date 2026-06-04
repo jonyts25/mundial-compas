@@ -1,8 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { buildConfiguracionLiga } from "@/lib/liga/liga-config";
 import {
-  buildConfiguracionConTipo,
+  isModoCompetencia,
+  MODO_COMPETENCIA_DEFAULT,
+  type ModoCompetencia,
+} from "@/lib/liga/modo-competencia";
+import {
   isTipoQuiniela,
   TIPO_QUINIELA_DEFAULT,
   type TipoQuiniela,
@@ -38,6 +43,7 @@ export async function crearGrupoPrivado(input: {
   nombre: string;
   descripcion?: string;
   tipoQuiniela: string;
+  modoCompetencia?: string;
 }): Promise<GrupoActionResult> {
   const supabase = await createClient();
   const {
@@ -60,6 +66,10 @@ export async function crearGrupoPrivado(input: {
   const tipo: TipoQuiniela = isTipoQuiniela(input.tipoQuiniela)
     ? input.tipoQuiniela
     : TIPO_QUINIELA_DEFAULT;
+
+  const modo: ModoCompetencia = isModoCompetencia(input.modoCompetencia)
+    ? input.modoCompetencia
+    : MODO_COMPETENCIA_DEFAULT;
 
   if (!isTipoQuiniela(input.tipoQuiniela)) {
     return {
@@ -85,7 +95,10 @@ export async function crearGrupoPrivado(input: {
         es_publica: false,
         es_sistema: false,
         activa: true,
-        configuracion: buildConfiguracionConTipo(tipo),
+        configuracion: buildConfiguracionLiga({
+          tipoQuiniela: tipo,
+          modoCompetencia: modo,
+        }),
       })
       .select("id, slug")
       .single();

@@ -2,6 +2,16 @@ import { todayMexicoDate } from "@/lib/datetime/mexico";
 import type { TipoQuiniela } from "@/lib/liga/tipo-quiniela";
 import type { FaseMundial, Partido } from "@/types/database";
 
+export const FASE_MUNDIAL_LABELS: Record<FaseMundial, string> = {
+  grupos: "Fase de grupos",
+  dieciseisavos: "Dieciseisavos",
+  octavos: "Octavos",
+  cuartos: "Cuartos",
+  semifinal: "Semifinal",
+  tercer_lugar: "Tercer lugar",
+  final: "Final",
+};
+
 export type PartidoFilterOptions = {
   tipo: TipoQuiniela;
   /** Para por_jornada / por_fase en fases futuras */

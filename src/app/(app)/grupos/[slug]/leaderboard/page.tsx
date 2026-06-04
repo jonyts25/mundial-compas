@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { GrupoPageHeader } from "@/components/grupos/GrupoPageHeader";
+import { LeaderboardSegmentNote } from "@/components/grupos/LeaderboardSegmentNote";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { fetchGrupoBySlug } from "@/lib/liga/grupos-queries";
 import { fetchLeaderboard } from "@/lib/leaderboard/queries";
@@ -64,6 +65,8 @@ export default async function GrupoLeaderboardPage({ params }: PageProps) {
             </p>
           </div>
         )}
+
+        <LeaderboardSegmentNote />
 
         <Leaderboard filas={filas} usuarioActualId={user.id} />
 

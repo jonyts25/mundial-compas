@@ -4,6 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { crearGrupoPrivado } from "@/lib/liga/grupos-actions";
 import {
+  MODO_COMPETENCIA_DESCRIPCIONES,
+  MODO_COMPETENCIA_LABELS,
+  MODOS_COMPETENCIA,
+  type ModoCompetencia,
+} from "@/lib/liga/modo-competencia";
+import {
   TIPO_QUINIELA_DESCRIPCIONES,
   TIPO_QUINIELA_LABELS,
   TIPOS_QUINIELA,
@@ -15,6 +21,7 @@ export function CrearGrupoForm() {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [tipo, setTipo] = useState<TipoQuiniela>("mundial_completo");
+  const [modo, setModo] = useState<ModoCompetencia>("honor");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -26,6 +33,7 @@ export function CrearGrupoForm() {
         nombre,
         descripcion,
         tipoQuiniela: tipo,
+        modoCompetencia: modo,
       });
       if (result.ok) {
         router.push(`/grupos/${result.slug}`);
@@ -96,6 +104,45 @@ export function CrearGrupoForm() {
                 </span>
                 <span className="mt-0.5 block text-xs text-zinc-500">
                   {TIPO_QUINIELA_DESCRIPCIONES[t]}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          Modo entre amigos
+        </legend>
+        <p className="mb-2 text-xs text-zinc-600">
+          La app no procesa dinero ni apuestas reales; solo control social
+          simbólico.
+        </p>
+        <div className="space-y-2">
+          {MODOS_COMPETENCIA.map((m) => (
+            <label
+              key={m}
+              className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
+                modo === m
+                  ? "border-violet-600/60 bg-violet-950/30"
+                  : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-600"
+              }`}
+            >
+              <input
+                type="radio"
+                name="modo"
+                value={m}
+                checked={modo === m}
+                onChange={() => setModo(m)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-white">
+                  {MODO_COMPETENCIA_LABELS[m]}
+                </span>
+                <span className="mt-0.5 block text-xs text-zinc-500">
+                  {MODO_COMPETENCIA_DESCRIPCIONES[m]}
                 </span>
               </span>
             </label>

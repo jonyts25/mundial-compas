@@ -8,9 +8,13 @@ import {
 } from "@/lib/liga/grupos-actions";
 import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
 
-export function UnirseGrupoForm() {
+interface UnirseGrupoFormProps {
+  codigoInicial?: string;
+}
+
+export function UnirseGrupoForm({ codigoInicial = "" }: UnirseGrupoFormProps) {
   const router = useRouter();
-  const [codigo, setCodigo] = useState("");
+  const [codigo, setCodigo] = useState(codigoInicial);
   const [preview, setPreview] = useState<{
     nombre: string;
     tipo: string;

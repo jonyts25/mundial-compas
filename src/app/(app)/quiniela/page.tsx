@@ -8,7 +8,11 @@ import { QuinielaHonorBanner } from "@/components/quiniela/QuinielaHonorBanner";
 import { resolveIsModerator } from "@/lib/auth/moderator";
 import { fetchAcuerdoPago } from "@/lib/liga/fetch-acuerdo-pago";
 import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
+import { QuinielaContextBanner } from "@/components/quiniela/QuinielaContextBanner";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
+import { QuinielaSelector } from "@/components/quiniela/QuinielaSelector";
+import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { fetchQuinielaSelectorOptions } from "@/lib/quiniela/selector-options";
 import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
 import { TablonLiquidacion } from "@/components/quiniela/TablonLiquidacion";
 import { fetchLeaderboard } from "@/lib/leaderboard/queries";
@@ -49,7 +53,8 @@ export default async function QuinielaPage() {
 
   const esModerador = await resolveIsModerator(supabase, user.id);
 
-  const [data, competencia, pagos, leaderboard, acuerdoPago, pilot] = await Promise.all([
+  const [data, competencia, pagos, leaderboard, acuerdoPago, pilot, selectorOptions] =
+    await Promise.all([
     fetchQuinielaData(user.id),
     fetchCompetenciaLiga().catch(() => ({
       estado: "activa" as const,
@@ -64,6 +69,7 @@ export default async function QuinielaPage() {
     fetchLeaderboard().catch(() => []),
     fetchAcuerdoPago(),
     fetchPilotUiState(),
+    fetchQuinielaSelectorOptions(user.id),
   ]);
 
   const honorCtx = resolveGanadorHonorContext(
@@ -96,6 +102,13 @@ export default async function QuinielaPage() {
       </header>
 
       <main className="mx-auto max-w-lg px-4 py-4 pb-28">
+        <QuinielaSelector
+          options={selectorOptions}
+          activeLigaId={LIGA_GLOBAL_ID}
+        />
+
+        <QuinielaContextBanner nombreLiga="Mundial Compas" esGlobal />
+
         {pilot.showBanner && (
           <PilotModeBanner
             label={pilot.label}

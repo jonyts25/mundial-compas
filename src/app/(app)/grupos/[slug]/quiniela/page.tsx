@@ -1,21 +1,50 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { GrupoPageHeader } from "@/components/grupos/GrupoPageHeader";
+import { QuinielaContextBanner } from "@/components/quiniela/QuinielaContextBanner";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
+import { QuinielaSelector } from "@/components/quiniela/QuinielaSelector";
+import { QuinielaTipoFilters } from "@/components/quiniela/QuinielaTipoFilters";
 import { fetchGrupoBySlug } from "@/lib/liga/grupos-queries";
-import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
+import { fetchQuinielaFilterOptions } from "@/lib/quiniela/filter-options";
+import { fetchQuinielaSelectorOptions } from "@/lib/quiniela/selector-options";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
 import { createClient } from "@/lib/supabase/server";
+import type { FaseMundial } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ jornada?: string; fase?: string }>;
 }
 
-export default async function GrupoQuinielaPage({ params }: PageProps) {
+function parseJornada(value: string | undefined): number | null {
+  if (!value) return null;
+  const n = Number.parseInt(value, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+function parseFase(value: string | undefined): FaseMundial | null {
+  const valid: FaseMundial[] = [
+    "grupos",
+    "dieciseisavos",
+    "octavos",
+    "cuartos",
+    "semifinal",
+    "tercer_lugar",
+    "final",
+  ];
+  if (value && valid.includes(value as FaseMundial)) {
+    return value as FaseMundial;
+  }
+  return null;
+}
+
+export default async function GrupoQuinielaPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const sp = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -26,20 +55,46 @@ export default async function GrupoQuinielaPage({ params }: PageProps) {
   const grupo = await fetchGrupoBySlug(user.id, slug);
   if (!grupo || !grupo.activa) notFound();
 
-  const data = await fetchQuinielaData(user.id, {
-    ligaId: grupo.id,
-    tipoQuiniela: grupo.tipo_quiniela,
-  });
+  const jornada = parseJornada(sp.jornada);
+  const fase = parseFase(sp.fase);
+
+  const [data, selectorOptions, filterOptions] = await Promise.all([
+    fetchQuinielaData(user.id, {
+      ligaId: grupo.id,
+      tipoQuiniela: grupo.tipo_quiniela,
+      jornada,
+      fase,
+    }),
+    fetchQuinielaSelectorOptions(user.id),
+    fetchQuinielaFilterOptions(),
+  ]);
 
   return (
     <>
       <GrupoPageHeader
         title={`Quiniela · ${grupo.nombre}`}
-        subtitle={TIPO_QUINIELA_LABELS[grupo.tipo_quiniela]}
         backHref={`/grupos/${slug}`}
       />
 
       <main className="mx-auto max-w-lg px-4 py-4 pb-28">
+        <QuinielaSelector options={selectorOptions} activeLigaId={grupo.id} />
+
+        <QuinielaContextBanner
+          nombreLiga={grupo.nombre}
+          tipoQuiniela={grupo.tipo_quiniela}
+          modoCompetencia={grupo.modo_competencia}
+          grupoSlug={slug}
+        />
+
+        <Suspense fallback={null}>
+          <QuinielaTipoFilters
+            tipoQuiniela={grupo.tipo_quiniela}
+            filterOptions={filterOptions}
+            jornadaActual={jornada}
+            faseActual={fase}
+          />
+        </Suspense>
+
         <QuinielaList
           partidos={data.partidos}
           pronosticosPorPartido={data.pronosticosPorPartido}
@@ -48,15 +103,13 @@ export default async function GrupoQuinielaPage({ params }: PageProps) {
           emptyHint={
             grupo.tipo_quiniela === "express_dia"
               ? "Hoy no hay partidos programados para el express del día."
-              : undefined
+              : grupo.tipo_quiniela === "por_jornada" && jornada != null
+                ? `No hay partidos abiertos en la jornada ${jornada}.`
+                : grupo.tipo_quiniela === "por_fase" && fase
+                  ? `No hay partidos abiertos en ${fase}.`
+                  : undefined
           }
         />
-        <p className="mt-4 text-center text-xs text-zinc-600">
-          Pronósticos solo cuentan en este grupo.{" "}
-          <Link href="/quiniela" className="text-emerald-500 hover:underline">
-            Quiniela global
-          </Link>
-        </p>
       </main>
 
       <AppBottomNav />

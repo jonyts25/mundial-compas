@@ -46,3 +46,5 @@ export function buildConfiguracionConTipo(
 ): Record<string, unknown> {
   return { ...extra, tipo_quiniela: tipo };
 }
+
+/** @deprecated Usar buildConfiguracionLiga desde liga-config.ts */
