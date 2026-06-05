@@ -1,67 +1,61 @@
-# Prueba en vivo — México vs Serbia
+# México vs Serbia — prueba EN VIVO
 
-Partido pilot `fixture_id=776604`. Si apifootball no devuelve el evento hoy, se carga directo en Supabase y el **runner** simula el partido vía webhook (goles, chat, push).
+Amistoso internacional (FOX fixture `761641`). **No usar replay simulado** para este partido.
 
-## Kickoff por defecto
+## Requisito: plan apifootball
 
-**20:00 CDMX** del día actual. Ajusta con:
+El relay en vivo solo recibe partidos que tu **plan en apifootball.com** incluye.
 
-```env
-MEXICO_SERBIA_KICKOFF_HOUR=20
-MEXICO_SERBIA_KICKOFF_MINUTE=0
-```
-
-## Setup automático (recomendado)
+Diagnóstico:
 
 ```powershell
-npm run setup-railway-mexico-serbia
+node scripts/discover-api-plan.mjs
+```
+
+Si solo ves 2 ligas menores (ej. Ghana PL, England Non League), **México vs Serbia no llegará por API**. Debes renovar/ampliar el plan en [apifootball.com](https://apifootball.com) para incluir amistosos internacionales.
+
+## Setup en vivo (WebSocket)
+
+```powershell
+# Opcional: cuando tengas el league_id del amistoso en tu plan
+$env:APIFOOTBALL_PILOT_LEAGUE_ID="XXXX"
+
+npm run setup-railway-live
 ```
 
 Esto:
 
-1. Activa `PILOT_MODE_ENABLED` en app + relay
-2. Carga el partido en Supabase
-3. Despliega la app
-4. Despliega el runner en `livescore-relay` (espera kickoff → replay)
+1. Activa pilot en la app
+2. Despliega `livescore-relay` (WebSocket → `/api/webhooks/football`)
+3. **No** ejecuta payloads simulados
 
-## Manual
+## Cargar partido en Supabase
 
-```powershell
-node scripts/cargar-pilot-mexico-serbia.mjs
-node scripts/replay-mexico-serbia-live.mjs --reset
-```
-
-Forzar sin esperar kickoff:
+Cuando el plan incluya el fixture:
 
 ```powershell
-node scripts/run-mexico-serbia-live-runner.mjs --now
+# Con league_id correcto en env
+npm run cargar-pilot-mexico-serbia
 ```
 
-## Variables Railway
-
-```env
-PILOT_MODE_ENABLED=true
-APIFOOTBALL_PILOT_LEAGUE_ID=776
-APIFOOTBALL_PILOT_FROM=2026-06-04
-APIFOOTBALL_PILOT_TO=2026-06-04
-APIFOOTBALL_PILOT_LABEL=Mexico vs Serbia - partido de prueba
-MEXICO_SERBIA_REPLAY_DELAY_MS=25000
-```
-
-Relay también necesita: `API_FOOTBALL_WEBHOOK_SECRET`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
-
-## Qué probar
-
-- Home / quiniela: banderas México y Serbia
-- Pronóstico antes del pitazo
-- Chat en vivo: narración de goles (Lozano 23', Mitrović 67', Martín 82')
-- Push de goles y final 2-1
-- Leaderboard tras `Finished`
-
-## Volver al relay normal
+O vía admin en producción:
 
 ```powershell
-npm run deploy:relay
+curl -X POST "https://mundial-compas.up.railway.app/api/admin/cargar-partidos?modo=pilot&from=2026-06-04&to=2026-06-04" `
+  -H "Authorization: Bearer $ADMIN_CARGAR_PARTIDOS_SECRET"
 ```
 
-Y restaura `APIFOOTBALL_PILOT_LEAGUE_ID` al pilot que uses (UCL `3`, Concacaf `5`, etc.).
+## Logs
+
+```powershell
+npx railway logs --service livescore-relay
+```
+
+Debes ver: `[relay] Conectado a apifootball livescore` y posts cuando haya eventos en tu plan.
+
+## Scripts de replay (solo emergencia)
+
+Si la API no tiene el partido, **no** uses estos para un amistoso real:
+
+- `npm run replay-mexico-serbia` — simulación manual
+- `deploy:mexico-serbia-runner` — runner con payloads (desactivado)

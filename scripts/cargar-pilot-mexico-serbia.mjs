@@ -10,6 +10,8 @@ import { loadEnvLocal } from "./load-env-local.mjs";
 
 loadEnvLocal();
 
+/** FOX Sports id del amistoso; apifootball puede usar otro match_id. */
+export const MEXICO_SERBIA_FOX_FIXTURE_ID = 761641;
 export const MEXICO_SERBIA_FIXTURE_ID = 776604;
 const MEXICO_TZ = "America/Mexico_City";
 
@@ -159,33 +161,47 @@ async function upsertDirect() {
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Si la API tiene el partido, intenta cargar por league; si no, upsert directo. */
+/** Solo carga desde API real. Sin --force-seed no inventa partidos. */
 async function main() {
   const today = todayMx();
   const from = process.env.APIFOOTBALL_PILOT_FROM || today;
   const to = process.env.APIFOOTBALL_PILOT_TO || today;
-  const league = process.env.APIFOOTBALL_PILOT_LEAGUE_ID || "776";
+  const league = process.env.APIFOOTBALL_PILOT_LEAGUE_ID?.trim();
+  const label =
+    process.env.APIFOOTBALL_PILOT_LABEL || "Mexico vs Serbia - live";
 
-  console.log(`Intentando API league=${league} ${from}…`);
-  const apiTry = spawnSync(
-    "node",
-    [
-      "scripts/cargar-pilot-local.mjs",
-      `--league=${league}`,
-      `--from=${from}`,
-      `--to=${to}`,
-      `--label=${process.env.APIFOOTBALL_PILOT_LABEL || "Mexico vs Serbia - partido de prueba"}`,
-    ],
-    { cwd: root, env: process.env, stdio: "pipe", shell: process.platform === "win32" },
-  );
+  const attempts = [];
+  if (league) {
+    attempts.push(["scripts/cargar-pilot-local.mjs", `--league=${league}`, `--from=${from}`, `--to=${to}`, `--label=${label}`]);
+  }
+  attempts.push(["scripts/cargar-pilot-local.mjs", `--from=${from}`, `--to=${to}`, `--label=${label}`]);
 
-  if (apiTry.status === 0) {
-    console.log(apiTry.stdout?.toString() || "");
+  for (const args of attempts) {
+    console.log(`Intentando API ${args.slice(1).join(" ")}…`);
+    const apiTry = spawnSync("node", args, {
+      cwd: root,
+      env: process.env,
+      stdio: "pipe",
+      shell: process.platform === "win32",
+    });
+    if (apiTry.status === 0) {
+      console.log(apiTry.stdout?.toString() || "");
+      return;
+    }
+    if (apiTry.stderr?.length) console.error(apiTry.stderr.toString().slice(0, 400));
+  }
+
+  console.error("\n✗ La API no devolvió México vs Serbia.");
+  console.error("  Corre: npm run discover-api-plan");
+  console.error("  Renueva/ampliá tu plan en apifootball.com (amistosos internacionales).");
+
+  if (process.argv.includes("--force-seed")) {
+    console.warn("\n--force-seed: insertando partido manual (NO en vivo real)…");
+    await upsertDirect();
     return;
   }
 
-  console.log("API sin eventos hoy → upsert directo en Supabase…");
-  await upsertDirect();
+  process.exit(2);
 }
 
 const isMain = process.argv[1]?.includes("cargar-pilot-mexico-serbia");
