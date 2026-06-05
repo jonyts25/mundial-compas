@@ -65,7 +65,7 @@ export async function syncLiveScoresFromApi(
 
   if (getFootballDataProvider() === "api-sports") {
     const result = await syncLiveScoresFromApiSports(supabase);
-    return { ...result, window, apiRequests: 1 };
+    return { ...result, window, apiRequests: result.apiRequests ?? 1 };
   }
 
   const { apiKey, timezone } = getApiFootballEnv();
