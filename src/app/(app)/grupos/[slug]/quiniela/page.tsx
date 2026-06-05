@@ -1,12 +1,10 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
-import { GrupoPageHeader } from "@/components/grupos/GrupoPageHeader";
 import { DisclaimerBlock } from "@/components/legal/DisclaimerBlock";
-import { QuinielaContextBanner } from "@/components/quiniela/QuinielaContextBanner";
+import { QuinielaCompactHeader } from "@/components/quiniela/QuinielaCompactHeader";
 import { DISCLAIMER_COOPERACHA } from "@/lib/legal/disclaimers";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
-import { QuinielaSelector } from "@/components/quiniela/QuinielaSelector";
 import { QuinielaTipoFilters } from "@/components/quiniela/QuinielaTipoFilters";
 import { fetchGrupoBySlug } from "@/lib/liga/grupos-queries";
 import { fetchQuinielaFilterOptions } from "@/lib/quiniela/filter-options";
@@ -72,22 +70,19 @@ export default async function GrupoQuinielaPage({ params, searchParams }: PagePr
   ]);
 
   return (
-    <>
-      <GrupoPageHeader
-        title={`Quiniela · ${grupo.nombre}`}
+    <div className="mx-auto max-w-lg">
+      <QuinielaCompactHeader
+        nombre={grupo.nombre}
         backHref={`/grupos/${slug}`}
+        esGlobal={false}
+        tipoQuiniela={grupo.tipo_quiniela}
+        modoCompetencia={grupo.modo_competencia}
+        selectorOptions={selectorOptions}
+        activeLigaId={grupo.id}
+        grupoSlug={slug}
       />
 
-      <main className="mx-auto max-w-lg px-4 py-4 pb-28">
-        <QuinielaSelector options={selectorOptions} activeLigaId={grupo.id} />
-
-        <QuinielaContextBanner
-          nombreLiga={grupo.nombre}
-          tipoQuiniela={grupo.tipo_quiniela}
-          modoCompetencia={grupo.modo_competencia}
-          grupoSlug={slug}
-        />
-
+      <main className="px-4 py-3 pb-28">
         {grupo.modo_competencia === "cooperacion" && (
           <DisclaimerBlock title="Cooperacha" body={DISCLAIMER_COOPERACHA} compact />
         )}
@@ -119,6 +114,6 @@ export default async function GrupoQuinielaPage({ params, searchParams }: PagePr
       </main>
 
       <AppBottomNav />
-    </>
+    </div>
   );
 }

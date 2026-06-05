@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { trackEventServer } from "@/lib/analytics/track";
 import { createClient } from "@/lib/supabase/server";
 
 export type SolicitarEliminacionResult =
@@ -31,6 +32,7 @@ export async function solicitarEliminacionGrupo(
 
   if (error) return { ok: false, error: error.message };
 
+  trackEventServer("deletion_requested", { liga_scope: "grupo" });
   revalidatePath(`/grupos/${grupoSlug}`);
   return { ok: true };
 }

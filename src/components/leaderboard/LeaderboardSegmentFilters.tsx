@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { trackEvent } from "@/lib/analytics/track";
 import { todayMexicoDate } from "@/lib/datetime/mexico";
 import { FASE_MUNDIAL_LABELS } from "@/lib/liga/partido-filters";
 import {
@@ -31,9 +32,15 @@ export function LeaderboardSegmentFilters({
   const searchParams = useSearchParams();
   const basePath = pathname;
 
-  function pushParams(mutate: (next: URLSearchParams) => void) {
+  function pushParams(
+    mutate: (next: URLSearchParams) => void,
+    segment?: { modo: string; jornada?: number | null; fase?: string | null },
+  ) {
     const next = new URLSearchParams(searchParams.toString());
     mutate(next);
+    if (segment) {
+      trackEvent("leaderboard_segment_changed", segment);
+    }
     const q = next.toString();
     router.push(q ? `${basePath}?${q}` : basePath);
   }
@@ -59,18 +66,24 @@ export function LeaderboardSegmentFilters({
           <FilterChip
             active={modoSegmento === "segmento"}
             onClick={() =>
-              pushParams((next) => {
-                next.delete("vista");
-              })
+              pushParams(
+                (next) => {
+                  next.delete("vista");
+                },
+                { modo: "segmento" },
+              )
             }
             label="Hoy"
           />
           <AcumuladoChip
             active={modoSegmento === "acumulado"}
             onClick={() =>
-              pushParams((next) => {
-                next.set("vista", "acumulado");
-              })
+              pushParams(
+                (next) => {
+                  next.set("vista", "acumulado");
+                },
+                { modo: "acumulado" },
+              )
             }
           />
         </div>
@@ -97,10 +110,13 @@ export function LeaderboardSegmentFilters({
                 modoSegmento === "segmento" && jornadaActual === j
               }
               onClick={() =>
-                pushParams((next) => {
-                  next.delete("vista");
-                  next.set("jornada", String(j));
-                })
+                pushParams(
+                  (next) => {
+                    next.delete("vista");
+                    next.set("jornada", String(j));
+                  },
+                  { modo: "segmento", jornada: j },
+                )
               }
               label={`J${j}`}
             />
@@ -108,10 +124,13 @@ export function LeaderboardSegmentFilters({
           <AcumuladoChip
             active={modoSegmento === "acumulado"}
             onClick={() =>
-              pushParams((next) => {
-                next.set("vista", "acumulado");
-                next.delete("jornada");
-              })
+              pushParams(
+                (next) => {
+                  next.set("vista", "acumulado");
+                  next.delete("jornada");
+                },
+                { modo: "acumulado", jornada: null },
+              )
             }
           />
         </div>
@@ -136,10 +155,13 @@ export function LeaderboardSegmentFilters({
               key={f}
               active={modoSegmento === "segmento" && faseActual === f}
               onClick={() =>
-                pushParams((next) => {
-                  next.delete("vista");
-                  next.set("fase", f);
-                })
+                pushParams(
+                  (next) => {
+                    next.delete("vista");
+                    next.set("fase", f);
+                  },
+                  { modo: "segmento", fase: f },
+                )
               }
               label={FASE_MUNDIAL_LABELS[f]}
             />
@@ -147,10 +169,13 @@ export function LeaderboardSegmentFilters({
           <AcumuladoChip
             active={modoSegmento === "acumulado"}
             onClick={() =>
-              pushParams((next) => {
-                next.set("vista", "acumulado");
-                next.delete("fase");
-              })
+              pushParams(
+                (next) => {
+                  next.set("vista", "acumulado");
+                  next.delete("fase");
+                },
+                { modo: "acumulado", fase: null },
+              )
             }
           />
         </div>

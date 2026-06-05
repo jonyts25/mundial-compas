@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { metadataGrupoPrivado } from "@/lib/chat/scopes";
+import { trackEventServer } from "@/lib/analytics/track";
+import { moderationErrorToReason } from "@/lib/moderation/analytics-reason";
 import { validateUserChatMessage } from "@/lib/moderation/validate-user-message";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,6 +49,10 @@ export async function sendGrupoChatMessage(
     ligaId,
   });
   if (!moderation.ok) {
+    trackEventServer("chat_message_blocked_by_moderation", {
+      scope: "grupo",
+      reason: moderationErrorToReason(moderation.error),
+    });
     return { ok: false, error: moderation.error };
   }
   const text = moderation.content;
@@ -62,6 +68,7 @@ export async function sendGrupoChatMessage(
 
   if (error) return { ok: false, error: error.message };
 
+  trackEventServer("chat_message_sent", { scope: "grupo" });
   revalidatePath(`/grupos/${grupoSlug}`);
   return { ok: true };
 }

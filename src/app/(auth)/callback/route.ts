@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { trackEventServer } from "@/lib/analytics/track";
 import { getRequestOrigin } from "@/lib/auth/app-url";
 
 function safeNextPath(next: string | null): string {
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   if (code) {
     const cookieStore = await cookies();
     const redirectUrl = `${origin}${next}`;
-    let response = NextResponse.redirect(redirectUrl);
+    const response = NextResponse.redirect(redirectUrl);
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      trackEventServer("user_signed_in", {});
       response.headers.set("Cache-Control", "private, no-store");
       return response;
     }

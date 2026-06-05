@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
+import { trackEvent } from "@/lib/analytics/track";
+import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { savePronostico } from "@/lib/quiniela/actions";
 import {
   formatTimeUntilLock,
@@ -65,6 +67,10 @@ export function PronosticoRow({
     startTransition(async () => {
       const result = await savePronostico(partido.id, local, visitante, ligaId);
       if (result.ok) {
+        trackEvent("pronostico_saved", {
+          liga_scope: !ligaId || ligaId === LIGA_GLOBAL_ID ? "global" : "grupo",
+          partido_id: partido.id,
+        });
         setMessage("Guardado ✓");
       } else {
         setMessage(result.error);

@@ -56,6 +56,7 @@ export default async function UnirseGrupoPage({ searchParams }: PageProps) {
           codigoInicial={codigoNorm}
           initialPreview={initialPreview}
           initialError={initialError}
+          joinVia={codigoNorm.length >= 4 ? "link" : "codigo"}
         />
       </main>
       <AppBottomNav />

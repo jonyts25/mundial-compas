@@ -12,6 +12,7 @@ import {
   TIPO_QUINIELA_DEFAULT,
   type TipoQuiniela,
 } from "@/lib/liga/tipo-quiniela";
+import { trackEventServer } from "@/lib/analytics/track";
 import { assertLigaOwner, assertLigaOwnerOrAdmin } from "@/lib/liga/roles";
 import { createClient } from "@/lib/supabase/server";
 
@@ -102,6 +103,7 @@ export async function crearGrupoPrivado(input: {
     const result = data as Record<string, unknown> | null;
     if (result?.ok) {
       const slugOk = String(result.slug);
+      trackEventServer("grupo_created", { tipo_quiniela: tipo });
       revalidatePath("/grupos");
       revalidatePath(`/grupos/${slugOk}`);
       return { ok: true, slug: slugOk };
@@ -131,6 +133,7 @@ export async function crearGrupoPrivado(input: {
 
 export async function unirseGrupoPorCodigo(
   codigo: string,
+  via: "codigo" | "link" = "codigo",
 ): Promise<GrupoActionResult & { alreadyMember?: boolean }> {
   const supabase = await createClient();
   const {
@@ -174,13 +177,17 @@ export async function unirseGrupoPorCodigo(
   }
 
   const slug = String(result.slug);
+  const alreadyMember = Boolean(result.already_member);
+  if (!alreadyMember) {
+    trackEventServer("grupo_joined", { via });
+  }
   revalidatePath("/grupos");
   revalidatePath(`/grupos/${slug}`);
 
   return {
     ok: true,
     slug,
-    alreadyMember: Boolean(result.already_member),
+    alreadyMember,
   };
 }
 

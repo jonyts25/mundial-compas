@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { trackEvent } from "@/lib/analytics/track";
 import { FASE_MUNDIAL_LABELS } from "@/lib/liga/partido-filters";
 import { TIPO_QUINIELA_LABELS, type TipoQuiniela } from "@/lib/liga/tipo-quiniela";
 import type { QuinielaFilterOptions } from "@/lib/quiniela/filter-options";
@@ -62,14 +63,20 @@ export function QuinielaTipoFilters({
         <div className="flex flex-wrap gap-1.5">
           <FilterChip
             active={jornadaActual == null}
-            onClick={() => setParam("jornada", null)}
+            onClick={() => {
+              trackEvent("filtro_jornada_selected", { jornada: null });
+              setParam("jornada", null);
+            }}
             label="Todas"
           />
           {jornadas.map((j) => (
             <FilterChip
               key={j}
               active={jornadaActual === j}
-              onClick={() => setParam("jornada", String(j))}
+              onClick={() => {
+                trackEvent("filtro_jornada_selected", { jornada: j });
+                setParam("jornada", String(j));
+              }}
               label={`J${j}`}
             />
           ))}
@@ -90,14 +97,20 @@ export function QuinielaTipoFilters({
         <div className="flex flex-wrap gap-1.5">
           <FilterChip
             active={!faseActual}
-            onClick={() => setParam("fase", null)}
+            onClick={() => {
+              trackEvent("filtro_fase_selected", { fase: null });
+              setParam("fase", null);
+            }}
             label="Todas"
           />
           {fases.map((f) => (
             <FilterChip
               key={f}
               active={faseActual === f}
-              onClick={() => setParam("fase", f)}
+              onClick={() => {
+                trackEvent("filtro_fase_selected", { fase: f });
+                setParam("fase", f);
+              }}
               label={FASE_MUNDIAL_LABELS[f]}
             />
           ))}

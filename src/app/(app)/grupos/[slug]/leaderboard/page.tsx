@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracker";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { GrupoPageHeader } from "@/components/grupos/GrupoPageHeader";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
@@ -90,6 +91,10 @@ export default async function GrupoLeaderboardPage({
 
   return (
     <>
+      <AnalyticsViewTracker
+        event="leaderboard_viewed"
+        properties={{ liga_scope: "grupo" }}
+      />
       <GrupoPageHeader
         title={grupo.nombre}
         subtitle={`${TIPO_QUINIELA_LABELS[grupo.tipo_quiniela]} · ${segmentoLabel}`}

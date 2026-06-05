@@ -7,6 +7,8 @@ import {
   isMatchChatOpen,
   type PartidoChatInput,
 } from "@/lib/chat/match-chat-window";
+import { trackEventServer } from "@/lib/analytics/track";
+import { moderationErrorToReason } from "@/lib/moderation/analytics-reason";
 import { validateUserChatMessage } from "@/lib/moderation/validate-user-message";
 import { createClient } from "@/lib/supabase/server";
 import type { MensajeChatRealtimeRow } from "@/types/chat";
@@ -51,6 +53,10 @@ export async function sendChatMessage(
     ligaId: LIGA_GLOBAL_ID,
   });
   if (!moderation.ok) {
+    trackEventServer("chat_message_blocked_by_moderation", {
+      scope: "partido",
+      reason: moderationErrorToReason(moderation.error),
+    });
     return { ok: false, error: moderation.error };
   }
   const text = moderation.content;
@@ -87,6 +93,7 @@ export async function sendChatMessage(
     return { ok: false, error: error.message };
   }
 
+  trackEventServer("chat_message_sent", { scope: "partido" });
   revalidatePath(`/partidos/${partidoId}`);
   return { ok: true };
 }
@@ -112,6 +119,9 @@ export async function reportarMensaje(
   }
 
   const mensaje = mapRpcRow(data as Record<string, unknown>);
+  trackEventServer("chat_message_reported", {
+    scope: mensaje.partido_id ? "partido" : "grupo",
+  });
   if (mensaje.partido_id) {
     revalidatePath(`/partidos/${mensaje.partido_id}`);
   }

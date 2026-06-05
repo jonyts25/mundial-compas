@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
+import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracker";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { fetchLeaderboard } from "@/lib/leaderboard/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -40,6 +41,10 @@ export default async function LeaderboardPage() {
 
   return (
     <>
+      <AnalyticsViewTracker
+        event="leaderboard_viewed"
+        properties={{ liga_scope: "global" }}
+      />
       <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
         <div className="flex items-center gap-3">
           <Link

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics/track";
 import {
   dismissPushPrompt,
   isPushSupported,
@@ -16,7 +17,9 @@ export function PushNotificationPrompt() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setVisible(shouldOfferPushPrompt());
+    if (!shouldOfferPushPrompt()) return;
+    trackEvent("push_prompt_shown", {});
+    queueMicrotask(() => setVisible(true));
   }, []);
 
   if (!visible || done) return null;
@@ -27,9 +30,11 @@ export function PushNotificationPrompt() {
     try {
       const ok = await subscribeToPushNotifications();
       if (ok) {
+        trackEvent("push_enabled", {});
         setDone(true);
         setVisible(false);
       } else {
+        trackEvent("push_denied", {});
         setError("Permiso denegado. Puedes activarlo después en Ajustes del iPhone.");
       }
     } catch (err) {

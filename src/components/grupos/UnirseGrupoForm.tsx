@@ -26,6 +26,8 @@ interface UnirseGrupoFormProps {
   codigoInicial?: string;
   initialPreview?: UnirsePreviewInitial | null;
   initialError?: string | null;
+  /** "link" si llegó por /invitar o query ?codigo= */
+  joinVia?: "codigo" | "link";
 }
 
 function toPreviewData(p: UnirsePreviewInitial): InvitePreviewData {
@@ -42,6 +44,7 @@ export function UnirseGrupoForm({
   codigoInicial = "",
   initialPreview = null,
   initialError = null,
+  joinVia = "codigo",
 }: UnirseGrupoFormProps) {
   const router = useRouter();
   const [codigo, setCodigo] = useState(codigoInicial.toUpperCase());
@@ -83,7 +86,7 @@ export function UnirseGrupoForm({
   function unirse() {
     setError(null);
     startTransition(async () => {
-      const result = await unirseGrupoPorCodigo(codigo);
+      const result = await unirseGrupoPorCodigo(codigo, joinVia);
       if (result.ok) {
         router.push(`/grupos/${result.slug}`);
         router.refresh();

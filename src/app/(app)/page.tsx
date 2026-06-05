@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { PublicLandingPage } from "@/components/landing/PublicLandingPage";
 import { AdminPlatformCard } from "@/components/admin/AdminPlatformCard";
 import { AppHeader } from "@/components/home/AppHeader";
 import { CalendarioPartidos } from "@/components/home/CalendarioPartidos";
@@ -23,7 +23,7 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    return <PublicLandingPage />;
   }
 
   const [

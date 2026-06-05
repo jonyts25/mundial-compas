@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { InvitePreviewCard } from "@/components/grupos/InvitePreviewCard";
+import { trackEvent } from "@/lib/analytics/track";
 import {
   buildInvitePath,
   buildInviteQrUrl,
@@ -81,11 +82,13 @@ export function GrupoInvitarPanel({
 
   async function handleCopyCodigo() {
     const ok = await copyTextToClipboard(codigo);
+    if (ok) trackEvent("invite_copied", { kind: "codigo" });
     showFeedback(ok ? "codigo" : "error");
   }
 
   async function handleCopyLink() {
     const ok = await copyTextToClipboard(inviteUrl);
+    if (ok) trackEvent("invite_copied", { kind: "link" });
     showFeedback(ok ? "link" : "error");
   }
 
@@ -95,12 +98,16 @@ export function GrupoInvitarPanel({
     try {
       if (canUseNativeShare()) {
         const result = await shareInviteNative(sharePayload);
-        if (result === "shared") showFeedback("share");
-        else if (result === "failed") {
+        if (result === "shared") {
+          trackEvent("invite_shared", { channel: "native" });
+          showFeedback("share");
+        } else if (result === "failed") {
+          trackEvent("invite_shared", { channel: "whatsapp" });
           window.open(buildWhatsAppShareUrl(buildWhatsAppInviteMessage(sharePayload)), "_blank");
           showFeedback("share");
         }
       } else {
+        trackEvent("invite_shared", { channel: "whatsapp" });
         window.open(buildWhatsAppShareUrl(buildWhatsAppInviteMessage(sharePayload)), "_blank");
         showFeedback("share");
       }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics/track";
 import {
   dismissOnboarding,
   isOnboardingDismissed,
@@ -106,18 +107,21 @@ export function OnboardingStartCard({ eligible }: OnboardingStartCardProps) {
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Link
             href="/quiniela"
+            onClick={() => trackEvent("onboarding_cta_clicked", { cta: "pronostico" })}
             className="rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-bold text-white shadow-md shadow-emerald-900/40 transition hover:bg-emerald-500 active:scale-[0.98]"
           >
             Hacer mi primer pronóstico
           </Link>
           <Link
             href="/grupos/crear"
+            onClick={() => trackEvent("onboarding_cta_clicked", { cta: "crear_grupo" })}
             className="rounded-xl border border-violet-700/50 bg-violet-950/40 px-4 py-3 text-center text-sm font-semibold text-violet-100 transition hover:border-violet-600/60 active:scale-[0.98]"
           >
             Crear quiniela privada
           </Link>
           <Link
             href="/grupos/unirse"
+            onClick={() => trackEvent("onboarding_cta_clicked", { cta: "unirse" })}
             className="rounded-xl border border-zinc-700 bg-zinc-900/80 px-4 py-3 text-center text-sm font-semibold text-zinc-200 transition hover:bg-zinc-800 active:scale-[0.98]"
           >
             Unirme con código
@@ -127,6 +131,7 @@ export function OnboardingStartCard({ eligible }: OnboardingStartCardProps) {
         <button
           type="button"
           onClick={() => {
+            trackEvent("onboarding_dismissed", {});
             dismissOnboarding();
             setVisible(false);
           }}

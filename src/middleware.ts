@@ -15,7 +15,10 @@ const SKIP_AUTH_PREFIXES = [
   "/icons",
 ];
 
+const PUBLIC_PATHS = new Set(["/", "/landing", "/legal"]);
+
 function skipsAuthRedirect(pathname: string): boolean {
+  if (PUBLIC_PATHS.has(pathname)) return true;
   return SKIP_AUTH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
