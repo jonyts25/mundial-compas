@@ -2,6 +2,52 @@
 
 Amistoso internacional (FOX fixture `761641`). **No usar replay simulado** para este partido.
 
+## Opción recomendada: api-sports.io (plan free)
+
+Con cuenta en [dashboard.api-football.com](https://dashboard.api-football.com/) (mismo ecosistema, header `x-apisports-key`):
+
+```env
+FOOTBALL_DATA_PROVIDER=api-sports
+API_SPORTS_KEY=tu_key_del_dashboard
+API_SPORTS_PILOT_DATE=2026-06-04
+API_SPORTS_PILOT_TEAM_ID=16
+PILOT_MODE_ENABLED=true
+APIFOOTBALL_PILOT_LABEL=Mexico_vs_Serbia_live
+```
+
+Spike (busca fixture id real):
+
+```powershell
+npm run discover-api-sports
+```
+
+Cargar en Supabase:
+
+```powershell
+npm run cargar-pilot-mexico-serbia
+```
+
+En vivo sin WebSocket — **polling** (1 req por sync, plan free ~100/día):
+
+```powershell
+# Manual cada ~60s durante el partido
+curl -X POST "http://localhost:3000/api/admin/sync-live" -H "Authorization: Bearer $ADMIN_CARGAR_PARTIDOS_SECRET"
+
+# O cron en Railway: npm run sync-live:cron
+```
+
+Setup automático en Railway:
+
+```powershell
+npm run setup-railway-api-sports
+```
+
+Variables en Railway: `FOOTBALL_DATA_PROVIDER=api-sports`, `API_SPORTS_KEY`, `API_SPORTS_PILOT_FIXTURE_ID=1528284`. Pausa `livescore-relay` (no aplica a api-sports). Cron: servicio `sync-live-cron` con `railway.sync-live-cron.toml`.
+
+---
+
+## Alternativa: apifootball.com (plan de pago)
+
 ## Requisito: plan apifootball
 
 El relay en vivo solo recibe partidos que tu **plan en apifootball.com** incluye.

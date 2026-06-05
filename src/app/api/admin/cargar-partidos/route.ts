@@ -5,7 +5,10 @@ import { fetchLeagueEvents } from "@/lib/apifootball/fetch-world-cup-events";
 import { mapEventToPartidoRow } from "@/lib/apifootball/map-event-to-partido";
 import { getPilotConfig } from "@/lib/apifootball/pilot-config";
 import { searchLeaguesByKeyword } from "@/lib/apifootball/resolve-league";
-import { getAdminEnv, getApiFootballEnv } from "@/lib/env";
+import { loadApiSportsFixtures } from "@/lib/api-football/cargar-fixtures";
+import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
+import { getAdminEnv, getApiFootballEnv, getFootballDataProvider } from "@/lib/env";
+import { mergePartidoUpsertRowsWithStoredMetadata } from "@/lib/partidos/merge-upsert-metadata";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -31,18 +34,24 @@ function errorPayload(error: unknown) {
 }
 
 export async function GET() {
+  const provider = getFootballDataProvider();
   return NextResponse.json({
     endpoint: "POST /api/admin/cargar-partidos",
-    provider: "apifootball.com (apiv3.apifootball.com)",
+    provider,
+    providers: {
+      apifootball: "apifootball.com — POST (default) o FOOTBALL_DATA_PROVIDER=apifootball",
+      "api-sports": "api-sports.io — FOOTBALL_DATA_PROVIDER=api-sports + API_SPORTS_KEY",
+    },
     auth: "Authorization: Bearer <ADMIN_CARGAR_PARTIDOS_SECRET>",
     diagnostics: {
-      countries: "POST ?diagnostic=countries",
-      leagues: "POST ?diagnostic=leagues",
+      countries: "POST ?diagnostic=countries (solo apifootball)",
+      leagues: "POST ?diagnostic=leagues (solo apifootball)",
       champions: "POST ?diagnostic=leagues&search=champions",
     },
     pilot: {
       enabled: "PILOT_MODE_ENABLED=true en Railway",
-      load: "POST ?modo=pilot (Champions / fin de semana de prueba)",
+      load: "POST ?modo=pilot",
+      apiSports: "México vs Serbia: API_SPORTS_PILOT_DATE=2026-06-04, team=16",
     },
   });
 }
@@ -50,8 +59,6 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const adminSecret = getAdminEnv().cargarPartidosSecret;
-    const { apiKey, leagueId, worldCupFrom, worldCupTo, timezone } =
-      getApiFootballEnv();
 
     const bearer = request.headers
       .get("authorization")
@@ -66,9 +73,21 @@ export async function POST(request: Request) {
     }
 
     const url = new URL(request.url);
+    const providerParam = url.searchParams.get("provider");
+    const provider =
+      providerParam === "api-sports" || providerParam === "apifootball"
+        ? providerParam
+        : getFootballDataProvider();
     const diagnosticMode = url.searchParams.get("diagnostic");
     const leagueSearch = url.searchParams.get("search");
     const modoPilot = url.searchParams.get("modo") === "pilot";
+
+    if (provider === "api-sports") {
+      return await cargarPartidosApiSports(request, url, modoPilot);
+    }
+
+    const { apiKey, leagueId, worldCupFrom, worldCupTo, timezone } =
+      getApiFootballEnv();
 
     if (diagnosticMode === "countries") {
       const { fetchApifootballCountries } = await import(
@@ -158,12 +177,13 @@ export async function POST(request: Request) {
     });
 
     const supabase = createAdminClient();
+    const rowsToUpsert = await mergePartidoUpsertRowsWithStoredMetadata(supabase, rows);
     const BATCH = 50;
     let upserted = 0;
     const batchErrors: string[] = [];
 
-    for (let i = 0; i < rows.length; i += BATCH) {
-      const batch = rows.slice(i, i + BATCH);
+    for (let i = 0; i < rowsToUpsert.length; i += BATCH) {
+      const batch = rowsToUpsert.slice(i, i + BATCH);
       const batchNum = Math.floor(i / BATCH) + 1;
 
       const { error } = await supabase.from("partidos").upsert(batch, {
@@ -213,4 +233,125 @@ export async function POST(request: Request) {
     const { message, stack } = errorPayload(error);
     return NextResponse.json({ ok: false, error: message, stack }, { status: 500 });
   }
+}
+
+async function cargarPartidosApiSports(
+  request: Request,
+  url: URL,
+  modoPilot: boolean,
+) {
+  const pilot = getPilotConfig();
+  const isPilotLoad = modoPilot;
+
+  console.log(
+    `[cargar-partidos] api-sports.io → fixtures${isPilotLoad ? " (pilot)" : ""}…`,
+  );
+
+  const dateParam = url.searchParams.get("date")?.trim();
+  const teamParam = url.searchParams.get("team");
+  const fixtureParam = url.searchParams.get("fixture");
+
+  const { items, query } = await loadApiSportsFixtures({
+    modoPilot: isPilotLoad,
+    date: dateParam || undefined,
+    team: teamParam ? Number(teamParam) : undefined,
+    fixture: fixtureParam ? Number(fixtureParam) : undefined,
+    league: url.searchParams.get("league")
+      ? Number(url.searchParams.get("league"))
+      : undefined,
+    season: url.searchParams.get("season")
+      ? Number(url.searchParams.get("season"))
+      : undefined,
+  });
+
+  console.log(`[cargar-partidos] Fixtures recibidos: ${items.length}`, query);
+
+  if (items.length === 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: isPilotLoad
+          ? "api-sports devolvió 0 fixtures de prueba. Revisa API_SPORTS_PILOT_DATE o fixture id."
+          : "api-sports devolvió 0 fixtures. Revisa league/season o date.",
+        query,
+        hint: "node scripts/discover-api-sports.mjs — o POST ?modo=pilot&date=2026-06-04&team=16",
+      },
+      { status: 422 },
+    );
+  }
+
+  const mapOptions = isPilotLoad
+    ? { pilot: { label: pilot.label } }
+    : {};
+
+  const rows = items.map((item, index) => {
+    try {
+      return mapFixtureToPartidoRow(item, mapOptions);
+    } catch (mapErr) {
+      const { message } = errorPayload(mapErr);
+      throw new Error(
+        `Error mapeando fixture ${index} (id ${item.fixture.id}): ${message}`,
+      );
+    }
+  });
+
+  const supabase = createAdminClient();
+  const rowsToUpsert = await mergePartidoUpsertRowsWithStoredMetadata(supabase, rows);
+  const BATCH = 50;
+  let upserted = 0;
+  const batchErrors: string[] = [];
+
+  for (let i = 0; i < rowsToUpsert.length; i += BATCH) {
+    const batch = rowsToUpsert.slice(i, i + BATCH);
+    const batchNum = Math.floor(i / BATCH) + 1;
+
+    const { error } = await supabase.from("partidos").upsert(batch, {
+      onConflict: "api_football_fixture_id",
+      ignoreDuplicates: false,
+    });
+
+    if (error) {
+      batchErrors.push(`Lote ${batchNum}: ${error.message}`);
+    } else {
+      upserted += batch.length;
+    }
+  }
+
+  if (batchErrors.length > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Uno o más lotes fallaron al insertar",
+        fetched: items.length,
+        upserted,
+        batchErrors,
+        query,
+      },
+      { status: 500 },
+    );
+  }
+
+  console.log(`[cargar-partidos] ✅ ${upserted} partidos (api-sports) en Supabase`);
+
+  return NextResponse.json({
+    ok: true,
+    provider: "api-sports.io",
+    modo: isPilotLoad ? "pilot" : "mundial",
+    fetched: items.length,
+    upserted,
+    query,
+    fixtures: items.map((f) => ({
+      id: f.fixture.id,
+      home: f.teams.home.name,
+      away: f.teams.away.name,
+      date: f.fixture.date,
+      status: f.fixture.status.short,
+    })),
+    ...(isPilotLoad
+      ? {
+          pilotLabel: pilot.label,
+          hint: "Activa sync-live:cron o POST /api/admin/sync-live cada ~60s (plan free: ~100 req/día)",
+        }
+      : {}),
+  });
 }

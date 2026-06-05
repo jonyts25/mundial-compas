@@ -64,6 +64,19 @@ export async function queuePartidoPushNotifications(
 
   if (rows.length === 0) return;
 
+  if (tipo === "gol") {
+    const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { count: dupCount } = await supabase
+      .from("notificaciones")
+      .select("id", { count: "exact", head: true })
+      .eq("partido_id", partidoId)
+      .eq("tipo", "gol")
+      .eq("titulo", titulo)
+      .gte("created_at", since);
+
+    if (dupCount && dupCount > 0) return;
+  }
+
   const { data: inserted } = await supabase
     .from("notificaciones")
     .insert(rows)

@@ -1,0 +1,8 @@
+# Calendario Mundial — 1x/día (requiere plan Pro+ con season 2026).
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.sync-calendar-cron"
+
+[deploy]
+cronSchedule = "0 12 * * *"
+restartPolicyType = "NEVER"

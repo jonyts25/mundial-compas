@@ -1,8 +1,7 @@
 /**
- * Polling de marcador en vivo (fallback sin webhook).
- * Railway cron cada minuto: node scripts/sync-live-cron.mjs
+ * Worker en loop: POST sync-live cada SYNC_LIVE_INTERVAL_MS (default 60s).
+ * Más fiable que Railway cron schedule. Respeta ventana inteligente en el servidor.
  */
-
 import fs from "node:fs";
 import path from "node:path";
 
@@ -25,6 +24,7 @@ const base =
   (process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
     : null);
+const intervalMs = Number(process.env.SYNC_LIVE_INTERVAL_MS ?? "60000");
 
 if (!secret || !base) {
   console.error("Faltan ADMIN_CARGAR_PARTIDOS_SECRET y URL pública.");
@@ -33,21 +33,23 @@ if (!secret || !base) {
 
 const url = `${base}/api/admin/sync-live?pilot=1`;
 
-const res = await fetch(url, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${secret}` },
-});
+console.log(`[sync-live-loop] cada ${intervalMs}ms → ${url}`);
 
-const body = await res.text();
-console.log(`[sync-live-cron] ${res.status} ${body}`);
-
-if (!res.ok) process.exit(1);
-
-try {
-  const json = JSON.parse(body);
-  if (json.skipped) {
-    console.log("[sync-live-cron] sin ventana activa — 0 requests API");
+async function tick() {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    const body = await res.text();
+    console.log(`[sync-live-loop] ${new Date().toISOString()} ${res.status} ${body}`);
+  } catch (e) {
+    console.error("[sync-live-loop] error:", e);
   }
-} catch {
-  /* texto no-json */
+}
+
+await tick();
+while (true) {
+  await new Promise((r) => setTimeout(r, intervalMs));
+  await tick();
 }

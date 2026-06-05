@@ -1,0 +1,10 @@
+# Servicio cron: polling marcador api-sports (1 req/min → ~100/día en plan free).
+# Railway Dashboard → sync-live-cron → Settings → Config file: railway.sync-live-cron.toml
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.sync-live-cron"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

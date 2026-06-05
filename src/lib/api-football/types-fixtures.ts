@@ -12,6 +12,9 @@ export interface ApiFootballFixtureItem {
     };
   };
   league: {
+    id?: number;
+    name?: string;
+    country?: string;
     round?: string | null;
     season: number;
   };

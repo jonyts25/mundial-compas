@@ -15,6 +15,8 @@ export interface ApiFootballWebhookPayload {
     team?: { name?: string };
     player?: { name?: string };
     time?: { elapsed?: number };
+    /** api-sports events: "Normal Goal", "Own Goal", "Penalty", … */
+    detail?: string | null;
   };
   [key: string]: unknown;
 }

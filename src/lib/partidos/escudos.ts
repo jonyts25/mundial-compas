@@ -18,5 +18,12 @@ export function getEscudoFromMetadata(
     if (typeof badge === "string" && badge.trim()) return badge.trim();
   }
 
+  const apiFb = m.api_football;
+  if (apiFb && typeof apiFb === "object") {
+    const a = apiFb as Record<string, unknown>;
+    const logo = side === "local" ? a.home_logo : a.away_logo;
+    if (typeof logo === "string" && logo.trim()) return logo.trim();
+  }
+
   return null;
 }

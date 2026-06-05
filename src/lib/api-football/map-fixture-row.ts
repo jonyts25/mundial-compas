@@ -1,3 +1,4 @@
+import { buildRelojFromApiSportsFixture } from "@/lib/api-football/match-clock";
 import { mapApiStatus } from "@/lib/api-football/status-map";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
 import type { EstatusPartido, FaseMundial } from "@/types/database";
@@ -113,7 +114,14 @@ function parseFaseAndGrupo(round: string | null | undefined): {
   return { fase: "grupos", grupo: null, jornada: null };
 }
 
-export function mapFixtureToPartidoRow(item: ApiFootballFixtureItem): PartidoUpsertRow {
+export interface MapFixtureOptions {
+  pilot?: { label: string };
+}
+
+export function mapFixtureToPartidoRow(
+  item: ApiFootballFixtureItem,
+  options: MapFixtureOptions = {},
+): PartidoUpsertRow {
   const { fase, grupo, jornada } = parseFaseAndGrupo(item.league.round);
   const estatus = mapApiStatus(item.fixture.status.short);
   const hasScore =
@@ -126,6 +134,8 @@ export function mapFixtureToPartidoRow(item: ApiFootballFixtureItem): PartidoUps
     item.fixture.venue?.name,
     item.fixture.venue?.city,
   ].filter(Boolean);
+
+  const { reloj, minuto_actual: minutoReloj } = buildRelojFromApiSportsFixture(item);
 
   return {
     api_football_fixture_id: item.fixture.id,
@@ -142,15 +152,29 @@ export function mapFixtureToPartidoRow(item: ApiFootballFixtureItem): PartidoUps
     marcador_local: hasScore ? item.goals.home : null,
     marcador_visitante: hasScore ? item.goals.away : null,
     canal_transmision: "sin_asignar",
-    minuto_actual: item.fixture.status.elapsed,
+    minuto_actual: minutoReloj ?? item.fixture.status.elapsed,
     metadata: {
+      ...(options.pilot
+        ? {
+            competencia: "pilot",
+            pilot: true,
+            competencia_label: options.pilot.label,
+          }
+        : {}),
+      ...(item.teams.home.logo ? { escudo_local: item.teams.home.logo } : {}),
+      ...(item.teams.away.logo ? { escudo_visitante: item.teams.away.logo } : {}),
+      reloj,
       api_football: {
+        provider: "api-sports",
+        league_id: item.league.id,
+        league_name: item.league.name,
         round: item.league.round,
         home_team_id: item.teams.home.id,
         away_team_id: item.teams.away.id,
         home_logo: item.teams.home.logo,
         away_logo: item.teams.away.logo,
         status_long: item.fixture.status.long,
+        status_short: item.fixture.status.short,
       },
     },
   };

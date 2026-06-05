@@ -49,3 +49,33 @@ export function getAdminEnv() {
     cargarPartidosSecret: required("ADMIN_CARGAR_PARTIDOS_SECRET"),
   };
 }
+
+export type FootballDataProvider = "apifootball" | "api-sports";
+
+/** Proveedor activo: apifootball.com (legacy) o api-sports.io (api-football). */
+export function getFootballDataProvider(): FootballDataProvider {
+  const raw = optional("FOOTBALL_DATA_PROVIDER")?.toLowerCase().trim();
+  if (raw === "api-sports" || raw === "apisports" || raw === "api-football") {
+    return "api-sports";
+  }
+  return "apifootball";
+}
+
+/** api-sports.io — header x-apisports-key */
+export function getApiSportsEnv() {
+  const apiKey = trimEnv(required("API_SPORTS_KEY"));
+  if (!apiKey) {
+    throw new Error("API_SPORTS_KEY está definida pero vacía tras trim");
+  }
+  return {
+    apiKey,
+    timezone: optional("APIFOOTBALL_TIMEZONE") ?? "America/Mexico_City",
+    worldCupLeagueId: Number(optional("API_SPORTS_LEAGUE_ID") ?? "1"),
+    worldCupSeason: Number(optional("API_SPORTS_SEASON") ?? "2026"),
+    pilotDate: optional("API_SPORTS_PILOT_DATE") ?? "2026-06-04",
+    pilotTeamId: Number(optional("API_SPORTS_PILOT_TEAM_ID") ?? "16"),
+    pilotFixtureId: optional("API_SPORTS_PILOT_FIXTURE_ID")
+      ? Number(optional("API_SPORTS_PILOT_FIXTURE_ID"))
+      : undefined,
+  };
+}

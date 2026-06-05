@@ -161,8 +161,71 @@ async function upsertDirect() {
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+async function cargarViaApiSports() {
+  const apiKey = process.env.API_SPORTS_KEY;
+  const adminSecret = process.env.ADMIN_CARGAR_PARTIDOS_SECRET;
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "http://localhost:3000";
+  if (!apiKey) return false;
+
+  const pilotDate = process.env.API_SPORTS_PILOT_DATE || "2026-06-04";
+  const teamId = process.env.API_SPORTS_PILOT_TEAM_ID || "16";
+  const fixtureId = process.env.API_SPORTS_PILOT_FIXTURE_ID?.trim();
+  const tz = process.env.APIFOOTBALL_TIMEZONE || MEXICO_TZ;
+  const base = "https://v3.football.api-sports.io";
+
+  let targetFixture = fixtureId;
+  if (!targetFixture) {
+    const url = new URL(`${base}/fixtures`);
+    url.searchParams.set("date", pilotDate);
+    url.searchParams.set("team", teamId);
+    url.searchParams.set("timezone", tz);
+    const res = await fetch(url, {
+      headers: { "x-apisports-key": apiKey, Accept: "application/json" },
+    });
+    const body = await res.json();
+    const items = body?.response ?? [];
+    const match = items.find((f) =>
+      /serbia/i.test(`${f.teams?.home?.name} ${f.teams?.away?.name}`),
+    );
+    if (match) targetFixture = String(match.fixture.id);
+  }
+
+  if (!targetFixture) {
+    console.error("api-sports: no se encontró México vs Serbia.");
+    console.error("  Corre: npm run discover-api-sports");
+    return false;
+  }
+
+  if (!adminSecret) {
+    console.error("Falta ADMIN_CARGAR_PARTIDOS_SECRET para POST cargar-partidos");
+    return false;
+  }
+
+  const loadUrl = new URL(`${appUrl}/api/admin/cargar-partidos`);
+  loadUrl.searchParams.set("provider", "api-sports");
+  loadUrl.searchParams.set("modo", "pilot");
+  loadUrl.searchParams.set("fixture", targetFixture);
+
+  console.log(`api-sports → cargar fixture ${targetFixture}…`);
+  const loadRes = await fetch(loadUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${adminSecret}` },
+  });
+  const text = await loadRes.text();
+  console.log(loadRes.status, text);
+  return loadRes.ok;
+}
+
 /** Solo carga desde API real. Sin --force-seed no inventa partidos. */
 async function main() {
+  const provider = (process.env.FOOTBALL_DATA_PROVIDER || "").toLowerCase();
+  if (provider === "api-sports" || process.env.API_SPORTS_KEY) {
+    const ok = await cargarViaApiSports();
+    if (ok) return;
+    if (provider === "api-sports") process.exit(2);
+  }
+
   const today = todayMx();
   const from = process.env.APIFOOTBALL_PILOT_FROM || today;
   const to = process.env.APIFOOTBALL_PILOT_TO || today;
@@ -192,8 +255,9 @@ async function main() {
   }
 
   console.error("\n✗ La API no devolvió México vs Serbia.");
-  console.error("  Corre: npm run discover-api-plan");
-  console.error("  Renueva/ampliá tu plan en apifootball.com (amistosos internacionales).");
+  console.error("  api-sports (plan free): npm run discover-api-sports");
+  console.error("  apifootball: npm run discover-api-plan");
+  console.error("  Configura FOOTBALL_DATA_PROVIDER=api-sports + API_SPORTS_KEY");
 
   if (process.argv.includes("--force-seed")) {
     console.warn("\n--force-seed: insertando partido manual (NO en vivo real)…");

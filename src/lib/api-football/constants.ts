@@ -1,6 +1,11 @@
-/** @deprecated Usar @/lib/apifootball/constants — proveedor apifootball.com */
-export {
-  APIFOOTBALL_BASE_URL as API_FOOTBALL_DEFAULT_BASE_URL,
-  WORLD_CUP_DEFAULT_FROM,
-  WORLD_CUP_DEFAULT_TO,
-} from "@/lib/apifootball/constants";
+/** API-Football / api-sports.io v3 — https://www.api-football.com */
+export const API_SPORTS_BASE_URL = "https://v3.football.api-sports.io";
+
+/** FIFA World Cup en api-sports (verificar temporada en dashboard). */
+export const API_SPORTS_WORLD_CUP_LEAGUE_ID = 1;
+
+/** México — team id api-sports. */
+export const API_SPORTS_MEXICO_TEAM_ID = 16;
+
+/** Serbia — team id api-sports. */
+export const API_SPORTS_SERBIA_TEAM_ID = 15;

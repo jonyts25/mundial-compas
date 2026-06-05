@@ -10,7 +10,13 @@ import {
 } from "@/lib/partidos/match-clock";
 import { mapEventToPartidoRow } from "@/lib/apifootball/map-event-to-partido";
 import { getPilotConfig } from "@/lib/apifootball/pilot-config";
-import { getApiFootballEnv } from "@/lib/env";
+import { getApiFootballEnv, getFootballDataProvider } from "@/lib/env";
+import {
+  emptySyncSkippedResult,
+  getLiveSyncWindowConfig,
+  getLiveSyncWindowStatus,
+} from "@/lib/partidos/live-sync-window";
+import { syncLiveScoresFromApiSports } from "@/lib/partidos/sync-live-scores-api-sports";
 
 function todayMexicoDate(): string {
   return new Date().toLocaleDateString("en-CA", {
@@ -30,17 +36,48 @@ export type SyncLiveResult = {
   fetched: number;
   updated: number;
   live: number;
+  goalsNotified: number;
+  phasesNotified: number;
   errors: string[];
+  skipped?: boolean;
+  skipReason?: string;
+  window?: {
+    inWindow: boolean;
+    count: number;
+    liveNow: number;
+    upcoming: number;
+  };
+  apiRequests?: number;
+  phases?: string[];
 };
 
-/** Polling de marcador vía get_events (fallback si el webhook no llega). */
+/** Polling de marcador según proveedor activo (FOOTBALL_DATA_PROVIDER). */
 export async function syncLiveScoresFromApi(
   supabase: SupabaseClient,
-  options: { pilotOnly?: boolean } = {},
+  options: { pilotOnly?: boolean; force?: boolean } = {},
 ): Promise<SyncLiveResult> {
+  const windowConfig = getLiveSyncWindowConfig();
+  const window = await getLiveSyncWindowStatus(supabase, windowConfig);
+
+  if (windowConfig.enabled && !options.force && !window.inWindow) {
+    return emptySyncSkippedResult(window);
+  }
+
+  if (getFootballDataProvider() === "api-sports") {
+    const result = await syncLiveScoresFromApiSports(supabase);
+    return { ...result, window, apiRequests: 1 };
+  }
+
   const { apiKey, timezone } = getApiFootballEnv();
   const pilot = getPilotConfig();
-  const result: SyncLiveResult = { fetched: 0, updated: 0, live: 0, errors: [] };
+  const result: SyncLiveResult = {
+    fetched: 0,
+    updated: 0,
+    live: 0,
+    goalsNotified: 0,
+    phasesNotified: 0,
+    errors: [],
+  };
 
   const today = todayMexicoDate();
   const range =
@@ -133,5 +170,5 @@ export async function syncLiveScoresFromApi(
     }
   }
 
-  return result;
+  return { ...result, window, apiRequests: 1 };
 }

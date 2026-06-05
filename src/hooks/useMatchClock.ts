@@ -18,7 +18,7 @@ export function useMatchClockDisplay(props: {
 
   useEffect(() => {
     if (estatus !== "en_vivo" && estatus !== "medio_tiempo") return;
-    const id = window.setInterval(() => setNow(Date.now()), 15_000);
+    const id = window.setInterval(() => setNow(Date.now()), 5_000);
     return () => window.clearInterval(id);
   }, [estatus]);
 

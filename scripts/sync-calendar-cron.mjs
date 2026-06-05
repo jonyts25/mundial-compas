@@ -1,6 +1,7 @@
 /**
- * Polling de marcador en vivo (fallback sin webhook).
- * Railway cron cada minuto: node scripts/sync-live-cron.mjs
+ * Carga calendario Mundial (api-sports) 1x al día.
+ * Railway cron: 0 12 * * * (06:00 CDMX ≈ 12:00 UTC)
+ * Start: node scripts/sync-calendar-cron.mjs
  */
 
 import fs from "node:fs";
@@ -31,7 +32,13 @@ if (!secret || !base) {
   process.exit(1);
 }
 
-const url = `${base}/api/admin/sync-live?pilot=1`;
+const league = process.env.API_SPORTS_LEAGUE_ID ?? "1";
+const season = process.env.API_SPORTS_SEASON ?? "2026";
+
+const url = new URL(`${base}/api/admin/cargar-partidos`);
+url.searchParams.set("provider", "api-sports");
+url.searchParams.set("league", league);
+url.searchParams.set("season", season);
 
 const res = await fetch(url, {
   method: "POST",
@@ -39,15 +46,5 @@ const res = await fetch(url, {
 });
 
 const body = await res.text();
-console.log(`[sync-live-cron] ${res.status} ${body}`);
-
+console.log(`[sync-calendar-cron] ${res.status} ${body}`);
 if (!res.ok) process.exit(1);
-
-try {
-  const json = JSON.parse(body);
-  if (json.skipped) {
-    console.log("[sync-live-cron] sin ventana activa — 0 requests API");
-  }
-} catch {
-  /* texto no-json */
-}
