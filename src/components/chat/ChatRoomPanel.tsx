@@ -110,6 +110,7 @@ export function ChatRoomPanel({
 
   useEffect(() => {
     setMensajes(initialMessages);
+    autoresCache.current.clear();
   }, [channelId, initialMessages]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -183,25 +184,29 @@ export function ChatRoomPanel({
     [esModerador],
   );
 
+  const realtimeLigaId = realtime.ligaId;
+  const realtimePartidoId = realtime.partidoId ?? null;
+  const realtimeSoloGrupo = Boolean(realtime.soloGrupoPrivado);
+
   const matchesRealtimeRow = useCallback(
     (row: MensajeChatRealtimeRow) => {
-      if (row.liga_id !== realtime.ligaId) return false;
-      if (realtime.soloGrupoPrivado) {
+      if (row.liga_id !== realtimeLigaId) return false;
+      if (realtimeSoloGrupo) {
         return row.partido_id == null;
       }
-      if (realtime.partidoId) {
-        return row.partido_id === realtime.partidoId;
+      if (realtimePartidoId) {
+        return row.partido_id === realtimePartidoId;
       }
       return true;
     },
-    [realtime],
+    [realtimeLigaId, realtimePartidoId, realtimeSoloGrupo],
   );
 
   useEffect(() => {
     const supabase = createClient();
-    const filter = realtime.partidoId
-      ? `partido_id=eq.${realtime.partidoId}`
-      : `liga_id=eq.${realtime.ligaId}`;
+    const filter = realtimePartidoId
+      ? `partido_id=eq.${realtimePartidoId}`
+      : `liga_id=eq.${realtimeLigaId}`;
 
     const channel = supabase
       .channel(`chat-room:${channelId}`)
@@ -250,8 +255,8 @@ export function ChatRoomPanel({
     appendMensaje,
     applyModeracionUpdate,
     resolveAutor,
-    realtime.ligaId,
-    realtime.partidoId,
+    realtimeLigaId,
+    realtimePartidoId,
   ]);
 
   function handleSubmit(e: React.FormEvent) {

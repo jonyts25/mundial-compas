@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChatRoomPanel } from "@/components/chat/ChatRoomPanel";
 import {
   CHAT_PARTIDO_AVISO_CIERRE,
@@ -47,6 +47,11 @@ export function ChatPartido({
   const cerrado = isMatchChatClosedAfterFinish(partido, nowMs);
   const antesDeAbrir = isMatchChatBeforeOpen(partido, nowMs);
 
+  const realtimeConfig = useMemo(
+    () => ({ ligaId, partidoId }),
+    [ligaId, partidoId],
+  );
+
   return (
     <ChatRoomPanel
       channelId={`partido:${partidoId}`}
@@ -66,7 +71,7 @@ export function ChatPartido({
       onReportar={reportarMensaje}
       onAprobar={aprobarMensaje}
       onEliminar={eliminarMensaje}
-      realtime={{ ligaId, partidoId }}
+      realtime={realtimeConfig}
     />
   );
 }

@@ -31,6 +31,7 @@ export async function fetchCalendarioPartidosData(
   const { data: partidos, error: partidosError } = await supabase
     .from("partidos")
     .select(PARTIDO_SELECT)
+    .neq("estatus", "cancelado")
     .order("fecha_kickoff", { ascending: true });
 
   if (partidosError) {

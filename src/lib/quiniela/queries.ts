@@ -67,11 +67,18 @@ export async function fetchQuinielaData(
     { tipo, jornada: options.jornada, fase: options.fase },
   );
 
-  const { data: pronosticos, error: pronosError } = await supabase
+  const partidoIds = partidosFiltrados.map((p) => p.id);
+  let pronosticosQuery = supabase
     .from("pronosticos")
     .select("id, partido_id, goles_local, goles_visitante, puntos")
     .eq("liga_id", ligaId)
     .eq("usuario_id", userId);
+
+  if (partidoIds.length > 0) {
+    pronosticosQuery = pronosticosQuery.in("partido_id", partidoIds);
+  }
+
+  const { data: pronosticos, error: pronosError } = await pronosticosQuery;
 
   if (pronosError) {
     throw new Error(pronosError.message);

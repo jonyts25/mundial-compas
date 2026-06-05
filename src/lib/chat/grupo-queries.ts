@@ -3,7 +3,7 @@ import { createServerDataClient } from "@/lib/supabase/server-data";
 import type { MensajeChatConAutor } from "@/types/chat";
 
 const MENSAJE_SELECT =
-  "id, partido_id, liga_id, usuario_id, tipo, contenido, created_at, reportado, conteo_reportes, oculto, metadata";
+  "id, partido_id, liga_id, usuario_id, tipo, contenido, created_at, reportado, conteo_reportes, oculto";
 
 type MensajeDbRow = {
   id: string;

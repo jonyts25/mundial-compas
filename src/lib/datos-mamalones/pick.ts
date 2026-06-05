@@ -24,7 +24,7 @@ export async function pickDatoMamalonVariado(
 
   let recentQuery = admin
     .from("mensajes_chat")
-    .select("*")
+    .select("dato_mamalón_id")
     .eq("tipo", "dato_mamalón")
     .order("created_at", { ascending: false })
     .limit(RECENT_IDS_LIMIT);

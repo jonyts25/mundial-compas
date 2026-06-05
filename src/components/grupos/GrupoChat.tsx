@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ChatRoomPanel } from "@/components/chat/ChatRoomPanel";
 import { DISCLAIMER_CHAT_GRUPO } from "@/lib/legal/disclaimers";
 import { sendGrupoChatMessage } from "@/lib/chat/grupo-actions";
@@ -30,6 +31,11 @@ export function GrupoChat({
   grupoActivo = true,
   initialMessages,
 }: GrupoChatProps) {
+  const realtimeConfig = useMemo(
+    () => ({ ligaId, soloGrupoPrivado: true as const }),
+    [ligaId],
+  );
+
   return (
     <ChatRoomPanel
       channelId={`grupo:${ligaId}`}
@@ -47,7 +53,7 @@ export function GrupoChat({
       onReportar={reportarMensaje}
       onAprobar={aprobarMensaje}
       onEliminar={eliminarMensaje}
-      realtime={{ ligaId, soloGrupoPrivado: true }}
+      realtime={realtimeConfig}
       footerExtra={
         puedeAdministrar ? (
           <p className="mb-2 text-[10px] text-zinc-500">
