@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { metadataPartidoGlobal } from "@/lib/chat/scopes";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { generarFraseGol } from "@/lib/api-football/narradores/frases-gol";
 import {
@@ -64,14 +65,14 @@ export async function handleGoalEvent(
     liga_id: LIGA_GLOBAL_ID,
     tipo: "evento_partido",
     contenido: frase.contenido,
-    metadata: {
+    metadata: metadataPartidoGlobal({
       narrador: frase.narrador,
       narrador_display: frase.nombreVisible,
       marcador: `${score.local}-${score.visitante}`,
       minuto,
       goleador,
       fuente: "api-football-webhook",
-    },
+    }),
   });
 
   if (chatError) {

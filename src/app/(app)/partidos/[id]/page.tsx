@@ -52,7 +52,12 @@ export default async function PartidoPage({
           key={data.partido.id}
           partidoId={data.partido.id}
           ligaId={LIGA_GLOBAL_ID}
-          fechaKickoff={data.partido.fecha_kickoff}
+          partido={{
+            fecha_kickoff: data.partido.fecha_kickoff,
+            estatus: data.partido.estatus,
+            metadata: data.partido.metadata,
+            updated_at: data.partido.updated_at,
+          }}
           usuario={data.usuario}
           esAdmin={data.esAdmin}
           initialMessages={data.mensajes}

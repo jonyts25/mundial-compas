@@ -12,11 +12,12 @@ import type { Partido, PronosticoPartido, Usuario } from "@/types/database";
 import type { MensajeChatConAutor } from "@/types/chat";
 
 const PARTIDO_SELECT =
-  "id, api_football_fixture_id, fase, grupo, jornada, sede, metadata, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual";
+  "id, api_football_fixture_id, fase, grupo, jornada, sede, metadata, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, updated_at";
 
 export type PartidoDetalle = Partido & {
   sede: string | null;
   metadata: Record<string, unknown> | null;
+  updated_at?: string;
 };
 
 export interface PartidoDetallePageData {

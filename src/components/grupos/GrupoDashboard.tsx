@@ -5,9 +5,9 @@ import { useState } from "react";
 import { GrupoConfigPanel } from "@/components/grupos/GrupoConfigPanel";
 import { GrupoInvitarPanel } from "@/components/grupos/GrupoInvitarPanel";
 import { GrupoMiembrosList } from "@/components/grupos/GrupoMiembrosList";
-import { LeaderboardSegmentNote } from "@/components/grupos/LeaderboardSegmentNote";
 import { RolBadge } from "@/components/grupos/RolBadge";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
+import { GrupoChat } from "@/components/grupos/GrupoChat";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
 import type { LeaderboardRow } from "@/lib/leaderboard/queries";
 import type { GrupoDetalle, GrupoMiembroRow } from "@/lib/liga/grupos-queries";
@@ -15,12 +15,15 @@ import {
   MODO_COMPETENCIA_LABELS,
 } from "@/lib/liga/modo-competencia";
 import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
+import type { MensajeChatConAutor } from "@/types/chat";
 import type { QuinielaPageData } from "@/lib/quiniela/queries";
+import type { Usuario } from "@/types/database";
 
 type TabId =
   | "resumen"
   | "quiniela"
   | "leaderboard"
+  | "chat"
   | "miembros"
   | "invitar"
   | "configuracion";
@@ -32,6 +35,8 @@ interface GrupoDashboardProps {
   currentUserId: string;
   quinielaData: QuinielaPageData;
   leaderboardFilas: LeaderboardRow[];
+  chatMensajes: MensajeChatConAutor[];
+  usuario: Usuario;
   initialTab?: string;
 }
 
@@ -42,13 +47,23 @@ export function GrupoDashboard({
   currentUserId,
   quinielaData,
   leaderboardFilas,
+  chatMensajes,
+  usuario,
   initialTab,
 }: GrupoDashboardProps) {
   const defaultTab: TabId =
     initialTab &&
-    (["resumen", "quiniela", "leaderboard", "miembros", "invitar", "configuracion"] as const).includes(
-      initialTab as TabId,
-    )
+    (
+      [
+        "resumen",
+        "quiniela",
+        "leaderboard",
+        "chat",
+        "miembros",
+        "invitar",
+        "configuracion",
+      ] as const
+    ).includes(initialTab as TabId)
       ? (initialTab as TabId)
       : "resumen";
 
@@ -58,6 +73,7 @@ export function GrupoDashboard({
     { id: "resumen", label: "Resumen" },
     { id: "quiniela", label: "Quiniela" },
     { id: "leaderboard", label: "Liderato" },
+    { id: "chat", label: "Chat" },
     { id: "miembros", label: "Miembros" },
     {
       id: "invitar",
@@ -164,9 +180,34 @@ export function GrupoDashboard({
         </>
       )}
 
+      {tab === "chat" && (
+        <>
+          <p className="text-xs text-zinc-500">
+            Chat privado de la quiniela.{" "}
+            {miembros
+              .filter((m) => m.rol === "owner" || m.rol === "admin")
+              .map((m) => m.nombre_visible)
+              .join(", ") || "Sin admins"}
+            {" "}
+            pueden moderar.
+          </p>
+          <GrupoChat
+            ligaId={grupo.id}
+            grupoSlug={slug}
+            grupoNombre={grupo.nombre}
+            usuario={usuario}
+            puedeAdministrar={grupo.puede_administrar}
+            initialMessages={chatMensajes}
+          />
+        </>
+      )}
+
       {tab === "leaderboard" && (
         <>
-          <LeaderboardSegmentNote />
+          <p className="mb-3 text-xs text-zinc-500">
+            Vista previa acumulada. Usa la pantalla completa para filtrar por
+            jornada, fase o día.
+          </p>
           <Leaderboard
             filas={leaderboardFilas}
             usuarioActualId={currentUserId}

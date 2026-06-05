@@ -29,8 +29,8 @@ export function PilotModeBanner({
               : "Carga partidos con POST /api/admin/cargar-partidos?modo=pilot"}
           </p>
           <p className="mt-2 flex flex-wrap gap-3 text-xs">
-            <Link href="/chat-general" className="text-amber-300 underline-offset-2 hover:underline">
-              Chat general
+            <Link href="/grupos" className="text-amber-300 underline-offset-2 hover:underline">
+              Mis quinielas
             </Link>
             <Link href="/quiniela" className="text-amber-300 underline-offset-2 hover:underline">
               Quiniela

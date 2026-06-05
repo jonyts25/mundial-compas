@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
-import { isChatAbierto } from "@/lib/partidos/chat-window";
+import { metadataPartidoGlobal } from "@/lib/chat/scopes";
+import {
+  isMatchChatOpen,
+  type PartidoChatInput,
+} from "@/lib/chat/match-chat-window";
 import { createClient } from "@/lib/supabase/server";
 import type { MensajeChatRealtimeRow } from "@/types/chat";
 
@@ -52,7 +56,7 @@ export async function sendChatMessage(
 
   const { data: partido, error: partidoError } = await supabase
     .from("partidos")
-    .select("fecha_kickoff")
+    .select("fecha_kickoff, estatus, metadata, updated_at")
     .eq("id", partidoId)
     .single();
 
@@ -60,10 +64,12 @@ export async function sendChatMessage(
     return { ok: false, error: "Partido no encontrado" };
   }
 
-  if (!isChatAbierto(partido.fecha_kickoff)) {
+  const partidoInput = partido as PartidoChatInput;
+
+  if (!isMatchChatOpen(partidoInput)) {
     return {
       ok: false,
-      error: "El chat aún no está abierto para este partido",
+      error: "El chat no está abierto para enviar mensajes",
     };
   }
 
@@ -73,6 +79,7 @@ export async function sendChatMessage(
     usuario_id: user.id,
     tipo: "usuario",
     contenido: text,
+    metadata: metadataPartidoGlobal(),
   });
 
   if (error) {
@@ -106,8 +113,6 @@ export async function reportarMensaje(
   const mensaje = mapRpcRow(data as Record<string, unknown>);
   if (mensaje.partido_id) {
     revalidatePath(`/partidos/${mensaje.partido_id}`);
-  } else {
-    revalidatePath("/chat-general");
   }
   return { ok: true, mensaje };
 }
@@ -133,8 +138,6 @@ export async function aprobarMensaje(mensajeId: string): Promise<ChatActionResul
   const mensaje = mapRpcRow(data as Record<string, unknown>);
   if (mensaje.partido_id) {
     revalidatePath(`/partidos/${mensaje.partido_id}`);
-  } else {
-    revalidatePath("/chat-general");
   }
   return { ok: true, mensaje };
 }
@@ -160,8 +163,6 @@ export async function eliminarMensaje(mensajeId: string): Promise<ChatActionResu
   const mensaje = mapRpcRow(data as Record<string, unknown>);
   if (mensaje.partido_id) {
     revalidatePath(`/partidos/${mensaje.partido_id}`);
-  } else {
-    revalidatePath("/chat-general");
   }
   return { ok: true, mensaje };
 }

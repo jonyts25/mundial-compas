@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { metadataPartidoGlobal } from "@/lib/chat/scopes";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import {
   formatVarDatoMamalonMessage,
@@ -206,11 +207,11 @@ async function insertVarChatMessage(
       typeof metadata.dato_mamalón_id === "string"
         ? metadata.dato_mamalón_id
         : null,
-    metadata: {
+    metadata: metadataPartidoGlobal({
       ...metadata,
       autor_display: VAR_DISPLAY_NAME,
       fuente: "apifootball-webhook",
-    },
+    }),
   });
 
   return error?.message ?? null;
@@ -299,13 +300,14 @@ export async function processFootballWebhook(
   );
   const displayMinute = reloj.ticking ? reloj.anchorMinute : null;
 
+  const nowIso = new Date().toISOString();
   const metadataAfterSync: Record<string, unknown> = {
     ...(typeof partido.metadata === "object" && partido.metadata !== null
       ? (partido.metadata as Record<string, unknown>)
       : {}),
     apifootball_status_raw: snapshot.statusRaw,
     apifootball_last_status: snapshot.estatus,
-    apifootball_last_sync: new Date().toISOString(),
+    apifootball_last_sync: nowIso,
     reloj: relojToMetadata(reloj),
     ...(snapshot.homePenaltyScore != null
       ? { marcador_penales_local: snapshot.homePenaltyScore }
@@ -315,6 +317,9 @@ export async function processFootballWebhook(
       : {}),
     ...(snapshot.penaltyKeysToPersist.length > 0
       ? { penales_kicks_vistos: snapshot.penaltyKeysToPersist }
+      : {}),
+    ...(snapshot.estatus === "finalizado" && partido.estatus !== "finalizado"
+      ? { finalizado_at: nowIso }
       : {}),
   };
 

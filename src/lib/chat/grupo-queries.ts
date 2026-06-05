@@ -1,14 +1,13 @@
-import { CHAT_SCOPE_PARTIDO_GLOBAL } from "@/lib/chat/scopes";
-import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { CHAT_SCOPE_GRUPO_PRIVADO } from "@/lib/chat/scopes";
 import { createServerDataClient } from "@/lib/supabase/server-data";
 import type { MensajeChatConAutor } from "@/types/chat";
 
 const MENSAJE_SELECT =
-  "id, partido_id, liga_id, usuario_id, tipo, contenido, created_at, reportado, conteo_reportes, oculto";
+  "id, partido_id, liga_id, usuario_id, tipo, contenido, created_at, reportado, conteo_reportes, oculto, metadata";
 
 type MensajeDbRow = {
   id: string;
-  partido_id: string;
+  partido_id: string | null;
   liga_id: string;
   usuario_id: string | null;
   tipo: MensajeChatConAutor["tipo"];
@@ -17,60 +16,29 @@ type MensajeDbRow = {
   reportado?: boolean;
   conteo_reportes?: number;
   oculto?: boolean;
+  metadata?: Record<string, unknown> | null;
 };
 
-type UsuarioDbRow = {
-  id: string;
-  nombre_visible: string;
-  avatar_url: string | null;
-};
-
-/**
- * Historial del chat por partido (service role, solo en servidor).
- * Filtra ocultos salvo para moderadores.
- */
-export async function fetchMensajesChatHistorial(
-  partidoId: string,
+export async function fetchGrupoChatHistorial(
+  ligaId: string,
   esAdmin: boolean,
 ): Promise<MensajeChatConAutor[]> {
   const admin = createServerDataClient();
 
-  let rows: MensajeDbRow[] | null = null;
-  let error: { message: string } | null = null;
-
-  const full = await admin
+  const { data: rows, error } = await admin
     .from("mensajes_chat")
     .select(MENSAJE_SELECT)
-    .eq("partido_id", partidoId)
-    .eq("liga_id", LIGA_GLOBAL_ID)
-    .or(
-      `metadata->>scope.eq.${CHAT_SCOPE_PARTIDO_GLOBAL},metadata->>scope.is.null`,
-    )
+    .eq("liga_id", ligaId)
+    .is("partido_id", null)
+    .filter("metadata->>scope", "eq", CHAT_SCOPE_GRUPO_PRIVADO)
     .order("created_at", { ascending: true })
     .limit(200);
 
-  rows = full.data as MensajeDbRow[] | null;
-  error = full.error;
-
-  if (error?.message.includes("column") || error?.message.includes("does not exist")) {
-    const legacy = await admin
-      .from("mensajes_chat")
-      .select(
-        "id, partido_id, liga_id, usuario_id, tipo, contenido, created_at",
-      )
-      .eq("partido_id", partidoId)
-      .eq("liga_id", LIGA_GLOBAL_ID)
-      .order("created_at", { ascending: true })
-      .limit(200);
-    rows = legacy.data as MensajeDbRow[] | null;
-    error = legacy.error;
-  }
-
   if (error) {
-    throw new Error(`No se pudo cargar el historial del chat: ${error.message}`);
+    throw new Error(`No se pudo cargar el chat del grupo: ${error.message}`);
   }
 
-  const lista = rows ?? [];
+  const lista = (rows ?? []) as MensajeDbRow[];
   const usuarioIds = [
     ...new Set(
       lista
@@ -79,7 +47,11 @@ export async function fetchMensajesChatHistorial(
     ),
   ];
 
-  const autoresPorId = new Map<string, UsuarioDbRow>();
+  const autoresPorId = new Map<
+    string,
+    { id: string; nombre_visible: string; avatar_url: string | null }
+  >();
+
   if (usuarioIds.length > 0) {
     const { data: usuarios } = await admin
       .from("usuarios")
@@ -87,7 +59,11 @@ export async function fetchMensajesChatHistorial(
       .in("id", usuarioIds);
 
     for (const u of usuarios ?? []) {
-      autoresPorId.set(u.id, u as UsuarioDbRow);
+      autoresPorId.set(u.id, {
+        id: u.id,
+        nombre_visible: u.nombre_visible as string,
+        avatar_url: u.avatar_url as string | null,
+      });
     }
   }
 
@@ -95,7 +71,7 @@ export async function fetchMensajesChatHistorial(
     const u = m.usuario_id ? autoresPorId.get(m.usuario_id) : undefined;
     return {
       id: m.id,
-      partido_id: m.partido_id,
+      partido_id: m.partido_id ?? "",
       liga_id: m.liga_id,
       usuario_id: m.usuario_id,
       tipo: m.tipo,

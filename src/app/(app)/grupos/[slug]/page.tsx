@@ -8,6 +8,7 @@ import {
   fetchGrupoMiembros,
 } from "@/lib/liga/grupos-queries";
 import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
+import { fetchGrupoChatHistorial } from "@/lib/chat/grupo-queries";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,6 +25,7 @@ const TAB_IDS = [
   "leaderboard",
   "miembros",
   "invitar",
+  "chat",
   "configuracion",
 ] as const;
 
@@ -73,16 +75,37 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
   let miembros: Awaited<ReturnType<typeof fetchGrupoMiembros>> = [];
   let quinielaData: Awaited<ReturnType<typeof fetchQuinielaData>>;
   let leaderboardFilas: Awaited<ReturnType<typeof fetchLeaderboard>> = [];
+  let chatMensajes: Awaited<ReturnType<typeof fetchGrupoChatHistorial>> = [];
+  let usuarioChat: {
+    id: string;
+    nombre_visible: string;
+    avatar_url: string | null;
+    quiniela_paga: boolean;
+  } | null = null;
 
   try {
-    [miembros, quinielaData, leaderboardFilas] = await Promise.all([
-      fetchGrupoMiembros(grupo.id, user.id),
-      fetchQuinielaData(user.id, {
-        ligaId: grupo.id,
-        tipoQuiniela: grupo.tipo_quiniela,
-      }),
-      fetchLeaderboard(grupo.id).catch(() => []),
-    ]);
+    const { data: usuarioRow } = await supabase
+      .from("usuarios")
+      .select("id, nombre_visible, avatar_url, quiniela_paga")
+      .eq("id", user.id)
+      .single();
+
+    if (!usuarioRow) throw new Error("Perfil no encontrado");
+    usuarioChat = usuarioRow;
+
+    [miembros, quinielaData, leaderboardFilas, chatMensajes] =
+      await Promise.all([
+        fetchGrupoMiembros(grupo.id, user.id),
+        fetchQuinielaData(user.id, {
+          ligaId: grupo.id,
+          tipoQuiniela: grupo.tipo_quiniela,
+        }),
+        fetchLeaderboard(grupo.id).catch(() => []),
+        fetchGrupoChatHistorial(
+          grupo.id,
+          grupo.puede_administrar,
+        ).catch(() => []),
+      ]);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error al cargar datos";
     return (
@@ -120,6 +143,8 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
           currentUserId={user.id}
           quinielaData={quinielaData}
           leaderboardFilas={leaderboardFilas}
+          chatMensajes={chatMensajes}
+          usuario={usuarioChat}
           initialTab={initialTab}
         />
       </main>

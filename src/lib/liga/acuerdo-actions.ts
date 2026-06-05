@@ -86,7 +86,6 @@ export async function guardarAcuerdoPago(
 
   revalidatePath("/quiniela");
   revalidatePath("/leaderboard");
-  revalidatePath("/chat-general");
 
   return { ok: true };
 }
