@@ -249,7 +249,9 @@ export async function previewGrupoPorCodigo(codigo: string): Promise<{
   nombre?: string;
   slug?: string;
   tipo_quiniela?: TipoQuiniela;
+  modo_competencia?: ModoCompetencia;
   miembros_count?: number;
+  owner_nombre?: string;
   error?: string;
   code?: string;
 }> {
@@ -284,11 +286,16 @@ export async function previewGrupoPorCodigo(codigo: string): Promise<{
   }
 
   const tipoRaw = result.tipo_quiniela;
+  const modoRaw = result.modo_competencia;
   return {
     ok: true,
     nombre: String(result.nombre),
     slug: String(result.slug),
     tipo_quiniela: isTipoQuiniela(tipoRaw) ? tipoRaw : TIPO_QUINIELA_DEFAULT,
+    modo_competencia: isModoCompetencia(modoRaw) ? modoRaw : MODO_COMPETENCIA_DEFAULT,
     miembros_count: Number(result.miembros_count ?? 0),
+    owner_nombre: result.owner_nombre
+      ? String(result.owner_nombre)
+      : undefined,
   };
 }

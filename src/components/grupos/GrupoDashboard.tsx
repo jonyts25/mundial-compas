@@ -254,6 +254,13 @@ export function GrupoDashboard({
           nombre={grupo.nombre}
           codigoInvitacion={grupo.codigo_invitacion}
           rol={grupo.rol}
+          tipoQuiniela={grupo.tipo_quiniela}
+          modoCompetencia={grupo.modo_competencia}
+          miembrosCount={grupo.miembros_count}
+          activa={grupo.activa}
+          ownerNombre={
+            miembros.find((m) => m.rol === "owner")?.nombre_visible ?? null
+          }
         />
       )}
 
