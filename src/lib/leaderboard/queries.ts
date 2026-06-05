@@ -5,6 +5,23 @@ import {
 } from "@/lib/leaderboard/filters";
 import { createClient } from "@/lib/supabase/server";
 
+async function assertLigaLeaderboardActiva(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ligaId: string,
+): Promise<void> {
+  if (ligaId === LIGA_GLOBAL_ID) return;
+
+  const { data: liga } = await supabase
+    .from("ligas_privadas")
+    .select("activa, es_sistema")
+    .eq("id", ligaId)
+    .maybeSingle();
+
+  if (!liga || liga.es_sistema || !liga.activa) {
+    throw new Error("Este grupo ya no está activo");
+  }
+}
+
 export interface LeaderboardRow {
   posicion: number;
   usuario_id: string;
@@ -53,6 +70,7 @@ export async function fetchLeaderboardWithFilters(
 ): Promise<LeaderboardResult> {
   const resolved: LeaderboardFilters = filters ?? { modoSegmento: "acumulado" };
   const supabase = await createClient();
+  await assertLigaLeaderboardActiva(supabase, ligaId);
   const rpcArgs = toRpcFilterArgs(resolved);
 
   const { data, error } = await supabase.rpc("tabla_liderato_quiniela", {

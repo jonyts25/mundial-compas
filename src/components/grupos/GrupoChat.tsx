@@ -17,6 +17,7 @@ interface GrupoChatProps {
   grupoNombre: string;
   usuario: Usuario;
   puedeAdministrar: boolean;
+  grupoActivo?: boolean;
   initialMessages: MensajeChatConAutor[];
 }
 
@@ -26,6 +27,7 @@ export function GrupoChat({
   grupoNombre,
   usuario,
   puedeAdministrar,
+  grupoActivo = true,
   initialMessages,
 }: GrupoChatProps) {
   return (
@@ -37,8 +39,10 @@ export function GrupoChat({
       initialMessages={initialMessages}
       esModerador={puedeAdministrar}
       moderadorBadge="Admin"
-      canSend
-      inputPlaceholder="Escribe al grupo…"
+      canSend={grupoActivo}
+      inputPlaceholder={
+        grupoActivo ? "Escribe al grupo…" : "Chat cerrado: grupo inactivo"
+      }
       onSend={(texto) => sendGrupoChatMessage(ligaId, grupoSlug, texto)}
       onReportar={reportarMensaje}
       onAprobar={aprobarMensaje}

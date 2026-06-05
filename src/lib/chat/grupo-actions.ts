@@ -39,6 +39,16 @@ export async function sendGrupoChatMessage(
     return { ok: false, error: "No eres miembro de esta quiniela" };
   }
 
+  const { data: liga } = await supabase
+    .from("ligas_privadas")
+    .select("activa, es_sistema")
+    .eq("id", ligaId)
+    .maybeSingle();
+
+  if (!liga || liga.es_sistema || !liga.activa) {
+    return { ok: false, error: "Este grupo ya no está activo" };
+  }
+
   const { error } = await supabase.from("mensajes_chat").insert({
     partido_id: null,
     liga_id: ligaId,

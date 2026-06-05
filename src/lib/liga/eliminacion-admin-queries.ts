@@ -18,7 +18,10 @@ export interface SolicitudEliminacionAdminRow {
   created_at: string;
 }
 
-export async function countSolicitudesEliminacionPendientes(): Promise<number> {
+export async function countSolicitudesEliminacionPendientes(
+  appAdminUserId: string,
+): Promise<number> {
+  assertAppAdmin(appAdminUserId);
   const admin = createServerDataClient();
   const { count, error } = await admin
     .from("grupo_eliminacion_solicitudes")

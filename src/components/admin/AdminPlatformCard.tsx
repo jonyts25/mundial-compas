@@ -9,7 +9,7 @@ interface AdminPlatformCardProps {
 export async function AdminPlatformCard({ userId }: AdminPlatformCardProps) {
   if (!isAppAdmin(userId)) return null;
 
-  const pendientes = await countSolicitudesEliminacionPendientes();
+  const pendientes = await countSolicitudesEliminacionPendientes(userId);
 
   return (
     <Link

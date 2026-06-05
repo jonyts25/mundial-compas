@@ -15,7 +15,7 @@ export default async function AdminHomePage() {
   if (!user) redirect("/login");
   if (!isAppAdmin(user.id)) redirect("/");
 
-  const pendientes = await countSolicitudesEliminacionPendientes();
+  const pendientes = await countSolicitudesEliminacionPendientes(user.id);
 
   return (
     <main className="mx-auto max-w-lg px-4 py-8 pb-12">

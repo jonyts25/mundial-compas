@@ -214,6 +214,7 @@ export function GrupoDashboard({
             grupoNombre={grupo.nombre}
             usuario={usuario}
             puedeAdministrar={grupo.puede_administrar}
+            grupoActivo={grupo.activa}
             initialMessages={chatMensajes}
           />
         </>
