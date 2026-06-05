@@ -37,7 +37,7 @@ const pilotVars = {
   APIFOOTBALL_PILOT_LEAGUE_ID: "776",
   APIFOOTBALL_PILOT_FROM: process.env.APIFOOTBALL_PILOT_FROM || today,
   APIFOOTBALL_PILOT_TO: process.env.APIFOOTBALL_PILOT_TO || today,
-  APIFOOTBALL_PILOT_LABEL: "México vs Serbia — partido de prueba",
+  APIFOOTBALL_PILOT_LABEL: "Mexico_vs_Serbia_prueba",
   MEXICO_SERBIA_KICKOFF_HOUR: process.env.MEXICO_SERBIA_KICKOFF_HOUR || "20",
   MEXICO_SERBIA_KICKOFF_MINUTE: process.env.MEXICO_SERBIA_KICKOFF_MINUTE || "0",
   MEXICO_SERBIA_REPLAY_DELAY_MS: process.env.MEXICO_SERBIA_REPLAY_DELAY_MS || "25000",
@@ -74,7 +74,11 @@ function setVars(service, vars) {
   for (const [key, value] of Object.entries(vars)) {
     if (value === "") continue;
     console.log(`  ${key}`);
-    runRailway(["variable", "set", `${key}=${value}`, "--service", service]);
+    const quoted =
+      value.includes(" ") || value.includes("-")
+        ? `"${key}=${value.replace(/"/g, '\\"')}"`
+        : `${key}=${value}`;
+    runRailway(["variable", "set", quoted, "--service", service]);
   }
 }
 

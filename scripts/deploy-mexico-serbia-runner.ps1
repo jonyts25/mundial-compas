@@ -13,7 +13,7 @@ Copy-Item railway.mexico-serbia-runner.toml railway.toml -Force
 
 try {
     Write-Host "Desplegando runner México vs Serbia (livescore-relay)..." -ForegroundColor Cyan
-    railway up --detach --service livescore-relay
+    npx railway up --detach --service livescore-relay
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Listo. Logs: npx railway logs --service livescore-relay" -ForegroundColor Green
 } finally {

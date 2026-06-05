@@ -94,7 +94,7 @@ export function buildMexicoSerbiaRow(options = {}) {
   const minute = Number(options.minute ?? process.env.MEXICO_SERBIA_KICKOFF_MINUTE ?? 0);
   const label =
     process.env.APIFOOTBALL_PILOT_LABEL ||
-    "México vs Serbia — partido de prueba";
+    "Mexico vs Serbia - partido de prueba";
 
   return {
     api_football_fixture_id: MEXICO_SERBIA_FIXTURE_ID,
@@ -174,7 +174,7 @@ async function main() {
       `--league=${league}`,
       `--from=${from}`,
       `--to=${to}`,
-      `--label=${process.env.APIFOOTBALL_PILOT_LABEL || "México vs Serbia — partido de prueba"}`,
+      `--label=${process.env.APIFOOTBALL_PILOT_LABEL || "Mexico vs Serbia - partido de prueba"}`,
     ],
     { cwd: root, env: process.env, stdio: "pipe", shell: process.platform === "win32" },
   );

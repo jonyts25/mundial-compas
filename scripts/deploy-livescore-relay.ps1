@@ -19,7 +19,7 @@ try {
     Write-Host "  APIFOOTBALL_PILOT_LEAGUE_ID=3 (opcional en pilot)"
     Write-Host "  Copialas desde Mundial Compas Service o usa Shared Variables."
     Write-Host ""
-    railway up --detach --service livescore-relay
+    npx railway up --detach --service livescore-relay
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Listo. Logs: railway logs --service livescore-relay" -ForegroundColor Green
 } finally {
