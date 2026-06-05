@@ -6,5 +6,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.mexico-serbia-runner"
 
 [deploy]
+startCommand = "node scripts/run-mexico-serbia-live-runner.mjs"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
