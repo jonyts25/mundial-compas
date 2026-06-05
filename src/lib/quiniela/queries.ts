@@ -53,9 +53,15 @@ export async function fetchQuinielaData(
   const { data: partidos, error: partidosError } = await supabase
     .from("partidos")
     .select(
-      "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual",
+      "id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, metadata",
     )
-    .in("estatus", ["programado", "aplazado", "en_vivo", "medio_tiempo"])
+    .in("estatus", [
+      "programado",
+      "aplazado",
+      "en_vivo",
+      "medio_tiempo",
+      "finalizado",
+    ])
     .order("fecha_kickoff", { ascending: true });
 
   if (partidosError) {

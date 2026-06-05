@@ -2,21 +2,24 @@
 
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
+import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
+import { SilenciarPartidoToggle } from "@/components/push/SilenciarPartidoToggle";
 import { trackEvent } from "@/lib/analytics/track";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { formatMexicoKickoff } from "@/lib/datetime/mexico";
+import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
+import { labelFase } from "@/lib/partidos/labels";
 import { savePronostico } from "@/lib/quiniela/actions";
 import {
   formatTimeUntilLock,
   isPronosticoLocked,
   QUINIELA_LOCK_MINUTES_BEFORE,
 } from "@/lib/quiniela/lock";
-import { formatMexicoKickoff } from "@/lib/datetime/mexico";
 import { getTeamImageUrl } from "@/lib/teams/flags";
-import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
-import { SilenciarPartidoToggle } from "@/components/push/SilenciarPartidoToggle";
-import { labelFase } from "@/lib/partidos/labels";
 import type { PronosticoUsuario } from "@/lib/quiniela/queries";
 import type { Partido } from "@/types/database";
+
+type ScoreValue = number | null;
 
 interface PronosticoRowProps {
   partido: Partido;
@@ -25,14 +28,21 @@ interface PronosticoRowProps {
   ligaId?: string;
 }
 
+function initialScore(pronostico: PronosticoUsuario | undefined, side: "local" | "visitante"): ScoreValue {
+  if (!pronostico) return null;
+  return side === "local" ? pronostico.goles_local : pronostico.goles_visitante;
+}
+
 export function PronosticoRow({
   partido,
   pronostico,
   soloLectura = false,
   ligaId,
 }: PronosticoRowProps) {
-  const [local, setLocal] = useState(pronostico?.goles_local ?? 0);
-  const [visitante, setVisitante] = useState(pronostico?.goles_visitante ?? 0);
+  const [local, setLocal] = useState<ScoreValue>(() => initialScore(pronostico, "local"));
+  const [visitante, setVisitante] = useState<ScoreValue>(() =>
+    initialScore(pronostico, "visitante"),
+  );
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -43,9 +53,11 @@ export function PronosticoRow({
   const { fecha: fechaPartido, hora: horaPartido } = formatMexicoKickoff(
     partido.fecha_kickoff,
   );
-  const dirty =
-    local !== (pronostico?.goles_local ?? 0) ||
-    visitante !== (pronostico?.goles_visitante ?? 0);
+  const savedLocal = pronostico ? pronostico.goles_local : null;
+  const savedVisitante = pronostico ? pronostico.goles_visitante : null;
+  const dirty = local !== savedLocal || visitante !== savedVisitante;
+  const canSave =
+    !locked && local !== null && visitante !== null && local >= 0 && visitante >= 0;
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
@@ -53,16 +65,16 @@ export function PronosticoRow({
   }, []);
 
   useEffect(() => {
-    setLocal(pronostico?.goles_local ?? 0);
-    setVisitante(pronostico?.goles_visitante ?? 0);
-  }, [pronostico?.goles_local, pronostico?.goles_visitante]);
-
-  function clampScore(value: number): number {
-    if (Number.isNaN(value)) return 0;
-    return Math.min(20, Math.max(0, Math.floor(value)));
-  }
+    setLocal(initialScore(pronostico, "local"));
+    setVisitante(initialScore(pronostico, "visitante"));
+  }, [pronostico?.goles_local, pronostico?.goles_visitante, pronostico]);
 
   function handleSave() {
+    if (local === null || visitante === null) {
+      setMessage("Ingresa ambos marcadores");
+      return;
+    }
+
     setMessage(null);
     startTransition(async () => {
       const result = await savePronostico(partido.id, local, visitante, ligaId);
@@ -118,14 +130,14 @@ export function PronosticoRow({
         <div className="flex items-center gap-1.5">
           <ScoreInput
             value={local}
-            onChange={(v) => setLocal(clampScore(v))}
+            onChange={setLocal}
             disabled={locked}
             aria-label={`Goles ${partido.equipo_local_nombre}`}
           />
           <span className="px-0.5 text-sm font-bold text-zinc-500">vs</span>
           <ScoreInput
             value={visitante}
-            onChange={(v) => setVisitante(clampScore(v))}
+            onChange={setVisitante}
             disabled={locked}
             aria-label={`Goles ${partido.equipo_visitante_nombre}`}
           />
@@ -143,7 +155,7 @@ export function PronosticoRow({
         <button
           type="button"
           onClick={handleSave}
-          disabled={isPending || !dirty}
+          disabled={isPending || !dirty || !canSave}
           className="mt-4 w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isPending ? "Guardando…" : pronostico ? "Actualizar pronóstico" : "Guardar pronóstico"}
@@ -163,6 +175,12 @@ export function PronosticoRow({
         </p>
       )}
 
+      {pronostico && locked && pronostico.puntos > 0 && (
+        <p className="mt-2 text-center text-[10px] text-emerald-500/80">
+          +{pronostico.puntos} pts en este partido
+        </p>
+      )}
+
       {message && (
         <p
           className={`mt-2 text-center text-xs ${
@@ -173,6 +191,8 @@ export function PronosticoRow({
           {message}
         </p>
       )}
+
+      <PronosticosTodosPanel partido={partido} ligaId={ligaId} />
     </article>
   );
 }
@@ -183,26 +203,45 @@ function ScoreInput({
   disabled,
   "aria-label": ariaLabel,
 }: {
-  value: number;
-  onChange: (v: number) => void;
+  value: ScoreValue;
+  onChange: (v: ScoreValue) => void;
   disabled: boolean;
   "aria-label": string;
 }) {
+  const [draft, setDraft] = useState(value === null ? "" : String(value));
+
+  useEffect(() => {
+    setDraft(value === null ? "" : String(value));
+  }, [value]);
+
   return (
     <input
-      type="number"
+      type="text"
       inputMode="numeric"
-      pattern="[0-9]*"
-      min={0}
-      max={20}
-      value={value}
+      autoComplete="off"
+      value={draft}
       disabled={disabled}
       aria-label={ariaLabel}
+      placeholder="—"
       onChange={(e) => {
-        const raw = e.target.value;
-        onChange(raw === "" ? 0 : Number(raw));
+        const raw = e.target.value.replace(/\D/g, "");
+        if (raw === "") {
+          setDraft("");
+          onChange(null);
+          return;
+        }
+        const n = Number.parseInt(raw, 10);
+        if (Number.isNaN(n)) return;
+        const clamped = Math.min(20, n);
+        setDraft(String(clamped));
+        onChange(clamped);
       }}
-      className="h-14 w-14 rounded-xl border-2 border-zinc-700 bg-zinc-950 text-center text-2xl font-black tabular-nums text-white outline-none [appearance:textfield] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      onBlur={() => {
+        if (draft === "") {
+          onChange(null);
+        }
+      }}
+      className="h-14 w-14 rounded-xl border-2 border-zinc-700 bg-zinc-950 text-center text-2xl font-black tabular-nums text-white outline-none placeholder:text-zinc-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600"
     />
   );
 }

@@ -4,6 +4,7 @@ import { ChatPartido } from "@/components/partidos/ChatPartido";
 import { PartidoInfoPanel } from "@/components/partidos/PartidoInfoPanel";
 import { PartidoHeader } from "@/components/partidos/PartidoHeader";
 import { PronosticoReminder } from "@/components/partidos/PronosticoReminder";
+import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
 import { SilenciarNotificacionesPartido } from "@/components/partidos/SilenciarNotificacionesPartido";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchPartidoDetallePageData } from "@/lib/partidos/detail-queries";
@@ -48,6 +49,7 @@ export default async function PartidoPage({
         <SilenciarNotificacionesPartido partidoId={data.partido.id} />
         <PartidoInfoPanel partido={data.partido} />
         <PronosticoReminder partido={data.partido} pronostico={data.pronostico} />
+        <PronosticosTodosPanel partido={data.partido} ligaId={LIGA_GLOBAL_ID} />
         <ChatPartido
           key={data.partido.id}
           partidoId={data.partido.id}
