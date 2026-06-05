@@ -1,5 +1,7 @@
 "use client";
 
+/** @deprecated Panel moderador para acuerdo de paga global (sin página que lo use). */
+
 import { useState, useTransition } from "react";
 import { guardarAcuerdoPago } from "@/lib/liga/acuerdo-actions";
 import type { AcuerdoPago } from "@/lib/liga/acuerdo-pago";

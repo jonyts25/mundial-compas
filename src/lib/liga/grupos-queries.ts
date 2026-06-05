@@ -151,6 +151,20 @@ export async function fetchGrupoBySlug(
 
   if (!rol) return null;
 
+  if (!liga.activa) {
+    const base = mapGrupoRow(
+      liga as Record<string, unknown>,
+      rol,
+      0,
+    );
+    return {
+      ...base,
+      creador_id: liga.creador_id as string | null,
+      created_at: liga.created_at as string,
+      puede_administrar: rol === "owner" || rol === "admin",
+    };
+  }
+
   const { data: memberCount } = await supabase.rpc("contar_miembros_liga", {
     p_liga_id: liga.id,
   });

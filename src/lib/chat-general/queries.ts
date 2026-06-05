@@ -1,3 +1,6 @@
+/**
+ * @deprecated Chat general (`sala: liga_general`). Solo lectura/inyecciones legacy en BD.
+ */
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { getMexicoDayBounds } from "@/lib/datetime/mexico";
 import {

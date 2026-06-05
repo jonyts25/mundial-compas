@@ -1,3 +1,5 @@
+/** @deprecated Banner de acuerdo económico global (sin páginas que lo monten). */
+
 import type { AcuerdoPago } from "@/lib/liga/acuerdo-pago";
 import {
   acuerdoPagoResumen,

@@ -1,5 +1,7 @@
 "use client";
 
+/** @deprecated Tablón `liquidacion_pagos` de liga global (sin UI). Cooperacha = grupos privados (futuro). */
+
 import { useState, useTransition } from "react";
 import {
   confirmarRecepcionPago,

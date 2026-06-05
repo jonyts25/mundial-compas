@@ -216,9 +216,8 @@ function LoginForm() {
 
         {mode === "register" && (
           <p className="rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-xs text-zinc-400">
-            La quiniela es <strong className="text-emerald-400">gratis</strong> para
-            todos. La bolsa de paga y el Contrato de Honor se activan después desde{" "}
-            <strong className="text-zinc-300">Mi Quiniela</strong>.
+            La quiniela global es <strong className="text-emerald-400">gratuita</strong>{" "}
+            y de honor. Para cooperacha entre amigos, crea una quiniela privada.
           </p>
         )}
 

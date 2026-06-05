@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { GrupoPageHeader } from "@/components/grupos/GrupoPageHeader";
+import { DisclaimerBlock } from "@/components/legal/DisclaimerBlock";
 import { QuinielaContextBanner } from "@/components/quiniela/QuinielaContextBanner";
+import { DISCLAIMER_COOPERACHA } from "@/lib/legal/disclaimers";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
 import { QuinielaSelector } from "@/components/quiniela/QuinielaSelector";
 import { QuinielaTipoFilters } from "@/components/quiniela/QuinielaTipoFilters";
@@ -85,6 +87,10 @@ export default async function GrupoQuinielaPage({ params, searchParams }: PagePr
           modoCompetencia={grupo.modo_competencia}
           grupoSlug={slug}
         />
+
+        {grupo.modo_competencia === "cooperacion" && (
+          <DisclaimerBlock title="Cooperacha" body={DISCLAIMER_COOPERACHA} compact />
+        )}
 
         <Suspense fallback={null}>
           <QuinielaTipoFilters

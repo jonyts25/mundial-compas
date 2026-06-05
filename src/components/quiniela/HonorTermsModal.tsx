@@ -1,5 +1,7 @@
 "use client";
 
+/** @deprecated Modal de Contrato de Honor / quiniela de paga global (retirado). */
+
 import { useEffect, useState, useTransition } from "react";
 import { HonorTermsDisclaimer } from "@/components/auth/HonorTermsDisclaimer";
 import { acceptHonorTerms } from "@/lib/auth/honor-actions";

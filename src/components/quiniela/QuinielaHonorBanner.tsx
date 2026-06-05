@@ -1,5 +1,7 @@
 "use client";
 
+/** @deprecated Sin rutas que importen este componente. Quiniela global sin “unirse a paga”. */
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { HonorTermsModal } from "@/components/quiniela/HonorTermsModal";

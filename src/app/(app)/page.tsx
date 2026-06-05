@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { AdminPlatformCard } from "@/components/admin/AdminPlatformCard";
 import { AppHeader } from "@/components/home/AppHeader";
 import { CalendarioPartidos } from "@/components/home/CalendarioPartidos";
 import { HeroSection } from "@/components/home/HeroSection";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
+import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
 import { LiveHomeRefresh } from "@/components/home/LiveHomeRefresh";
 import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
 import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
@@ -40,6 +42,7 @@ export default async function HomePage() {
             partidosPilotCount={pilot.partidosPilotCount}
           />
         )}
+        <AdminPlatformCard userId={user.id} />
         <HeroSection partidosEnVivo={partidosEnVivo} datoMamalon={datoMamalon} />
         <CalendarioPartidos
           partidos={calendario.partidos}
@@ -48,6 +51,7 @@ export default async function HomePage() {
           pilotPartidoIds={pilot.pilotPartidoIds}
         />
       </main>
+      <LegalFooterLink />
       <AppBottomNav />
     </>
   );

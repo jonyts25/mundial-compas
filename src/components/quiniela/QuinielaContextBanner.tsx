@@ -34,7 +34,7 @@ export function QuinielaContextBanner({
       <p className="mt-0.5 text-base font-bold text-white">{nombreLiga}</p>
       <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-zinc-400">
         {esGlobal ? (
-          <span>Liga global</span>
+          <span>Liga global · honor · gratuita</span>
         ) : (
           <>
             <span>{tipoQuiniela ? TIPO_QUINIELA_LABELS[tipoQuiniela] : "Grupo privado"}</span>

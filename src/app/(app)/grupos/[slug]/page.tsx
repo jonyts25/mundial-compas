@@ -9,6 +9,10 @@ import {
 } from "@/lib/liga/grupos-queries";
 import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
 import { fetchGrupoChatHistorial } from "@/lib/chat/grupo-queries";
+import {
+  fetchEliminacionSolicitudPendiente,
+  fetchEliminacionSolicitudReciente,
+} from "@/lib/liga/eliminacion-solicitudes";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -76,6 +80,12 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
   let quinielaData: Awaited<ReturnType<typeof fetchQuinielaData>>;
   let leaderboardFilas: Awaited<ReturnType<typeof fetchLeaderboard>> = [];
   let chatMensajes: Awaited<ReturnType<typeof fetchGrupoChatHistorial>> = [];
+  let solicitudEliminacion: Awaited<
+    ReturnType<typeof fetchEliminacionSolicitudPendiente>
+  > = null;
+  let solicitudConfig: Awaited<
+    ReturnType<typeof fetchEliminacionSolicitudReciente>
+  > = null;
   let usuarioChat: {
     id: string;
     nombre_visible: string;
@@ -93,7 +103,7 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
     if (!usuarioRow) throw new Error("Perfil no encontrado");
     usuarioChat = usuarioRow;
 
-    [miembros, quinielaData, leaderboardFilas, chatMensajes] =
+    [miembros, quinielaData, leaderboardFilas, chatMensajes, solicitudEliminacion, solicitudConfig] =
       await Promise.all([
         fetchGrupoMiembros(grupo.id, user.id),
         fetchQuinielaData(user.id, {
@@ -105,6 +115,10 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
           grupo.id,
           grupo.puede_administrar,
         ).catch(() => []),
+        fetchEliminacionSolicitudPendiente(grupo.id).catch(() => null),
+        grupo.puede_administrar
+          ? fetchEliminacionSolicitudReciente(grupo.id).catch(() => null)
+          : Promise.resolve(null),
       ]);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error al cargar datos";
@@ -145,6 +159,8 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
           leaderboardFilas={leaderboardFilas}
           chatMensajes={chatMensajes}
           usuario={usuarioChat}
+          solicitudEliminacion={solicitudEliminacion}
+          solicitudConfig={solicitudConfig}
           initialTab={initialTab}
         />
       </main>

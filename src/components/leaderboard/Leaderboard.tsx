@@ -6,6 +6,8 @@ import type { LeaderboardRow } from "@/lib/leaderboard/queries";
 interface LeaderboardProps {
   filas: LeaderboardRow[];
   usuarioActualId: string;
+  /** En liga global de honor no mostrar indicador de quiniela de paga. */
+  mostrarBadgeQuinielaPaga?: boolean;
 }
 
 function getInitials(nombre: string): string {
@@ -46,7 +48,11 @@ function PodioBadge({ posicion }: { posicion: number }) {
   );
 }
 
-export function Leaderboard({ filas, usuarioActualId }: LeaderboardProps) {
+export function Leaderboard({
+  filas,
+  usuarioActualId,
+  mostrarBadgeQuinielaPaga = true,
+}: LeaderboardProps) {
   if (filas.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-zinc-500">
@@ -120,8 +126,11 @@ export function Leaderboard({ filas, usuarioActualId }: LeaderboardProps) {
                       </span>
                     )}
                   </p>
-                  {fila.quiniela_paga && (
-                    <span className="text-[9px] font-medium text-amber-400" title="Quiniela de honor">
+                  {mostrarBadgeQuinielaPaga && fila.quiniela_paga && (
+                    <span
+                      className="text-[9px] font-medium text-amber-400"
+                      title="Participante con acuerdo económico (solo grupos privados)"
+                    >
                       👑
                     </span>
                   )}

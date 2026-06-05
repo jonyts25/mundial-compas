@@ -1,3 +1,6 @@
+/**
+ * @deprecated Flujo quiniela_paga global. `applyPendingHonorTermsIfAny` solo limpia localStorage.
+ */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { TERMINOS_HONOR_VERSION } from "@/lib/constants";
 
@@ -51,12 +54,11 @@ export async function applyHonorTermsToProfile(
 }
 
 export async function applyPendingHonorTermsIfAny(
-  supabase: SupabaseClient,
-  userId: string,
+  _supabase: SupabaseClient,
+  _userId: string,
 ): Promise<void> {
   const pending = readPendingHonorTerms();
-  if (!pending || pending.version !== TERMINOS_HONOR_VERSION) return;
-
-  await applyHonorTermsToProfile(supabase, userId, pending.quinielaPaga);
+  if (!pending) return;
+  // No activar quiniela_paga en global; descartar pendiente legacy.
   clearPendingHonorTerms();
 }

@@ -31,11 +31,6 @@ export function AppHeader({ usuario }: AppHeaderProps) {
             <span className="max-w-[7rem] truncate text-xs font-medium text-zinc-200">
               {usuario.nombre_visible}
             </span>
-            {usuario.quiniela_paga && (
-              <span className="text-[10px] font-semibold text-amber-400" title="Quiniela de honor">
-                👑
-              </span>
-            )}
           </div>
 
           {usuario.avatar_url ? (

@@ -1,5 +1,7 @@
 "use client";
 
+/** @deprecated Chat general global. Ruta `/chat-general` redirige a `/`. */
+
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { formatMexicoTimeShort } from "@/lib/datetime/mexico";
 import { sendChatGeneralMessage } from "@/lib/chat-general/actions";

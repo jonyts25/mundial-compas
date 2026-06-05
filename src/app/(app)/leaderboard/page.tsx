@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
-import { AcuerdoPagoInformativo } from "@/components/quiniela/AcuerdoPagoInformativo";
+import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
-import { fetchAcuerdoPago } from "@/lib/liga/fetch-acuerdo-pago";
 import { fetchLeaderboard } from "@/lib/leaderboard/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,8 +17,6 @@ export default async function LeaderboardPage() {
   if (!user) {
     redirect("/login?next=/leaderboard");
   }
-
-  const acuerdoPago = await fetchAcuerdoPago();
 
   let filas;
   try {
@@ -54,15 +51,13 @@ export default async function LeaderboardPage() {
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold text-white">Tabla de liderato</h1>
             <p className="text-xs text-zinc-500">
-              Liga Mundial Compas · 3 pts exacto · 1 pt tendencia
+              Liga global · honor · 3 pts exacto · 1 pt tendencia
             </p>
           </div>
         </div>
       </header>
 
       <main className="px-4 py-4 pb-28">
-        <AcuerdoPagoInformativo acuerdo={acuerdoPago} compact />
-
         {miFila && (
           <div className="mb-4 rounded-xl border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-center">
             <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/90">
@@ -77,13 +72,18 @@ export default async function LeaderboardPage() {
           </div>
         )}
 
-        <Leaderboard filas={filas} usuarioActualId={user.id} />
+        <Leaderboard
+          filas={filas}
+          usuarioActualId={user.id}
+          mostrarBadgeQuinielaPaga={false}
+        />
 
         <p className="mt-4 text-center text-[10px] text-zinc-600">
           Desempate: más exactos → más tendencias → antigüedad en la liga
         </p>
       </main>
 
+      <LegalFooterLink />
       <AppBottomNav />
     </>
   );

@@ -2,8 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 
 /**
- * UUIDs de moderadores de app (chat, acuerdo de paga).
+ * UUIDs de moderadores de app (chat global, acuerdo de paga legacy).
  * Railway: APP_MODERATOR_USER_IDS=tu-uuid,otro-uuid
+ *
+ * Para admin de plataforma (superadmin, solicitudes de eliminación) usar
+ * `@/lib/admin/app-admin` — mismo env por MVP, sin mezclar con admin de grupo.
  */
 export function getModeratorUserIdsFromEnv(): string[] {
   const raw = process.env.APP_MODERATOR_USER_IDS?.trim();

@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { crearGrupoPrivado } from "@/lib/liga/grupos-actions";
+import { DisclaimerBlock } from "@/components/legal/DisclaimerBlock";
+import { DISCLAIMER_COOPERACHA, DISCLAIMER_QUINIELA_INMUTABLE } from "@/lib/legal/disclaimers";
 import {
   MODO_COMPETENCIA_DESCRIPCIONES,
   MODO_COMPETENCIA_LABELS,
@@ -149,6 +151,16 @@ export function CrearGrupoForm() {
           ))}
         </div>
       </fieldset>
+
+      <DisclaimerBlock
+        title="Importante"
+        body={DISCLAIMER_QUINIELA_INMUTABLE}
+        compact
+      />
+
+      {modo === "cooperacion" && (
+        <DisclaimerBlock title="Cooperacha" body={DISCLAIMER_COOPERACHA} compact />
+      )}
 
       {error && (
         <p className="rounded-lg bg-red-950/50 px-3 py-2 text-sm text-red-300">

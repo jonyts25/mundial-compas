@@ -60,6 +60,9 @@ export async function fetchCompetenciaLiga(): Promise<CompetenciaLigaState> {
   return parseCompetencia(data?.configuracion);
 }
 
+/**
+ * @deprecated Tablón global sin UI. Tabla `liquidacion_pagos` (liga global) permanece en BD.
+ */
 export async function fetchLiquidacionPagos(): Promise<LiquidacionPagoRow[]> {
   const supabase = createServerDataClient();
 

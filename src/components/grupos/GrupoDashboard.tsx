@@ -10,10 +10,13 @@ import { Leaderboard } from "@/components/leaderboard/Leaderboard";
 import { GrupoChat } from "@/components/grupos/GrupoChat";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
 import type { LeaderboardRow } from "@/lib/leaderboard/queries";
+import type { EliminacionSolicitudRow } from "@/lib/liga/eliminacion-solicitudes";
 import type { GrupoDetalle, GrupoMiembroRow } from "@/lib/liga/grupos-queries";
 import {
   MODO_COMPETENCIA_LABELS,
 } from "@/lib/liga/modo-competencia";
+import { DisclaimerBlock } from "@/components/legal/DisclaimerBlock";
+import { DISCLAIMER_ADMIN_GRUPO } from "@/lib/legal/disclaimers";
 import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
 import type { MensajeChatConAutor } from "@/types/chat";
 import type { QuinielaPageData } from "@/lib/quiniela/queries";
@@ -37,6 +40,8 @@ interface GrupoDashboardProps {
   leaderboardFilas: LeaderboardRow[];
   chatMensajes: MensajeChatConAutor[];
   usuario: Usuario;
+  solicitudEliminacion: EliminacionSolicitudRow | null;
+  solicitudConfig: EliminacionSolicitudRow | null;
   initialTab?: string;
 }
 
@@ -49,6 +54,8 @@ export function GrupoDashboard({
   leaderboardFilas,
   chatMensajes,
   usuario,
+  solicitudEliminacion,
+  solicitudConfig,
   initialTab,
 }: GrupoDashboardProps) {
   const defaultTab: TabId =
@@ -122,6 +129,16 @@ export function GrupoDashboard({
           {MODO_COMPETENCIA_LABELS[grupo.modo_competencia]}
         </span>
       </div>
+
+      <DisclaimerBlock title="Tu quiniela privada" body={DISCLAIMER_ADMIN_GRUPO} compact />
+
+      {solicitudEliminacion?.estatus === "pendiente" && (
+        <div className="rounded-xl border border-amber-900/40 bg-amber-950/20 px-4 py-3">
+          <p className="text-sm text-amber-100/90">
+            Hay una solicitud de eliminación pendiente de revisión.
+          </p>
+        </div>
+      )}
 
       {tab === "resumen" && (
         <>
@@ -211,6 +228,7 @@ export function GrupoDashboard({
           <Leaderboard
             filas={leaderboardFilas}
             usuarioActualId={currentUserId}
+            mostrarBadgeQuinielaPaga={false}
           />
           {leaderboardFilas.length === 0 && (
             <p className="text-center text-sm text-zinc-500">
@@ -240,9 +258,12 @@ export function GrupoDashboard({
 
       {tab === "configuracion" && grupo.puede_administrar && (
         <GrupoConfigPanel
+          ligaId={grupo.id}
+          grupoSlug={slug}
           tipoQuiniela={grupo.tipo_quiniela}
           modoCompetencia={grupo.modo_competencia}
           activa={grupo.activa}
+          solicitudEliminacion={solicitudConfig}
         />
       )}
     </div>

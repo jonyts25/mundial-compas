@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatRoomPanel } from "@/components/chat/ChatRoomPanel";
+import { DISCLAIMER_CHAT_GRUPO } from "@/lib/legal/disclaimers";
 import { sendGrupoChatMessage } from "@/lib/chat/grupo-actions";
 import {
   aprobarMensaje,
@@ -31,7 +32,7 @@ export function GrupoChat({
     <ChatRoomPanel
       channelId={`grupo:${ligaId}`}
       headerTitle={`Chat · ${grupoNombre}`}
-      headerSubtitle="Solo miembros de esta quiniela"
+      headerSubtitle={`Solo miembros · ${DISCLAIMER_CHAT_GRUPO}`}
       usuario={usuario}
       initialMessages={initialMessages}
       esModerador={puedeAdministrar}

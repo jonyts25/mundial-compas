@@ -1,27 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
-import { GanadorHonorMensaje } from "@/components/quiniela/GanadorHonorMensaje";
-import { AcuerdoPagoInformativo } from "@/components/quiniela/AcuerdoPagoInformativo";
-import { ModeradorAcuerdoPanel } from "@/components/admin/ModeradorAcuerdoPanel";
-import { QuinielaHonorBanner } from "@/components/quiniela/QuinielaHonorBanner";
-import { resolveIsModerator } from "@/lib/auth/moderator";
-import { fetchAcuerdoPago } from "@/lib/liga/fetch-acuerdo-pago";
+import { DisclaimerBlock } from "@/components/legal/DisclaimerBlock";
+import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
 import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
 import { QuinielaContextBanner } from "@/components/quiniela/QuinielaContextBanner";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
 import { QuinielaSelector } from "@/components/quiniela/QuinielaSelector";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { DISCLAIMER_GENERAL, DISCLAIMER_IA } from "@/lib/legal/disclaimers";
 import { fetchQuinielaSelectorOptions } from "@/lib/quiniela/selector-options";
 import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
-import { TablonLiquidacion } from "@/components/quiniela/TablonLiquidacion";
-import { fetchLeaderboard } from "@/lib/leaderboard/queries";
-import {
-  evaluarGanadorInalcanzable,
-  fetchCompetenciaLiga,
-  fetchLiquidacionPagos,
-  resolveGanadorHonorContext,
-} from "@/lib/liga/competencia-queries";
+import { fetchCompetenciaLiga } from "@/lib/liga/competencia-queries";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -37,24 +27,7 @@ export default async function QuinielaPage() {
     redirect("/login?next=/quiniela");
   }
 
-  const { data: perfil } = await supabase
-    .from("usuarios")
-    .select("quiniela_paga")
-    .eq("id", user.id)
-    .single();
-
-  const quinielaPaga = Boolean(perfil?.quiniela_paga);
-
-  try {
-    await evaluarGanadorInalcanzable();
-  } catch {
-    /* RPC tras migración freemium */
-  }
-
-  const esModerador = await resolveIsModerator(supabase, user.id);
-
-  const [data, competencia, pagos, leaderboard, acuerdoPago, pilot, selectorOptions] =
-    await Promise.all([
+  const [data, competencia, pilot, selectorOptions] = await Promise.all([
     fetchQuinielaData(user.id),
     fetchCompetenciaLiga().catch(() => ({
       estado: "activa" as const,
@@ -65,19 +38,9 @@ export default async function QuinielaPage() {
       finalizadaAt: null,
       ganadorDeposito: null,
     })),
-    quinielaPaga ? fetchLiquidacionPagos().catch(() => []) : Promise.resolve([]),
-    fetchLeaderboard().catch(() => []),
-    fetchAcuerdoPago(),
     fetchPilotUiState(),
     fetchQuinielaSelectorOptions(user.id),
   ]);
-
-  const honorCtx = resolveGanadorHonorContext(
-    user.id,
-    leaderboard,
-    competencia,
-    quinielaPaga,
-  );
 
   return (
     <>
@@ -92,7 +55,7 @@ export default async function QuinielaPage() {
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold text-white">Mi Quiniela</h1>
             <p className="text-xs text-zinc-500">
-              Liga global ·{" "}
+              Liga global · honor · gratuita ·{" "}
               <Link href="/grupos" className="text-emerald-500 hover:underline">
                 Mis quinielas
               </Link>
@@ -115,23 +78,11 @@ export default async function QuinielaPage() {
             partidosPilotCount={pilot.partidosPilotCount}
           />
         )}
-        {esModerador && <ModeradorAcuerdoPanel acuerdoActual={acuerdoPago} />}
 
-        <AcuerdoPagoInformativo acuerdo={acuerdoPago} />
-
-        <QuinielaHonorBanner quinielaPaga={quinielaPaga} acuerdoPago={acuerdoPago} />
-
-        <GanadorHonorMensaje
-          visible={honorCtx.esGanadorMoral}
-          modo={honorCtx.modo}
-          ganadorEconomicoNombre={honorCtx.ganadorEconomicoNombre}
-        />
-
-        <TablonLiquidacion
-          competencia={competencia}
-          pagos={pagos}
-          usuarioId={user.id}
-          quinielaPaga={quinielaPaga}
+        <DisclaimerBlock
+          title="Quiniela global"
+          body="Participación gratuita y de honor. Sin cooperacha ni liquidación en esta liga."
+          compact
         />
 
         <QuinielaList
@@ -139,8 +90,14 @@ export default async function QuinielaPage() {
           pronosticosPorPartido={data.pronosticosPorPartido}
           competenciaFinalizada={competencia.estado !== "activa"}
         />
+
+        <div className="mt-6 space-y-2">
+          <DisclaimerBlock title="Aviso" body={DISCLAIMER_GENERAL} compact />
+          <DisclaimerBlock title="IA" body={DISCLAIMER_IA} compact />
+        </div>
       </main>
 
+      <LegalFooterLink />
       <AppBottomNav />
     </>
   );
