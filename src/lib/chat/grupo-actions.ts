@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { metadataGrupoPrivado } from "@/lib/chat/scopes";
+import { validateUserChatMessage } from "@/lib/moderation/validate-user-message";
 import { createClient } from "@/lib/supabase/server";
-
-const MAX_LENGTH = 500;
 
 export type GrupoChatActionResult =
   | { ok: true }
@@ -15,12 +14,6 @@ export async function sendGrupoChatMessage(
   grupoSlug: string,
   contenido: string,
 ): Promise<GrupoChatActionResult> {
-  const text = contenido.trim();
-  if (!text) return { ok: false, error: "Escribe un mensaje" };
-  if (text.length > MAX_LENGTH) {
-    return { ok: false, error: `Máximo ${MAX_LENGTH} caracteres` };
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,6 +41,15 @@ export async function sendGrupoChatMessage(
   if (!liga || liga.es_sistema || !liga.activa) {
     return { ok: false, error: "Este grupo ya no está activo" };
   }
+
+  const moderation = await validateUserChatMessage(user.id, contenido, {
+    kind: "grupo",
+    ligaId,
+  });
+  if (!moderation.ok) {
+    return { ok: false, error: moderation.error };
+  }
+  const text = moderation.content;
 
   const { error } = await supabase.from("mensajes_chat").insert({
     partido_id: null,

@@ -7,10 +7,9 @@ import {
   isMatchChatOpen,
   type PartidoChatInput,
 } from "@/lib/chat/match-chat-window";
+import { validateUserChatMessage } from "@/lib/moderation/validate-user-message";
 import { createClient } from "@/lib/supabase/server";
 import type { MensajeChatRealtimeRow } from "@/types/chat";
-
-const MAX_LENGTH = 500;
 
 export type ChatActionResult =
   | { ok: true; mensaje?: MensajeChatRealtimeRow }
@@ -37,14 +36,6 @@ export async function sendChatMessage(
   partidoId: string,
   contenido: string,
 ): Promise<SendChatMessageResult> {
-  const text = contenido.trim();
-  if (!text) {
-    return { ok: false, error: "Escribe un mensaje" };
-  }
-  if (text.length > MAX_LENGTH) {
-    return { ok: false, error: `Máximo ${MAX_LENGTH} caracteres` };
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -53,6 +44,16 @@ export async function sendChatMessage(
   if (!user) {
     return { ok: false, error: "Inicia sesión para chatear" };
   }
+
+  const moderation = await validateUserChatMessage(user.id, contenido, {
+    kind: "partido",
+    partidoId,
+    ligaId: LIGA_GLOBAL_ID,
+  });
+  if (!moderation.ok) {
+    return { ok: false, error: moderation.error };
+  }
+  const text = moderation.content;
 
   const { data: partido, error: partidoError } = await supabase
     .from("partidos")

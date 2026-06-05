@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { formatMexicoTimeShort } from "@/lib/datetime/mexico";
+import { CHAT_MAX_MESSAGE_LENGTH } from "@/lib/moderation/config";
 import { createClient } from "@/lib/supabase/client";
 import type {
   ChatAutor,
@@ -361,7 +362,7 @@ export function ChatRoomPanel({
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder={inputPlaceholder}
-            maxLength={500}
+            maxLength={CHAT_MAX_MESSAGE_LENGTH}
             disabled={isPending || !canSend}
             className="min-w-0 flex-1 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-60"
             aria-label="Mensaje del chat"
