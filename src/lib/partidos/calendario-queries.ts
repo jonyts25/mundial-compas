@@ -1,4 +1,5 @@
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { filterOutPilotPartidos } from "@/lib/apifootball/pilot-config";
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
 import {
   assertAuthenticatedUserId,
@@ -48,19 +49,21 @@ export async function fetchCalendarioPartidosData(
     throw new Error(pronosError.message);
   }
 
+  const partidosMundial = filterOutPilotPartidos(partidos ?? []);
+
   const pronosticosGuardados: Record<string, boolean> = {};
   for (const p of pronosticos ?? []) {
     pronosticosGuardados[p.partido_id] = true;
   }
 
   const diaSet = new Set<string>();
-  for (const p of partidos ?? []) {
+  for (const p of partidosMundial) {
     diaSet.add(toMexicoDateKey(p.fecha_kickoff));
   }
   const diasConPartidos = Array.from(diaSet).sort();
 
   return {
-    partidos: (partidos ?? []) as Partido[],
+    partidos: partidosMundial as Partido[],
     pronosticosGuardados,
     diasConPartidos,
   };

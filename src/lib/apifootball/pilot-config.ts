@@ -49,3 +49,10 @@ export function isPilotPartidoMetadata(metadata: unknown): boolean {
   const m = metadata as Record<string, unknown>;
   return m.competencia === "pilot" || m.pilot === true;
 }
+
+/** Excluye partidos de prueba (Champions, Concacaf, amistosos pilot, etc.). */
+export function filterOutPilotPartidos<T extends { metadata?: unknown }>(
+  partidos: T[],
+): T[] {
+  return partidos.filter((p) => !isPilotPartidoMetadata(p.metadata));
+}

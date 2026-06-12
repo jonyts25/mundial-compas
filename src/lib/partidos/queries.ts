@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServerDataClient } from "@/lib/supabase/server-data";
+import { filterOutPilotPartidos } from "@/lib/apifootball/pilot-config";
 import { pickDatoMamalonVariado } from "@/lib/datos-mamalones/pick";
 import { isPartidoEnVivo } from "@/lib/partidos/labels";
 import type { DatoMamalón, Partido, Usuario } from "@/types/database";
@@ -30,7 +31,7 @@ export async function fetchHomePageData(userId: string): Promise<HomePageData> {
     )
     .in("estatus", ["en_vivo", "medio_tiempo"]);
 
-  const partidosEnVivo = (todosPartidos ?? []).filter((p) =>
+  const partidosEnVivo = filterOutPilotPartidos(todosPartidos ?? []).filter((p) =>
     isPartidoEnVivo(p.estatus),
   ) as Partido[];
 

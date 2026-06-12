@@ -1,4 +1,5 @@
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { filterOutPilotPartidos } from "@/lib/apifootball/pilot-config";
 import { filterPartidosPorTipo } from "@/lib/liga/partido-filters";
 import {
   parseTipoQuinielaFromConfig,
@@ -69,7 +70,7 @@ export async function fetchQuinielaData(
   }
 
   const partidosFiltrados = filterPartidosPorTipo(
-    (partidos ?? []) as Partido[],
+    filterOutPilotPartidos((partidos ?? []) as Partido[]),
     { tipo, jornada: options.jornada, fase: options.fase },
   );
 
