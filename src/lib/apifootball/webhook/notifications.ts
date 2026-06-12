@@ -77,10 +77,18 @@ export async function queuePartidoPushNotifications(
     if (dupCount && dupCount > 0) return;
   }
 
-  const { data: inserted } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from("notificaciones")
     .insert(rows)
     .select("id, usuario_id, titulo, cuerpo, partido_id");
+
+  if (insertError) {
+    console.error(
+      `[push] insert notificaciones (${tipo}, partido ${partidoId}):`,
+      insertError.message,
+    );
+    return;
+  }
 
   if (inserted?.length) {
     await dispatchPushForNotifications(supabase, inserted);
