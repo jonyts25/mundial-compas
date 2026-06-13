@@ -5,8 +5,8 @@ import {
   type PartidoGrupoRow,
 } from "@/lib/standings/calculate-group-standings";
 import { buildBestThirdPlacesRanking } from "@/lib/standings/best-third-places";
-import { buildKnockoutBracket } from "@/lib/standings/build-knockout-bracket";
-import type { KnockoutBracket } from "@/lib/standings/knockout-bracket-types";
+import { buildFullKnockoutTree } from "@/lib/standings/build-knockout-bracket";
+import type { FullKnockoutTree, KnockoutBracket } from "@/lib/standings/knockout-bracket-types";
 import type { GroupStandingsSnapshot } from "@/lib/standings/types";
 import type { Partido } from "@/types/database";
 import {
@@ -24,6 +24,7 @@ export interface PosicionesMundialData {
   partidosPorGrupo: Record<WorldCupGroupLetter, Partido[]>;
   bestThirdPlaces: ReturnType<typeof buildBestThirdPlacesRanking>;
   knockoutBracket: KnockoutBracket;
+  fullKnockoutTree: FullKnockoutTree;
   groupStageComplete: boolean;
   hasLiveGroupMatches: boolean;
   source: "partidos" | "api" | "partidos+api";
@@ -33,16 +34,26 @@ export interface PosicionesMundialData {
 export async function fetchPosicionesMundialData(): Promise<PosicionesMundialData> {
   const supabase = await createClient();
 
-  const { data: partidosRaw, error } = await supabase
-    .from("partidos")
-    .select(PARTIDO_GRUPO_SELECT)
-    .eq("fase", "grupos")
-    .not("grupo", "is", null)
-    .order("fecha_kickoff", { ascending: true });
+  const [{ data: partidosRaw, error }, { data: knockoutRaw, error: koError }] =
+    await Promise.all([
+      supabase
+        .from("partidos")
+        .select(PARTIDO_GRUPO_SELECT)
+        .eq("fase", "grupos")
+        .not("grupo", "is", null)
+        .order("fecha_kickoff", { ascending: true }),
+      supabase
+        .from("partidos")
+        .select(PARTIDO_GRUPO_SELECT)
+        .neq("fase", "grupos")
+        .order("fecha_kickoff", { ascending: true }),
+    ]);
 
   if (error) throw new Error(error.message);
+  if (koError) throw new Error(koError.message);
 
   const partidos = (partidosRaw ?? []) as Partido[];
+  const knockoutPartidos = (knockoutRaw ?? []) as Partido[];
   const partidosGrupoRows: PartidoGrupoRow[] = partidos.map((p) => ({
     id: p.id,
     grupo: p.grupo,
@@ -116,11 +127,20 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
   }
 
   const bestThirdPlaces = buildBestThirdPlacesRanking(snapshot.groups);
-  const knockoutBracket = buildKnockoutBracket({
+  const fullKnockoutTree = buildFullKnockoutTree({
     groups: snapshot.groups,
     bestThirdPlaces,
-    partidos: partidosGrupoRows,
+    partidosGrupo: partidosGrupoRows,
+    knockoutPartidos,
   });
+  const knockoutBracket: KnockoutBracket = {
+    phase: "r32",
+    matches: fullKnockoutTree.phases.find((p) => p.id === "r32")?.matches ?? [],
+    qualifyingThirdGroups: fullKnockoutTree.qualifyingThirdGroups,
+    scenarioKey: fullKnockoutTree.scenarioKey,
+    isProvisional: fullKnockoutTree.isProvisional,
+    groupStageComplete: fullKnockoutTree.groupStageComplete,
+  };
 
   const hasLiveGroupMatches = partidos.some(
     (p) => p.estatus === "en_vivo" || p.estatus === "medio_tiempo",
@@ -131,6 +151,7 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
     partidosPorGrupo,
     bestThirdPlaces,
     knockoutBracket,
+    fullKnockoutTree,
     groupStageComplete: knockoutBracket.groupStageComplete,
     hasLiveGroupMatches,
     source,

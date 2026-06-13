@@ -98,6 +98,7 @@ export default async function PosicionesPage() {
           partidosPorGrupo={data.partidosPorGrupo}
           bestThirdPlaces={data.bestThirdPlaces}
           knockoutBracket={data.knockoutBracket}
+          fullKnockoutTree={data.fullKnockoutTree}
           dataSourceLabel={sourceLabel(data.source)}
         />
       </main>

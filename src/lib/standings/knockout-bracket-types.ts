@@ -1,5 +1,6 @@
 import type { WorldCupGroupLetter } from "@/lib/standings/world-cup-groups";
 import type { ThirdPlaceHostGroup } from "@/lib/standings/world-cup-third-place-scenarios";
+import type { KnockoutPhaseId } from "@/lib/standings/world-cup-knockout-schedule";
 
 export type GroupPosition = 1 | 2 | 3;
 
@@ -22,10 +23,20 @@ export interface KnockoutTeamSlot {
   isProvisional: boolean;
 }
 
+export interface KnockoutMatchSchedule {
+  fechaKickoff: string | null;
+  sede: string;
+  partidoId: string | null;
+  dateLabel: string;
+  timeLabel: string | null;
+}
+
 export interface KnockoutMatch {
   matchNumber: number;
+  phase: KnockoutPhaseId;
   home: KnockoutTeamSlot;
   away: KnockoutTeamSlot;
+  schedule: KnockoutMatchSchedule;
 }
 
 export interface KnockoutBracket {
@@ -35,4 +46,16 @@ export interface KnockoutBracket {
   scenarioKey: string | null;
   isProvisional: boolean;
   groupStageComplete: boolean;
+}
+
+export interface FullKnockoutTree {
+  phases: {
+    id: KnockoutPhaseId;
+    label: string;
+    matches: KnockoutMatch[];
+  }[];
+  isProvisional: boolean;
+  groupStageComplete: boolean;
+  qualifyingThirdGroups: WorldCupGroupLetter[];
+  scenarioKey: string | null;
 }

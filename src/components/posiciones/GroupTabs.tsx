@@ -6,7 +6,7 @@ import { GroupMatchesList } from "@/components/posiciones/GroupMatchesList";
 import { GroupStandingsTable } from "@/components/posiciones/GroupStandingsTable";
 import { KnockoutBracketView } from "@/components/posiciones/KnockoutBracketView";
 import type { BestThirdPlaceRow } from "@/lib/standings/best-third-places";
-import type { KnockoutBracket } from "@/lib/standings/knockout-bracket-types";
+import type { FullKnockoutTree, KnockoutBracket } from "@/lib/standings/knockout-bracket-types";
 import type { StandingGroup } from "@/lib/standings/types";
 import {
   WORLD_CUP_GROUP_LETTERS,
@@ -22,6 +22,7 @@ interface GroupTabsProps {
   partidosPorGrupo: Record<WorldCupGroupLetter, Partido[]>;
   bestThirdPlaces: BestThirdPlaceRow[];
   knockoutBracket: KnockoutBracket;
+  fullKnockoutTree: FullKnockoutTree;
   dataSourceLabel: string;
 }
 
@@ -36,6 +37,7 @@ export function GroupTabs({
   partidosPorGrupo,
   bestThirdPlaces,
   knockoutBracket,
+  fullKnockoutTree,
   dataSourceLabel,
 }: GroupTabsProps) {
   const [viewMode, setViewMode] = useState<PosicionesViewMode>("grupos");
@@ -87,7 +89,10 @@ export function GroupTabs({
       </div>
 
       {viewMode === "r32" ? (
-        <KnockoutBracketView bracket={knockoutBracket} />
+        <KnockoutBracketView
+          bracket={knockoutBracket}
+          fullTree={fullKnockoutTree}
+        />
       ) : (
         <>
       <div
