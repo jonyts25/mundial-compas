@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { GroupTabs } from "@/components/posiciones/GroupTabs";
+import { PosicionesLiveRefresh } from "@/components/posiciones/PosicionesLiveRefresh";
 import { fetchPosicionesMundialData } from "@/lib/standings/posiciones-queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,6 +57,10 @@ export default async function PosicionesPage() {
 
   return (
     <>
+      <PosicionesLiveRefresh
+        enabled={!data.groupStageComplete}
+        pollWhileLive={data.hasLiveGroupMatches}
+      />
       <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
         <div className="flex items-center gap-3">
           <Link
@@ -92,6 +97,7 @@ export default async function PosicionesPage() {
           groups={data.snapshot.groups}
           partidosPorGrupo={data.partidosPorGrupo}
           bestThirdPlaces={data.bestThirdPlaces}
+          knockoutBracket={data.knockoutBracket}
           dataSourceLabel={sourceLabel(data.source)}
         />
       </main>

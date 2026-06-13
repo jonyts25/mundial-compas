@@ -5,6 +5,8 @@ import {
   type PartidoGrupoRow,
 } from "@/lib/standings/calculate-group-standings";
 import { buildBestThirdPlacesRanking } from "@/lib/standings/best-third-places";
+import { buildKnockoutBracket } from "@/lib/standings/build-knockout-bracket";
+import type { KnockoutBracket } from "@/lib/standings/knockout-bracket-types";
 import type { GroupStandingsSnapshot } from "@/lib/standings/types";
 import type { Partido } from "@/types/database";
 import {
@@ -21,6 +23,9 @@ export interface PosicionesMundialData {
   snapshot: GroupStandingsSnapshot;
   partidosPorGrupo: Record<WorldCupGroupLetter, Partido[]>;
   bestThirdPlaces: ReturnType<typeof buildBestThirdPlacesRanking>;
+  knockoutBracket: KnockoutBracket;
+  groupStageComplete: boolean;
+  hasLiveGroupMatches: boolean;
   source: "partidos" | "api" | "partidos+api";
   calculatedAt: string;
 }
@@ -111,11 +116,23 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
   }
 
   const bestThirdPlaces = buildBestThirdPlacesRanking(snapshot.groups);
+  const knockoutBracket = buildKnockoutBracket({
+    groups: snapshot.groups,
+    bestThirdPlaces,
+    partidos: partidosGrupoRows,
+  });
+
+  const hasLiveGroupMatches = partidos.some(
+    (p) => p.estatus === "en_vivo" || p.estatus === "medio_tiempo",
+  );
 
   return {
     snapshot,
     partidosPorGrupo,
     bestThirdPlaces,
+    knockoutBracket,
+    groupStageComplete: knockoutBracket.groupStageComplete,
+    hasLiveGroupMatches,
     source,
     calculatedAt: new Date().toISOString(),
   };

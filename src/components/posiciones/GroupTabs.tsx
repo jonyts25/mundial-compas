@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { BestThirdPlacesTable } from "@/components/posiciones/BestThirdPlacesTable";
 import { GroupMatchesList } from "@/components/posiciones/GroupMatchesList";
 import { GroupStandingsTable } from "@/components/posiciones/GroupStandingsTable";
-import { BestThirdPlacesTable } from "@/components/posiciones/BestThirdPlacesTable";
+import { KnockoutBracketView } from "@/components/posiciones/KnockoutBracketView";
 import type { BestThirdPlaceRow } from "@/lib/standings/best-third-places";
+import type { KnockoutBracket } from "@/lib/standings/knockout-bracket-types";
 import type { StandingGroup } from "@/lib/standings/types";
 import {
   WORLD_CUP_GROUP_LETTERS,
@@ -13,11 +15,13 @@ import {
 import type { Partido } from "@/types/database";
 
 export type PosicionesTabId = WorldCupGroupLetter | "mejores_terceros";
+export type PosicionesViewMode = "grupos" | "r32";
 
 interface GroupTabsProps {
   groups: StandingGroup[];
   partidosPorGrupo: Record<WorldCupGroupLetter, Partido[]>;
   bestThirdPlaces: BestThirdPlaceRow[];
+  knockoutBracket: KnockoutBracket;
   dataSourceLabel: string;
 }
 
@@ -31,8 +35,10 @@ export function GroupTabs({
   groups,
   partidosPorGrupo,
   bestThirdPlaces,
+  knockoutBracket,
   dataSourceLabel,
 }: GroupTabsProps) {
+  const [viewMode, setViewMode] = useState<PosicionesViewMode>("grupos");
   const [active, setActive] = useState<PosicionesTabId>("A");
 
   const groupMap = useMemo(() => {
@@ -47,6 +53,43 @@ export function GroupTabs({
 
   return (
     <div className="space-y-4">
+      <div
+        className="flex rounded-xl border border-zinc-800 bg-zinc-950/80 p-1"
+        role="tablist"
+        aria-label="Vista de posiciones"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={viewMode === "grupos"}
+          onClick={() => setViewMode("grupos")}
+          className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold transition ${
+            viewMode === "grupos"
+              ? "bg-emerald-600 text-white shadow-md"
+              : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          }`}
+        >
+          Grupos
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={viewMode === "r32"}
+          onClick={() => setViewMode("r32")}
+          className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold transition ${
+            viewMode === "r32"
+              ? "bg-emerald-600 text-white shadow-md"
+              : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          }`}
+        >
+          Ronda de 32
+        </button>
+      </div>
+
+      {viewMode === "r32" ? (
+        <KnockoutBracketView bracket={knockoutBracket} />
+      ) : (
+        <>
       <div
         className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="tablist"
@@ -108,6 +151,8 @@ export function GroupTabs({
           </div>
         </>
       ) : null}
+        </>
+      )}
     </div>
   );
 }
