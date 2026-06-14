@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracker";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { GrupoDashboard } from "@/components/grupos/GrupoDashboard";
 import { GrupoPageHeader } from "@/components/grupos/GrupoPageHeader";
@@ -143,6 +144,10 @@ export default async function GrupoDetallePage({ params, searchParams }: PagePro
 
   return (
     <>
+      <AnalyticsViewTracker
+        event="group_view"
+        properties={{ liga_scope: "grupo", tab: initialTab }}
+      />
       <GrupoPageHeader
         title={grupo.nombre}
         subtitle={TIPO_QUINIELA_LABELS[grupo.tipo_quiniela]}

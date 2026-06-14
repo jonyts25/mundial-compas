@@ -76,13 +76,17 @@ export function PronosticoRow({
     }
 
     setMessage(null);
+    const hadPronostico = Boolean(pronostico);
     startTransition(async () => {
       const result = await savePronostico(partido.id, local, visitante, ligaId);
       if (result.ok) {
-        trackEvent("pronostico_saved", {
-          liga_scope: !ligaId || ligaId === LIGA_GLOBAL_ID ? "global" : "grupo",
-          partido_id: partido.id,
-        });
+        const liga_scope =
+          !ligaId || ligaId === LIGA_GLOBAL_ID ? "global" : "grupo";
+        if (hadPronostico) {
+          trackEvent("prediction_updated", { liga_scope, partido_id: partido.id });
+        } else {
+          trackEvent("pronostico_saved", { liga_scope, partido_id: partido.id });
+        }
         setMessage("Guardado ✓");
       } else {
         setMessage(result.error);

@@ -1,6 +1,12 @@
 /** Eventos de analytics — sin PII ni contenido de mensajes. */
 
 export type AnalyticsEventMap = {
+  // Navegación (Sprint 1 Fase A)
+  page_view: { path: string };
+  group_view: { liga_scope: "grupo"; tab?: string };
+  match_view: { partido_id: string; estatus: string };
+  // Predicciones: `pronostico_saved` = creación (compat); `prediction_updated` = edición
+  prediction_updated: { liga_scope: "global" | "grupo"; partido_id: string };
   user_signed_in: { provider?: string };
   onboarding_cta_clicked: { cta: "pronostico" | "crear_grupo" | "unirse" };
   onboarding_dismissed: Record<string, never>;

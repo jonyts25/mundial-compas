@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PendingHonorTermsApplier } from "@/components/auth/PendingHonorTermsApplier";
+import { PostHogProvider } from "@/components/analytics/PostHogProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -47,8 +48,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <PendingHonorTermsApplier />
-        {children}
+        <PostHogProvider>
+          <PendingHonorTermsApplier />
+          {children}
+        </PostHogProvider>
       </body>
     </html>
   );

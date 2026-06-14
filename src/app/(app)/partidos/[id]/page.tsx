@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracker";
 import { ChatPartido } from "@/components/partidos/ChatPartido";
 import { PartidoInfoPanel } from "@/components/partidos/PartidoInfoPanel";
 import { PartidoHeader } from "@/components/partidos/PartidoHeader";
@@ -35,6 +36,10 @@ export default async function PartidoPage({
 
   return (
     <div className="flex min-h-full flex-col">
+      <AnalyticsViewTracker
+        event="match_view"
+        properties={{ partido_id: data.partido.id, estatus: data.partido.estatus }}
+      />
       <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-3 backdrop-blur-md">
         <Link
           href="/"

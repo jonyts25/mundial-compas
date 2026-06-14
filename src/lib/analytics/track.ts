@@ -1,3 +1,4 @@
+import posthog from "posthog-js";
 import type { AnalyticsEventMap, AnalyticsEventName } from "@/lib/analytics/events";
 
 function isAnalyticsEnabled(): boolean {
@@ -11,7 +12,10 @@ function logDev(name: AnalyticsEventName, properties?: unknown): void {
 }
 
 /**
- * Tracking central. MVP: console en dev, noop en prod hasta conectar PostHog/etc.
+ * Tracking central (cliente). Envía a PostHog solo cuando:
+ *  - NEXT_PUBLIC_ANALYTICS_ENABLED === "true", y
+ *  - se ejecuta en el navegador (typeof window !== "undefined").
+ * Si analytics está apagado, queda como noop y la app funciona igual.
  * No incluir contenido de mensajes, motivos de eliminación ni PII.
  */
 export function trackEvent<N extends AnalyticsEventName>(
@@ -21,11 +25,16 @@ export function trackEvent<N extends AnalyticsEventName>(
   logDev(name, properties);
 
   if (!isAnalyticsEnabled()) return;
+  if (typeof window === "undefined") return;
 
-  // Integración futura: posthog.capture(name, properties)
+  posthog.capture(name, properties as Record<string, unknown> | undefined);
 }
 
-/** Mismo contrato en server actions (sin window). */
+/**
+ * Mismo contrato en server actions (sin window).
+ * La captura server-side de PostHog está diferida (no es objetivo de Sprint 1 Fase A):
+ * aquí permanece como noop + log en dev para no introducir PII ni dependencias de red.
+ */
 export function trackEventServer<N extends AnalyticsEventName>(
   name: N,
   properties?: AnalyticsEventMap[N],

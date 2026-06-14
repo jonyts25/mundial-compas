@@ -1,17 +1,35 @@
 # Analytics — Mundial Compas
 
-## Estado actual (MVP)
+## Estado actual
 
 - Wrapper central: `src/lib/analytics/track.ts`
 - Eventos tipados: `src/lib/analytics/events.ts`
-- **Sin provider externo** por defecto: eventos solo se loguean en desarrollo (`console.debug`).
-- Producción: noop hasta activar `NEXT_PUBLIC_ANALYTICS_ENABLED=true` y conectar PostHog (u otro).
+- Provider PostHog (cliente): `src/components/analytics/PostHogProvider.tsx` (montado en `src/app/layout.tsx`)
+- Page views por ruta: `src/components/analytics/PageViewTracker.tsx` (montado en `src/app/(app)/layout.tsx`)
+- **Gating doble:** PostHog solo se inicializa si `NEXT_PUBLIC_ANALYTICS_ENABLED=true` **y** existe `NEXT_PUBLIC_POSTHOG_KEY`. Si falta cualquiera, la app funciona igual y `trackEvent` queda en noop (solo `console.debug` en dev).
+- **Server-side:** `trackEventServer` permanece noop (captura server-side de PostHog diferida; evita PII y dependencias de red en server actions).
 
 ## Activar
 
 ```env
+# Requerido para activar PostHog
 NEXT_PUBLIC_ANALYTICS_ENABLED=true
+NEXT_PUBLIC_POSTHOG_KEY=phc_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Opcional (default: https://us.i.posthog.com). Usar https://eu.i.posthog.com para región EU.
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
+
+> No existe `.env.example` en el repo; estas variables se documentan aquí como
+> fuente de verdad de analytics. Son `NEXT_PUBLIC_*` (cliente) por diseño.
+
+## Configuración del SDK (sin PII)
+
+`PostHogProvider` inicializa con:
+
+- `autocapture: false` — no captura texto/DOM que pueda contener PII.
+- `capture_pageview: false` — los `page_view` se emiten manualmente con payload controlado (`{ path }`, sin query sensible).
+- `person_profiles: "identified_only"` — no crea perfiles para usuarios anónimos.
+- **No** se llama `identify()` en esta fase. Si se agrega, será **solo con `user.id` (UUID)**, nunca email ni nombre.
 
 ## Privacidad
 
@@ -30,6 +48,11 @@ Sí registrar (agregado):
 
 | Evento | Cuándo |
 |--------|--------|
+| `page_view` | Cambio de ruta en App Router (`{ path }`) |
+| `group_view` | Vista de dashboard de grupo (`/grupos/[slug]`) |
+| `match_view` | Vista de detalle de partido (`/partidos/[id]`) |
+| `pronostico_saved` | Pick **creado** (primera vez) — compat |
+| `prediction_updated` | Pick **editado** (ya existía) |
 | `user_signed_in` | Tras login exitoso |
 | `onboarding_cta_clicked` | CTA en card de onboarding |
 | `onboarding_dismissed` | "Ya entendí" |
@@ -45,12 +68,22 @@ Sí registrar (agregado):
 | `leaderboard_viewed` / `leaderboard_segment_changed` | Liderato |
 | `push_prompt_shown` / `push_enabled` / `push_denied` | Push |
 
-## Integración PostHog (futuro)
+## Integración PostHog
 
-En `trackEvent` / `trackEventServer`, cuando `NEXT_PUBLIC_ANALYTICS_ENABLED`:
+`trackEvent` (cliente) llama a `posthog.capture(name, properties)` cuando analytics
+está activo y se ejecuta en el navegador:
 
 ```typescript
-// posthog.capture(name, properties);
+if (!isAnalyticsEnabled()) return;
+if (typeof window === "undefined") return;
+posthog.capture(name, properties);
 ```
 
-Desactivar en cualquier momento con la env var en `false` o sin definir.
+Desactivar en cualquier momento con `NEXT_PUBLIC_ANALYTICS_ENABLED=false` o sin definir
+(o quitando `NEXT_PUBLIC_POSTHOG_KEY`): la app sigue funcionando igual, en noop.
+
+### Pendiente (futuras fases)
+
+- Captura server-side (`trackEventServer`) vía `posthog-node` si se requiere.
+- `identify(user.id)` (solo UUID) para unir sesiones anónimas a usuarios.
+- Feature flags (`product=quiniela|ligapro`) — fuera de alcance de Sprint 1.

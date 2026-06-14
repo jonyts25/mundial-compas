@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import {
+  computePickAggregates,
+  outcomeLabel,
+} from "@/lib/insights/pick-aggregates";
 import {
   fetchPronosticosPartidoTodos,
   type PronosticoParticipante,
@@ -27,6 +31,12 @@ export function PronosticosTodosPanel({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const aggregates = useMemo(
+    () =>
+      participantes ? computePickAggregates(participantes, resultadoReal) : null,
+    [participantes, resultadoReal],
+  );
 
   if (partido.estatus !== "finalizado") {
     return null;
@@ -86,6 +96,64 @@ export function PronosticosTodosPanel({
                 {resultadoReal.local}-{resultadoReal.visitante}
               </span>
             </p>
+          )}
+
+          {aggregates && aggregates.total > 0 && (
+            <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                {aggregates.mostPopularScore && (
+                  <div className="rounded-lg bg-zinc-950/60 px-3 py-2 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Marcador más elegido
+                    </p>
+                    <p className="mt-0.5 text-sm font-black tabular-nums text-white">
+                      {aggregates.mostPopularScore.local}-
+                      {aggregates.mostPopularScore.visitante}
+                    </p>
+                    <p className="text-[11px] font-semibold text-emerald-400">
+                      {aggregates.mostPopularScore.pct}%
+                    </p>
+                  </div>
+                )}
+                {aggregates.mostPopularOutcome && (
+                  <div className="rounded-lg bg-zinc-950/60 px-3 py-2 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Resultado más elegido
+                    </p>
+                    <p className="mt-0.5 text-sm font-black text-white">
+                      {outcomeLabel(aggregates.mostPopularOutcome.outcome)}
+                    </p>
+                    <p className="text-[11px] font-semibold text-emerald-400">
+                      {aggregates.mostPopularOutcome.pct}%
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {aggregates.userScore && aggregates.userScoreSharePct != null && (
+                <p className="text-center text-xs text-zinc-400">
+                  Solo el{" "}
+                  <span className="font-bold text-white">
+                    {aggregates.userScoreSharePct}%
+                  </span>{" "}
+                  eligió tu marcador{" "}
+                  <span className="font-semibold tabular-nums text-zinc-300">
+                    ({aggregates.userScore.local}-{aggregates.userScore.visitante})
+                  </span>
+                </p>
+              )}
+
+              {aggregates.exactMatchPct != null && (
+                <p className="text-center text-xs text-zinc-400">
+                  Solo el{" "}
+                  <span className="font-bold text-emerald-400">
+                    {aggregates.exactMatchPct}%
+                  </span>{" "}
+                  acertó el marcador exacto
+                  {aggregates.userMatchedExact ? " · ¡tú incluido! 🎯" : ""}
+                </p>
+              )}
+            </div>
           )}
 
           {participantes.length === 0 ? (
