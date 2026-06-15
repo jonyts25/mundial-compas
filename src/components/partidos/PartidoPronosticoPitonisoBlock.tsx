@@ -93,7 +93,6 @@ export function PartidoPronosticoPitonisoBlock({
     <div className="space-y-3">
       {pitonisoContext ? (
         <PitonisoCard
-          key={selectedLigaId}
           staticContext={pitonisoContext}
           ligaId={selectedLigaId}
           aggregatesRefreshKey={aggregatesRefreshKey}

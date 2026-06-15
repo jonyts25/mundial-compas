@@ -77,19 +77,25 @@ export function PitonisoCard({
   const [picks, setPicks] = useState<{ golesLocal: number; golesVisitante: number }[]>(
     [],
   );
-  const [expanded, setExpanded] = useState(false);
-  const shownTracked = useRef(false);
+  const [loadedLigaId, setLoadedLigaId] = useState<string | null>(null);
+  const [expandedForLigaId, setExpandedForLigaId] = useState<string | null>(null);
+  const fetchGenRef = useRef(0);
+  const shownLigasRef = useRef(new Set<string>());
   const expandedTracked = useRef(false);
 
   const partidoId = staticContext.partido.id;
   const ligaScope = ligaId === LIGA_GLOBAL_ID ? "global" : "grupo";
+  const aggregatesReady = loadedLigaId === ligaId && picksLoaded;
+  const expanded = expandedForLigaId === ligaId;
 
   const loadAggregates = useCallback(async (isRetry = false) => {
+    const gen = ++fetchGenRef.current;
     if (isRetry) {
-      setPicksLoaded(false);
+      setLoadedLigaId(null);
     }
     setAggError(null);
     const result = await fetchPronosticosPartidoAgregados(partidoId, ligaId);
+    if (gen !== fetchGenRef.current) return;
     if (result.ok) {
       setPicks(result.picks);
     } else {
@@ -97,14 +103,15 @@ export function PitonisoCard({
       setPicks([]);
     }
     setPicksLoaded(true);
+    setLoadedLigaId(ligaId);
   }, [partidoId, ligaId]);
 
   useEffect(() => {
-    let cancelled = false;
+    const gen = ++fetchGenRef.current;
 
     async function run() {
       const result = await fetchPronosticosPartidoAgregados(partidoId, ligaId);
-      if (cancelled) return;
+      if (gen !== fetchGenRef.current) return;
       if (result.ok) {
         setPicks(result.picks);
         setAggError(null);
@@ -113,16 +120,17 @@ export function PitonisoCard({
         setPicks([]);
       }
       setPicksLoaded(true);
+      setLoadedLigaId(ligaId);
     }
 
     void run();
     return () => {
-      cancelled = true;
+      fetchGenRef.current += 1;
     };
   }, [partidoId, ligaId, aggregatesRefreshKey]);
 
   const computed = useMemo(() => {
-    if (!picksLoaded) return null;
+    if (!aggregatesReady) return null;
 
     const aggregates = computePickAggregates(picks, null);
     const verdict = computeMatchPreviewVerdict({
@@ -181,11 +189,12 @@ export function PitonisoCard({
       extraLine,
       popularScore: top,
     };
-  }, [picks, picksLoaded, staticContext]);
+  }, [picks, aggregatesReady, staticContext]);
 
   useEffect(() => {
-    if (!computed || shownTracked.current || aggError) return;
-    shownTracked.current = true;
+    if (!computed || aggError || !aggregatesReady) return;
+    if (shownLigasRef.current.has(ligaId)) return;
+    shownLigasRef.current.add(ligaId);
     trackEvent("pitoniso_shown", {
       partido_id: partidoId,
       liga_scope: ligaScope,
@@ -193,12 +202,12 @@ export function PitonisoCard({
       favorite: computed.verdict.favorite,
       crowd_sample_ok: computed.verdict.crowdSampleOk,
     });
-  }, [computed, partidoId, ligaScope, aggError]);
+  }, [computed, partidoId, ligaScope, aggError, aggregatesReady, ligaId]);
 
   function toggleExpanded() {
-    setExpanded((prev) => {
-      const next = !prev;
-      if (next && !expandedTracked.current) {
+    setExpandedForLigaId((prev) => {
+      const next = prev === ligaId ? null : ligaId;
+      if (next === ligaId && !expandedTracked.current) {
         expandedTracked.current = true;
         trackEvent("pitoniso_expanded", { partido_id: partidoId });
       }
@@ -224,13 +233,13 @@ export function PitonisoCard({
             ¿Qué dice El Pitoniso?
           </h2>
 
-          {!picksLoaded && (
+          {!aggregatesReady && (
             <p className="mt-2 text-sm text-zinc-500">
               El Pitoniso está leyendo las señales…
             </p>
           )}
 
-          {picksLoaded && computed && (
+          {aggregatesReady && computed && (
             <>
               <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-violet-300/90">
                 <span aria-hidden>{computed.pitonisoMessage.confidenceEmoji}</span>

@@ -9,7 +9,7 @@ import { isDeadlineUrgent } from "@/lib/home/format-deadline";
 import { fetchUserProfile } from "@/lib/insights/profile-data";
 import { fetchMisGrupos } from "@/lib/liga/grupos-queries";
 import { fetchLeaderboard } from "@/lib/leaderboard/queries";
-import { getLockAtMs, isPronosticoLocked } from "@/lib/quiniela/lock";
+import { isPronosticoLocked } from "@/lib/quiniela/lock";
 import {
   assertAuthenticatedUserId,
   createServerDataClient,
@@ -32,20 +32,11 @@ export interface HomeDashboardProgress {
   percent: number;
 }
 
-export interface HomeDashboardNextDeadline {
-  partidoId: string;
-  equipoLocalNombre: string;
-  equipoVisitanteNombre: string;
-  fechaKickoff: string;
-}
-
 export interface HomeDashboardData {
   rank: number | null;
   profile: HomeDashboardProfile | null;
   pronosticosEnviados: number;
   pendientes: number;
-  progress: HomeDashboardProgress;
-  nextDeadline: HomeDashboardNextDeadline | null;
 }
 
 export type FetchHomeDashboardResult =
@@ -98,26 +89,6 @@ function computeProgress(
   }
   const percent = total > 0 ? Math.round((enviados / total) * 100) : 0;
   return { enviados, total, percent };
-}
-
-function findNextDeadline(
-  partidos: PartidoRow[],
-  nowMs: number,
-): HomeDashboardNextDeadline | null {
-  const open = partidos
-    .filter((row) => row.estatus === "programado")
-    .filter((row) => !isPronosticoLocked(row.fecha_kickoff, nowMs))
-    .sort((a, b) => getLockAtMs(a.fecha_kickoff) - getLockAtMs(b.fecha_kickoff));
-
-  const next = open[0];
-  if (!next) return null;
-
-  return {
-    partidoId: next.id,
-    equipoLocalNombre: next.equipo_local_nombre,
-    equipoVisitanteNombre: next.equipo_visitante_nombre,
-    fechaKickoff: next.fecha_kickoff,
-  };
 }
 
 function buildPronosticosByLiga(
@@ -363,7 +334,6 @@ export async function fetchHomeDashboardData(
   );
 
   const stats = computeLigaStats(savedIds, partidosMundial as PartidoRow[], nowMs);
-  const nextDeadline = findNextDeadline(partidosMundial as PartidoRow[], nowMs);
 
   const rank =
     rankResult?.find((fila) => fila.usuario_id === userId)?.posicion ?? null;
@@ -383,8 +353,6 @@ export async function fetchHomeDashboardData(
       profile,
       pronosticosEnviados: stats.progress.enviados,
       pendientes: stats.pendientes,
-      progress: stats.progress,
-      nextDeadline,
     },
   };
 }

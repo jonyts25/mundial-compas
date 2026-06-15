@@ -1,6 +1,4 @@
 import { HomePersonalSummaryCard } from "@/components/home/HomePersonalSummaryCard";
-import { NextDeadlineCard } from "@/components/home/NextDeadlineCard";
-import { PredictionProgressCard } from "@/components/home/PredictionProgressCard";
 import type { HomeDashboardData } from "@/lib/home/home-dashboard-queries";
 
 interface HomeEngagementDashboardProps {
@@ -8,8 +6,6 @@ interface HomeEngagementDashboardProps {
   dashboard: HomeDashboardData | null;
   error?: string | null;
 }
-
-const EMPTY_PROGRESS = { enviados: 0, total: 0, percent: 0 };
 
 export function HomeEngagementDashboard({
   nombre,
@@ -34,8 +30,6 @@ export function HomeEngagementDashboard({
     profile: null,
     pronosticosEnviados: 0,
     pendientes: 0,
-    progress: EMPTY_PROGRESS,
-    nextDeadline: null,
   };
 
   return (
@@ -48,8 +42,6 @@ export function HomeEngagementDashboard({
         pendientes={data.pendientes}
         loading={loading}
       />
-      <PredictionProgressCard progress={data.progress} loading={loading} />
-      <NextDeadlineCard deadline={data.nextDeadline} loading={loading} />
     </div>
   );
 }
