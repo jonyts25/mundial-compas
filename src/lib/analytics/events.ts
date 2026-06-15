@@ -67,6 +67,9 @@ export type AnalyticsEventMap = {
   // Qué hay de nuevo (producto)
   whats_new_shown: { version: string };
   whats_new_dismissed: { version: string };
+  // Home — siguiente pronóstico pendiente
+  next_pending_prediction_shown: { partido_id: string };
+  next_pending_prediction_clicked: { partido_id: string };
 };
 
 export type AnalyticsEventName = keyof AnalyticsEventMap;

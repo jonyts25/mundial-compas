@@ -1,3 +1,4 @@
+import { NextPendingPredictionCard } from "@/components/home/NextPendingPredictionCard";
 import { WhatsNewModal } from "@/components/product/WhatsNewModal";
 import { PublicLandingPage } from "@/components/landing/PublicLandingPage";
 import { AdminPlatformCard } from "@/components/admin/AdminPlatformCard";
@@ -12,6 +13,7 @@ import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
 import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
 import { fetchOnboardingUserState } from "@/lib/onboarding/state";
 import { fetchCalendarioPartidosData } from "@/lib/partidos/calendario-queries";
+import { fetchNextPendingPredictionForUser } from "@/lib/quiniela/next-pending-prediction";
 import { fetchHomePageData } from "@/lib/partidos/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,12 +34,16 @@ export default async function HomePage() {
     calendario,
     pilot,
     onboarding,
+    nextPending,
   ] = await Promise.all([
     fetchHomePageData(user.id),
     fetchCalendarioPartidosData(user.id),
     fetchPilotUiState(),
     fetchOnboardingUserState(user.id),
+    fetchNextPendingPredictionForUser(user.id),
   ]);
+
+  const nextPendingItem = nextPending.ok ? nextPending.item : null;
 
   return (
     <>
@@ -51,6 +57,7 @@ export default async function HomePage() {
           />
         )}
         <AdminPlatformCard userId={user.id} />
+        <NextPendingPredictionCard item={nextPendingItem} />
         <OnboardingStartCard eligible={onboarding.eligible} />
         <HeroSection partidosEnVivo={partidosEnVivo} datoMamalon={datoMamalon} />
         <CalendarioPartidos
