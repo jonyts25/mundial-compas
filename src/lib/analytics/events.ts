@@ -82,6 +82,12 @@ export type AnalyticsEventMap = {
     percent: number;
   };
   next_deadline_shown: { partido_id: string };
+  // Home — multi-quiniela (ENGAGEMENT-MULTI-QUINIELA-1)
+  home_quiniela_summary_shown: { ligas_count: number };
+  home_quiniela_summary_clicked: {
+    liga_id: string;
+    liga_scope: "global" | "grupo";
+  };
 };
 
 export type AnalyticsEventName = keyof AnalyticsEventMap;

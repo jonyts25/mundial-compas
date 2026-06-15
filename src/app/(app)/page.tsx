@@ -1,4 +1,5 @@
 import { HomeEngagementDashboard } from "@/components/home/HomeEngagementDashboard";
+import { MultiQuinielaSummaryCarousel } from "@/components/home/MultiQuinielaSummaryCarousel";
 import { WhatsNewModal } from "@/components/product/WhatsNewModal";
 import { PublicLandingPage } from "@/components/landing/PublicLandingPage";
 import { AdminPlatformCard } from "@/components/admin/AdminPlatformCard";
@@ -13,7 +14,10 @@ import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
 import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
 import { fetchOnboardingUserState } from "@/lib/onboarding/state";
 import { fetchCalendarioPartidosData } from "@/lib/partidos/calendario-queries";
-import { fetchHomeDashboardData } from "@/lib/home/home-dashboard-queries";
+import {
+  fetchHomeDashboardData,
+  fetchHomeQuinielaSummaries,
+} from "@/lib/home/home-dashboard-queries";
 import { fetchHomePageData } from "@/lib/partidos/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,12 +39,14 @@ export default async function HomePage() {
     pilot,
     onboarding,
     dashboardResult,
+    quinielaSummaries,
   ] = await Promise.all([
     fetchHomePageData(user.id),
     fetchCalendarioPartidosData(user.id),
     fetchPilotUiState(),
     fetchOnboardingUserState(user.id),
     fetchHomeDashboardData(user.id),
+    fetchHomeQuinielaSummaries(user.id),
   ]);
 
   const dashboard = dashboardResult.ok ? dashboardResult.data : null;
@@ -63,6 +69,7 @@ export default async function HomePage() {
           dashboard={dashboard}
           error={dashboardError}
         />
+        <MultiQuinielaSummaryCarousel summaries={quinielaSummaries} />
         <OnboardingStartCard eligible={onboarding.eligible} />
         <HeroSection partidosEnVivo={partidosEnVivo} datoMamalon={datoMamalon} />
         <CalendarioPartidos
