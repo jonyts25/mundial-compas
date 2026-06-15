@@ -4,6 +4,8 @@ import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
 import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracker";
 import { Leaderboard } from "@/components/leaderboard/Leaderboard";
+import { UserStyleCard } from "@/components/leaderboard/UserStyleCard";
+import { fetchUserProfile } from "@/lib/insights/profile-data";
 import { fetchLeaderboard } from "@/lib/leaderboard/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,8 +22,12 @@ export default async function LeaderboardPage() {
   }
 
   let filas;
+  let profile = null;
   try {
-    filas = await fetchLeaderboard();
+    [filas, profile] = await Promise.all([
+      fetchLeaderboard(),
+      fetchUserProfile(user.id).catch(() => null),
+    ]);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error al cargar";
     return (
@@ -75,6 +81,10 @@ export default async function LeaderboardPage() {
               </span>
             </p>
           </div>
+        )}
+
+        {profile && (
+          <UserStyleCard profile={profile} ligaScope="global" />
         )}
 
         <Leaderboard

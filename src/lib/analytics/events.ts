@@ -13,6 +13,11 @@ export type AnalyticsEventMap = {
     kind: "popular" | "balanceado" | "diferencial" | "raro";
     risk: "bajo" | "medio" | "alto" | "extremo";
   };
+  // Perfiles de pronosticador (Sprint 1 Fase C)
+  profile_card_viewed: {
+    liga_scope: "global" | "grupo";
+    profile_primary: string;
+  };
   user_signed_in: { provider?: string };
   onboarding_cta_clicked: { cta: "pronostico" | "crear_grupo" | "unirse" };
   onboarding_dismissed: Record<string, never>;
