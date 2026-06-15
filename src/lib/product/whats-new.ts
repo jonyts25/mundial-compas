@@ -6,7 +6,7 @@
 export const WHATS_NEW_STORAGE_KEY = "mundial-compas:whats-new-seen";
 
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = "2026-06-pitoniso-v1";
+export const WHATS_NEW_VERSION = "2026-06-engagement-v1";
 
 export interface WhatsNewItem {
   emoji: string;
@@ -38,5 +38,35 @@ export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
     title: "Análisis post-partido",
     description:
       "Después del resultado puedes revisar cómo se movieron los pronósticos y qué tan común fue cada marcador.",
+  },
+  {
+    emoji: "👋",
+    title: "Tu resumen en inicio",
+    description:
+      "Saludo con tu lugar en el ranking, perfil de jugador y cuántos pronósticos te faltan.",
+  },
+  {
+    emoji: "🎯",
+    title: "Carrusel de quinielas",
+    description:
+      "Desliza entre quiniela global y tus grupos: progreso, ranking, pendientes y acceso rápido desde el inicio.",
+  },
+  {
+    emoji: "⚽",
+    title: "Pronostica en la quiniela correcta",
+    description:
+      "En la pantalla del partido elige si guardas en global o en un grupo privado con chips para cambiar de quiniela.",
+  },
+  {
+    emoji: "🔮",
+    title: "Pitoniso por quiniela",
+    description:
+      "El Pitoniso lee la multitud de la quiniela que tienes seleccionada, no solo la global.",
+  },
+  {
+    emoji: "📱",
+    title: "Pantalla de partido mejorada",
+    description:
+      "Flecha atrás alineada al notch en iPhone y corrección al cambiar de quiniela sin duplicar El Pitoniso.",
   },
 ];

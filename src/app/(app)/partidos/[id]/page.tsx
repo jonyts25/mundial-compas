@@ -54,13 +54,16 @@ export default async function PartidoPage({
         event="match_view"
         properties={{ partido_id: data.partido.id, estatus: data.partido.estatus }}
       />
-      <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-3 backdrop-blur-md">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-sm font-medium text-emerald-400 hover:text-emerald-300"
-        >
-          ← Partidos
-        </Link>
+      <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="rounded-lg px-2 py-1 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          >
+            ←
+          </Link>
+          <h1 className="truncate text-lg font-bold text-white">Partidos</h1>
+        </div>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
