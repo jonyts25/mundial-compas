@@ -26,6 +26,8 @@ import { fetchPronosticosPartidoAgregados } from "@/lib/quiniela/pronosticos-agr
 interface PitonisoCardProps {
   staticContext: PitonisoStaticContext;
   ligaId?: string;
+  /** Incrementar tras guardar pronóstico para refrescar agregados de multitud. */
+  aggregatesRefreshKey?: number;
 }
 
 function contradictionExtraLine(summary: PitonisoSignalSummary): string | null {
@@ -65,6 +67,7 @@ function PitonisoMessageBody({ text }: { text: string }) {
 export function PitonisoCard({
   staticContext,
   ligaId = LIGA_GLOBAL_ID,
+  aggregatesRefreshKey = 0,
 }: PitonisoCardProps) {
   const [picksLoaded, setPicksLoaded] = useState(false);
   const [aggError, setAggError] = useState<string | null>(null);
@@ -113,7 +116,7 @@ export function PitonisoCard({
     return () => {
       cancelled = true;
     };
-  }, [partidoId, ligaId]);
+  }, [partidoId, ligaId, aggregatesRefreshKey]);
 
   const computed = useMemo(() => {
     if (!picksLoaded) return null;

@@ -6,7 +6,11 @@ export type AnalyticsEventMap = {
   group_view: { liga_scope: "grupo"; tab?: string };
   match_view: { partido_id: string; estatus: string };
   // Predicciones: `pronostico_saved` = creación (compat); `prediction_updated` = edición
-  prediction_updated: { liga_scope: "global" | "grupo"; partido_id: string };
+  prediction_updated: {
+    liga_scope: "global" | "grupo";
+    partido_id: string;
+    source?: "match_detail" | "quiniela";
+  };
   // Pick Value Engine (Sprint 1.5)
   pick_value_shown: {
     liga_scope: "global" | "grupo";
@@ -32,7 +36,11 @@ export type AnalyticsEventMap = {
   user_signed_in: { provider?: string };
   onboarding_cta_clicked: { cta: "pronostico" | "crear_grupo" | "unirse" };
   onboarding_dismissed: Record<string, never>;
-  pronostico_saved: { liga_scope: "global" | "grupo"; partido_id: string };
+  pronostico_saved: {
+    liga_scope: "global" | "grupo";
+    partido_id: string;
+    source?: "match_detail" | "quiniela";
+  };
   quiniela_selected: { liga_scope: "global" | "grupo"; liga_id: string };
   filtro_jornada_selected: { jornada: number | null };
   filtro_fase_selected: { fase: string | null };

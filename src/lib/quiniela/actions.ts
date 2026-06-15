@@ -121,6 +121,7 @@ export async function savePronostico(
 
   revalidatePath("/quiniela");
   revalidatePath("/");
+  revalidatePath(`/partidos/${partidoId}`);
   if (!esGlobal) {
     const { data: ligaRow } = await supabase
       .from("ligas_privadas")

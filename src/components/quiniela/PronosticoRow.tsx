@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
+import { ScoreInput, type ScoreValue } from "@/components/quiniela/ScoreInput";
 import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
 import { SilenciarPartidoToggle } from "@/components/push/SilenciarPartidoToggle";
 import { trackEvent } from "@/lib/analytics/track";
@@ -18,8 +19,6 @@ import {
 import { getTeamImageUrl } from "@/lib/teams/flags";
 import type { PronosticoUsuario } from "@/lib/quiniela/queries";
 import type { Partido } from "@/types/database";
-
-type ScoreValue = number | null;
 
 interface PronosticoRowProps {
   partido: Partido;
@@ -63,11 +62,6 @@ export function PronosticoRow({
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, []);
-
-  useEffect(() => {
-    setLocal(initialScore(pronostico, "local"));
-    setVisitante(initialScore(pronostico, "visitante"));
-  }, [pronostico?.goles_local, pronostico?.goles_visitante, pronostico]);
 
   function handleSave() {
     if (local === null || visitante === null) {
@@ -133,6 +127,7 @@ export function PronosticoRow({
 
         <div className="flex items-center gap-1.5">
           <ScoreInput
+            key={`local-${savedLocal ?? "none"}`}
             value={local}
             onChange={setLocal}
             disabled={locked}
@@ -140,6 +135,7 @@ export function PronosticoRow({
           />
           <span className="px-0.5 text-sm font-bold text-zinc-500">vs</span>
           <ScoreInput
+            key={`away-${savedVisitante ?? "none"}`}
             value={visitante}
             onChange={setVisitante}
             disabled={locked}
@@ -198,55 +194,6 @@ export function PronosticoRow({
 
       <PronosticosTodosPanel partido={partido} ligaId={ligaId} />
     </article>
-  );
-}
-
-function ScoreInput({
-  value,
-  onChange,
-  disabled,
-  "aria-label": ariaLabel,
-}: {
-  value: ScoreValue;
-  onChange: (v: ScoreValue) => void;
-  disabled: boolean;
-  "aria-label": string;
-}) {
-  const [draft, setDraft] = useState(value === null ? "" : String(value));
-
-  useEffect(() => {
-    setDraft(value === null ? "" : String(value));
-  }, [value]);
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      autoComplete="off"
-      value={draft}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      placeholder="—"
-      onChange={(e) => {
-        const raw = e.target.value.replace(/\D/g, "");
-        if (raw === "") {
-          setDraft("");
-          onChange(null);
-          return;
-        }
-        const n = Number.parseInt(raw, 10);
-        if (Number.isNaN(n)) return;
-        const clamped = Math.min(20, n);
-        setDraft(String(clamped));
-        onChange(clamped);
-      }}
-      onBlur={() => {
-        if (draft === "") {
-          onChange(null);
-        }
-      }}
-      className="h-14 w-14 rounded-xl border-2 border-zinc-700 bg-zinc-950 text-center text-2xl font-black tabular-nums text-white outline-none placeholder:text-zinc-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600"
-    />
   );
 }
 

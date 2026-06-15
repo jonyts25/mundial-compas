@@ -3,8 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracker";
 import { ChatPartido } from "@/components/partidos/ChatPartido";
 import { PartidoInfoPanel } from "@/components/partidos/PartidoInfoPanel";
+import { PartidoPronosticoPitonisoBlock } from "@/components/partidos/PartidoPronosticoPitonisoBlock";
 import { PartidoHeader } from "@/components/partidos/PartidoHeader";
-import { PitonisoCard } from "@/components/partidos/PitonisoCard";
 import { PronosticoReminder } from "@/components/partidos/PronosticoReminder";
 import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
 import { SilenciarNotificacionesPartido } from "@/components/partidos/SilenciarNotificacionesPartido";
@@ -36,6 +36,9 @@ export default async function PartidoPage({
     notFound();
   }
 
+  const esPronosticable =
+    data.partido.estatus === "programado" || data.partido.estatus === "aplazado";
+
   const pitonisoStatic =
     data.partido.estatus === "programado"
       ? await fetchPitonisoStaticContext(id)
@@ -58,12 +61,19 @@ export default async function PartidoPage({
 
       <main className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <PartidoHeader partido={data.partido} />
-        {pitonisoStatic?.ok ? (
-          <PitonisoCard staticContext={pitonisoStatic.context} ligaId={LIGA_GLOBAL_ID} />
+        {esPronosticable ? (
+          <PartidoPronosticoPitonisoBlock
+            partido={data.partido}
+            pronostico={data.pronostico}
+            pitonisoContext={pitonisoStatic?.ok ? pitonisoStatic.context : null}
+            ligaId={LIGA_GLOBAL_ID}
+          />
         ) : null}
         <SilenciarNotificacionesPartido partidoId={data.partido.id} />
         <PartidoInfoPanel partido={data.partido} />
-        <PronosticoReminder partido={data.partido} pronostico={data.pronostico} />
+        {!esPronosticable ? (
+          <PronosticoReminder partido={data.partido} pronostico={data.pronostico} />
+        ) : null}
         <PronosticosTodosPanel partido={data.partido} ligaId={LIGA_GLOBAL_ID} />
         <ChatPartido
           key={data.partido.id}
