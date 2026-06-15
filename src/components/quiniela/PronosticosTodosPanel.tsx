@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { trackEvent } from "@/lib/analytics/track";
 import {
   computePickAggregates,
   outcomeLabel,
 } from "@/lib/insights/pick-aggregates";
+import {
+  computePickValue,
+  pickKindEmoji,
+  pickKindLabel,
+  pickRiskLabel,
+  DISCLAIMER,
+} from "@/lib/prediction-engine/pick-value";
 import {
   fetchPronosticosPartidoTodos,
   type PronosticoParticipante,
@@ -37,6 +45,30 @@ export function PronosticosTodosPanel({
       participantes ? computePickAggregates(participantes, resultadoReal) : null,
     [participantes, resultadoReal],
   );
+
+  const pickValue = useMemo(() => {
+    if (!aggregates || !aggregates.userScore || aggregates.total === 0) {
+      return null;
+    }
+    return computePickValue(aggregates, aggregates.userScore, {
+      context: {
+        homeName: partido.equipo_local_nombre,
+        awayName: partido.equipo_visitante_nombre,
+      },
+    });
+  }, [aggregates, partido.equipo_local_nombre, partido.equipo_visitante_nombre]);
+
+  const pickValueTracked = useRef(false);
+  useEffect(() => {
+    if (!abierto || pickValueTracked.current) return;
+    if (!pickValue || !pickValue.sampleOk) return;
+    pickValueTracked.current = true;
+    trackEvent("pick_value_shown", {
+      liga_scope: ligaId === LIGA_GLOBAL_ID ? "global" : "grupo",
+      kind: pickValue.kind,
+      risk: pickValue.risk,
+    });
+  }, [abierto, pickValue, ligaId]);
 
   if (partido.estatus !== "finalizado") {
     return null;
@@ -153,6 +185,21 @@ export function PronosticosTodosPanel({
                   {aggregates.userMatchedExact ? " · ¡tú incluido! 🎯" : ""}
                 </p>
               )}
+            </div>
+          )}
+
+          {pickValue && pickValue.sampleOk && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+              <p className="text-center text-xs font-semibold text-zinc-200">
+                {pickKindEmoji(pickValue.kind)} {pickKindLabel(pickValue.kind)} ·{" "}
+                {pickRiskLabel(pickValue.risk)}
+              </p>
+              <p className="mt-1 text-center text-xs text-zinc-400">
+                {pickValue.message}
+              </p>
+              <p className="mt-1 text-center text-[10px] text-zinc-600">
+                {DISCLAIMER}
+              </p>
             </div>
           )}
 

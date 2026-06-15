@@ -7,6 +7,12 @@ export type AnalyticsEventMap = {
   match_view: { partido_id: string; estatus: string };
   // Predicciones: `pronostico_saved` = creación (compat); `prediction_updated` = edición
   prediction_updated: { liga_scope: "global" | "grupo"; partido_id: string };
+  // Pick Value Engine (Sprint 1.5)
+  pick_value_shown: {
+    liga_scope: "global" | "grupo";
+    kind: "popular" | "balanceado" | "diferencial" | "raro";
+    risk: "bajo" | "medio" | "alto" | "extremo";
+  };
   user_signed_in: { provider?: string };
   onboarding_cta_clicked: { cta: "pronostico" | "crear_grupo" | "unirse" };
   onboarding_dismissed: Record<string, never>;

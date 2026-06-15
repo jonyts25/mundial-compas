@@ -69,7 +69,8 @@ export interface PickAggregates {
   userMatchedExact: boolean | null;
 }
 
-function outcomeOf(golesLocal: number, golesVisitante: number): Outcome {
+/** Normaliza un marcador a su resultado 1X2 desde la perspectiva del local. */
+export function outcomeOf(golesLocal: number, golesVisitante: number): Outcome {
   if (golesLocal > golesVisitante) return "local";
   if (golesLocal < golesVisitante) return "visitante";
   return "empate";
