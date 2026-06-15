@@ -64,6 +64,9 @@ export type AnalyticsEventMap = {
   push_prompt_shown: Record<string, never>;
   push_enabled: Record<string, never>;
   push_denied: Record<string, never>;
+  // Qué hay de nuevo (producto)
+  whats_new_shown: { version: string };
+  whats_new_dismissed: { version: string };
 };
 
 export type AnalyticsEventName = keyof AnalyticsEventMap;

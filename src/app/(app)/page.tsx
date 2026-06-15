@@ -1,3 +1,4 @@
+import { WhatsNewModal } from "@/components/product/WhatsNewModal";
 import { PublicLandingPage } from "@/components/landing/PublicLandingPage";
 import { AdminPlatformCard } from "@/components/admin/AdminPlatformCard";
 import { AppHeader } from "@/components/home/AppHeader";
@@ -61,6 +62,7 @@ export default async function HomePage() {
       </main>
       <LegalFooterLink />
       <AppBottomNav />
+      <WhatsNewModal />
     </>
   );
 }
