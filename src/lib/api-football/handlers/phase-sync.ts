@@ -53,10 +53,10 @@ function periodFromStatusShort(short: string | null | undefined): MatchPeriod | 
   if (s === "2H") return "2H";
   if (s === "ET") return "ET1";
   if (s === "BT") return "HT";
-  if (s === "P") return "PEN";
+  if (s === "P" || s === "PEN") return "PEN";
   if (s === "FT") return "FT";
   if (s === "AET") return "AET";
-  if (s === "PEN") return "AP";
+  if (s === "AP") return "AP";
   return null;
 }
 
@@ -67,8 +67,10 @@ function resolvePendingPhases(
   estatus: EstatusPartido,
   announced: MatchPhaseKind[],
   transitions: MatchPhaseKind[],
+  statusShort?: string | null,
 ): MatchPhaseKind[] {
   const pending = [...transitions];
+  const short = statusShort?.trim().toUpperCase() ?? "";
 
   const add = (phase: MatchPhaseKind) => {
     if (!announced.includes(phase) && !pending.includes(phase)) {
@@ -91,7 +93,11 @@ function resolvePendingPhases(
 
   if (
     (nextPeriod === "FT" || nextPeriod === "AET" || nextPeriod === "AP") &&
-    estatus === "finalizado"
+    (estatus === "finalizado" ||
+      short === "FT" ||
+      short === "AET" ||
+      short === "PEN" ||
+      short === "AP")
   ) {
     add("fulltime");
   }
@@ -193,6 +199,7 @@ export async function notifyPhaseTransitions(
     ctx.estatus,
     announced,
     transitions,
+    ctx.statusShort,
   );
 
   const esFinal = isFinalMatch(ctx.fase, ctx.roundHint);

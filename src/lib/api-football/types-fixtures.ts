@@ -9,6 +9,8 @@ export interface ApiFootballFixtureItem {
       short: string;
       long: string;
       elapsed: number | null;
+      /** Minutos de tiempo añadido (api-sports); con elapsed forma el minuto total. */
+      extra?: number | null;
     };
   };
   league: {

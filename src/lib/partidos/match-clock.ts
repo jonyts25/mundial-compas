@@ -165,11 +165,26 @@ export function resolveMatchPeriod(
     hasPenaltyScores?: boolean;
     prevPeriod?: MatchPeriod | null;
     prevAnchorMinute?: number | null;
+    statusShort?: string | null;
   } = {},
 ): MatchPeriod {
   const s = statusRaw.trim().toLowerCase();
+  const shortUpper = (opts.statusShort ?? statusRaw).trim().toUpperCase();
   const prev = opts.prevPeriod ?? null;
   const prevMin = opts.prevAnchorMinute ?? null;
+
+  if (shortUpper === "1H") return "1H";
+  if (shortUpper === "2H") return "2H";
+  if (shortUpper === "HT" || shortUpper === "BT") return "HT";
+  if (shortUpper === "ET") {
+    if (minute != null && minute > 105) return "ET2";
+    if (prev === "ET2" || (prevMin != null && prevMin > 105)) return "ET2";
+    return "ET1";
+  }
+  if (shortUpper === "P" || shortUpper === "PEN") return "PEN";
+  if (shortUpper === "FT") return "FT";
+  if (shortUpper === "AET") return "AET";
+  if (shortUpper === "AP") return "AP";
 
   if (estatus === "programado") return "NS";
 
@@ -245,13 +260,14 @@ export function buildClockState(
   estatus: EstatusPartido,
   apiMinute: number | null,
   prev: MatchClockState | null | undefined,
-  opts: { hasPenaltyScores?: boolean } = {},
+  opts: { hasPenaltyScores?: boolean; statusShort?: string | null } = {},
   now = new Date(),
 ): MatchClockState {
   const period = resolveMatchPeriod(statusRaw, estatus, apiMinute, {
     hasPenaltyScores: opts.hasPenaltyScores,
     prevPeriod: prev?.period ?? null,
     prevAnchorMinute: prev?.anchorMinute ?? null,
+    statusShort: opts.statusShort ?? null,
   });
   const ticking = TICKING_PERIODS.has(period);
   const nowIso = now.toISOString();
@@ -292,6 +308,9 @@ export function buildClockState(
   };
 }
 
+/** Máximo de minutos a interpolar entre polls de sync-live (~60s cron). */
+const MAX_MINUTE_INTERPOLATION = 3;
+
 export function computeDisplayMinute(
   clock: MatchClockState | null | undefined,
   now = Date.now(),
@@ -301,7 +320,8 @@ export function computeDisplayMinute(
   const elapsed = Math.floor(
     (now - new Date(clock.anchoredAt).getTime()) / 60_000,
   );
-  return clock.anchorMinute + Math.max(0, elapsed);
+  const interpolated = Math.min(Math.max(0, elapsed), MAX_MINUTE_INTERPOLATION);
+  return clock.anchorMinute + interpolated;
 }
 
 export function detectPhaseTransition(
