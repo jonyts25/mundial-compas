@@ -70,6 +70,18 @@ export type AnalyticsEventMap = {
   // Home — siguiente pronóstico pendiente
   next_pending_prediction_shown: { partido_id: string };
   next_pending_prediction_clicked: { partido_id: string };
+  // Home — dashboard personal (ENGAGEMENT-SPRINT-1)
+  home_summary_shown: {
+    has_rank: boolean;
+    has_profile: boolean;
+    pendientes: number;
+  };
+  prediction_progress_shown: {
+    enviados: number;
+    total: number;
+    percent: number;
+  };
+  next_deadline_shown: { partido_id: string };
 };
 
 export type AnalyticsEventName = keyof AnalyticsEventMap;
