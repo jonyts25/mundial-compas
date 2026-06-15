@@ -11,6 +11,7 @@ import { SilenciarNotificacionesPartido } from "@/components/partidos/SilenciarN
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchPartidoDetallePageData } from "@/lib/partidos/detail-queries";
 import { fetchPitonisoStaticContext } from "@/lib/partidos/pitoniso-queries";
+import { fetchPartidoQuinielaContexts } from "@/lib/queries/partido-quiniela-contexts";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,10 @@ export default async function PartidoPage({
     redirect("/login");
   }
 
-  const data = await fetchPartidoDetallePageData(user.id, id);
+  const [data, quinielaContexts] = await Promise.all([
+    fetchPartidoDetallePageData(user.id, id),
+    fetchPartidoQuinielaContexts(id, user.id),
+  ]);
   if (!data) {
     notFound();
   }
@@ -64,9 +68,8 @@ export default async function PartidoPage({
         {esPronosticable ? (
           <PartidoPronosticoPitonisoBlock
             partido={data.partido}
-            pronostico={data.pronostico}
+            quinielaContexts={quinielaContexts}
             pitonisoContext={pitonisoStatic?.ok ? pitonisoStatic.context : null}
-            ligaId={LIGA_GLOBAL_ID}
           />
         ) : null}
         <SilenciarNotificacionesPartido partidoId={data.partido.id} />

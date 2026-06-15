@@ -20,6 +20,7 @@ interface TuPronosticoCardProps {
   partido: Partido;
   pronostico: PronosticoPartido | null;
   ligaId?: string;
+  ligaScope?: "global" | "grupo";
   onPronosticoSaved?: (pronostico: SavedPronosticoSnapshot) => void;
 }
 
@@ -35,8 +36,12 @@ export function TuPronosticoCard({
   partido,
   pronostico: pronosticoProp,
   ligaId = LIGA_GLOBAL_ID,
+  ligaScope: ligaScopeProp,
   onPronosticoSaved,
 }: TuPronosticoCardProps) {
+  const ligaScope: "global" | "grupo" =
+    ligaScopeProp ??
+    (!ligaId || ligaId === LIGA_GLOBAL_ID ? "global" : "grupo");
   const [pronostico, setPronostico] = useState(pronosticoProp);
   const [local, setLocal] = useState<ScoreValue>(() =>
     initialScore(pronosticoProp, "local"),
@@ -85,10 +90,8 @@ export function TuPronosticoCard({
     startTransition(async () => {
       const result = await savePronostico(partido.id, local, visitante, ligaId);
       if (result.ok) {
-        const liga_scope: "global" | "grupo" =
-          !ligaId || ligaId === LIGA_GLOBAL_ID ? "global" : "grupo";
         const analyticsBase = {
-          liga_scope,
+          liga_scope: ligaScope,
           partido_id: partido.id,
           source: "match_detail" as const,
         };

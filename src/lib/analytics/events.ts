@@ -88,6 +88,12 @@ export type AnalyticsEventMap = {
     liga_id: string;
     liga_scope: "global" | "grupo";
   };
+  // Detalle partido — selector multi-quiniela (MATCH-MULTI-QUINIELA-1)
+  match_liga_selector_shown: { ligas_count: number };
+  match_liga_selected: {
+    liga_id: string;
+    liga_scope: "global" | "grupo";
+  };
 };
 
 export type AnalyticsEventName = keyof AnalyticsEventMap;

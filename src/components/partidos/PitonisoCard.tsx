@@ -28,6 +28,8 @@ interface PitonisoCardProps {
   ligaId?: string;
   /** Incrementar tras guardar pronóstico para refrescar agregados de multitud. */
   aggregatesRefreshKey?: number;
+  /** Vista resumida: mensaje + confianza; detalle en expand. */
+  compact?: boolean;
 }
 
 function contradictionExtraLine(summary: PitonisoSignalSummary): string | null {
@@ -68,6 +70,7 @@ export function PitonisoCard({
   staticContext,
   ligaId = LIGA_GLOBAL_ID,
   aggregatesRefreshKey = 0,
+  compact = false,
 }: PitonisoCardProps) {
   const [picksLoaded, setPicksLoaded] = useState(false);
   const [aggError, setAggError] = useState<string | null>(null);
@@ -236,34 +239,41 @@ export function PitonisoCard({
 
               <div className="mt-2 space-y-2">
                 <PitonisoMessageBody text={computed.pitonisoMessage.message} />
-                {computed.extraLine && (
+                {!compact && computed.extraLine && (
                   <p className="text-sm italic text-violet-200/80">
                     {computed.extraLine}
                   </p>
                 )}
               </div>
 
-              <dl className="mt-3 space-y-1 text-xs text-zinc-400">
-                <div className="flex flex-wrap gap-x-2">
-                  <dt className="text-zinc-500">Inclinación:</dt>
-                  <dd className="font-medium text-zinc-200">
-                    {favoriteDisplayName(
-                      computed.verdict.favorite,
-                      staticContext.partido.equipoLocalNombre,
-                      staticContext.partido.equipoVisitanteNombre,
-                    )}
-                  </dd>
-                </div>
-                {computed.popularScore && computed.verdict.crowdSampleOk && (
+              {(!compact || expanded) && (
+                <dl className="mt-3 space-y-1 text-xs text-zinc-400">
+                  {compact && computed.extraLine && (
+                    <p className="text-sm italic text-violet-200/80">
+                      {computed.extraLine}
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-x-2">
-                    <dt className="text-zinc-500">Marcador más repetido en la quiniela:</dt>
-                    <dd className="font-medium tabular-nums text-zinc-200">
-                      {computed.popularScore.local}-{computed.popularScore.visitante} (
-                      {computed.popularScore.pct}%)
+                    <dt className="text-zinc-500">Inclinación:</dt>
+                    <dd className="font-medium text-zinc-200">
+                      {favoriteDisplayName(
+                        computed.verdict.favorite,
+                        staticContext.partido.equipoLocalNombre,
+                        staticContext.partido.equipoVisitanteNombre,
+                      )}
                     </dd>
                   </div>
-                )}
-              </dl>
+                  {computed.popularScore && computed.verdict.crowdSampleOk && (
+                    <div className="flex flex-wrap gap-x-2">
+                      <dt className="text-zinc-500">Marcador más repetido en la quiniela:</dt>
+                      <dd className="font-medium tabular-nums text-zinc-200">
+                        {computed.popularScore.local}-{computed.popularScore.visitante} (
+                        {computed.popularScore.pct}%)
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              )}
 
               {aggError && (
                 <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2">
@@ -281,9 +291,11 @@ export function PitonisoCard({
                 </div>
               )}
 
-              <p className="mt-3 text-[10px] leading-snug text-zinc-500">
-                {PITONISO_DISCLAIMER_SHORT}
-              </p>
+              {!compact && (
+                <p className="mt-3 text-[10px] leading-snug text-zinc-500">
+                  {PITONISO_DISCLAIMER_SHORT}
+                </p>
+              )}
 
               <button
                 type="button"
@@ -291,12 +303,23 @@ export function PitonisoCard({
                 className="mt-2 text-[10px] font-semibold text-violet-400/90 hover:text-violet-300"
                 aria-expanded={expanded}
               >
-                {expanded ? "Ocultar detalle ▴" : "¿Qué es El Pitoniso? ▾"}
+                {expanded
+                  ? "Ocultar detalle ▴"
+                  : compact
+                    ? "Ver señales ▾"
+                    : "¿Qué es El Pitoniso? ▾"}
               </button>
               {expanded && (
-                <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
-                  {PITONISO_DISCLAIMER_LONG}
-                </p>
+                <>
+                  {compact && (
+                    <p className="mt-2 text-[10px] leading-snug text-zinc-500">
+                      {PITONISO_DISCLAIMER_SHORT}
+                    </p>
+                  )}
+                  <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                    {PITONISO_DISCLAIMER_LONG}
+                  </p>
+                </>
               )}
             </>
           )}
