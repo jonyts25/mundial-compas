@@ -67,6 +67,9 @@ Sí registrar (agregado):
 | `chat_message_reported` | Reporte |
 | `leaderboard_viewed` / `leaderboard_segment_changed` | Liderato |
 | `push_prompt_shown` / `push_enabled` / `push_denied` | Push |
+| `pick_value_shown` | Pick Value en panel post-partido (Sprint 1.5) |
+| `pitoniso_shown` | Card El Pitoniso visible con veredicto (`partido_id`, `liga_scope`, `confidence`, `favorite`, `crowd_sample_ok`) |
+| `pitoniso_expanded` | Acordeón “¿Qué es El Pitoniso?” abierto (`partido_id`) |
 
 ## Integración PostHog
 

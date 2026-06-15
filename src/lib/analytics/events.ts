@@ -18,6 +18,17 @@ export type AnalyticsEventMap = {
     liga_scope: "global" | "grupo";
     profile_primary: string;
   };
+  // El Pitoniso (pre-partido)
+  pitoniso_shown: {
+    partido_id: string;
+    liga_scope: "global" | "grupo";
+    confidence: "indeciso" | "leve" | "bastante" | "presentimiento";
+    favorite: "local" | "empate" | "visitante";
+    crowd_sample_ok: boolean;
+  };
+  pitoniso_expanded: {
+    partido_id: string;
+  };
   user_signed_in: { provider?: string };
   onboarding_cta_clicked: { cta: "pronostico" | "crear_grupo" | "unirse" };
   onboarding_dismissed: Record<string, never>;

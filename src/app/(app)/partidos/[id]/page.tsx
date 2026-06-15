@@ -4,11 +4,13 @@ import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracke
 import { ChatPartido } from "@/components/partidos/ChatPartido";
 import { PartidoInfoPanel } from "@/components/partidos/PartidoInfoPanel";
 import { PartidoHeader } from "@/components/partidos/PartidoHeader";
+import { PitonisoCard } from "@/components/partidos/PitonisoCard";
 import { PronosticoReminder } from "@/components/partidos/PronosticoReminder";
 import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
 import { SilenciarNotificacionesPartido } from "@/components/partidos/SilenciarNotificacionesPartido";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchPartidoDetallePageData } from "@/lib/partidos/detail-queries";
+import { fetchPitonisoStaticContext } from "@/lib/partidos/pitoniso-queries";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +36,11 @@ export default async function PartidoPage({
     notFound();
   }
 
+  const pitonisoStatic =
+    data.partido.estatus === "programado"
+      ? await fetchPitonisoStaticContext(id)
+      : null;
+
   return (
     <div className="flex min-h-full flex-col">
       <AnalyticsViewTracker
@@ -51,6 +58,9 @@ export default async function PartidoPage({
 
       <main className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <PartidoHeader partido={data.partido} />
+        {pitonisoStatic?.ok ? (
+          <PitonisoCard staticContext={pitonisoStatic.context} ligaId={LIGA_GLOBAL_ID} />
+        ) : null}
         <SilenciarNotificacionesPartido partidoId={data.partido.id} />
         <PartidoInfoPanel partido={data.partido} />
         <PronosticoReminder partido={data.partido} pronostico={data.pronostico} />
