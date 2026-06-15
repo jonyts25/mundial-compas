@@ -12,7 +12,7 @@ import {
 import {
   analyzePitonisoSignalContradictionWithCrowd,
   leaderFromCrowdOutcomes,
-} from "@/lib/partidos/pitoniso-queries";
+} from "@/lib/partidos/pitoniso-signals";
 import { computePickAggregates } from "@/lib/insights/pick-aggregates";
 
 function assert(condition: boolean, message: string): void {

@@ -7,12 +7,12 @@ import { computePickAggregates } from "@/lib/insights/pick-aggregates";
 import type {
   PitonisoSignalSummary,
   PitonisoStaticContext,
-} from "@/lib/partidos/pitoniso-queries";
+} from "@/lib/partidos/pitoniso-signals";
 import {
   analyzePitonisoSignalContradictionWithCrowd,
   leaderFromCrowdOutcomes,
   toMatchPreviewPhaseFlags,
-} from "@/lib/partidos/pitoniso-queries";
+} from "@/lib/partidos/pitoniso-signals";
 import { computeMatchPreviewVerdict } from "@/lib/prediction-engine/match-preview";
 import {
   buildPitonisoMessage,
