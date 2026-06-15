@@ -1,7 +1,5 @@
 /**
- * Sports Core — barrel de tipos (SC-2).
- *
- * Solo contratos TypeScript. Sin lógica de negocio hasta SC-3+.
+ * Sports Core — barrel (SC-2 tipos · SC-3 preview).
  */
 
 export type {
@@ -56,3 +54,31 @@ export type {
   LegacyProfileMetrics,
   UserProfileCompat,
 } from "@/lib/sports-core/profiles/types";
+
+export {
+  computeMatchPreviewVerdict,
+  matchPreviewMinSample,
+  matchPreviewWeights,
+} from "@/lib/sports-core/predictions/preview/match-preview";
+
+export type {
+  MatchPreviewSignals,
+} from "@/lib/sports-core/predictions/preview/match-preview";
+
+export {
+  analyzeSignalContradiction,
+  analyzeSignalContradictionWithCrowd,
+  buildStaticSignalLeaders,
+  leaderFromCrowdOutcomes,
+  leaderFromForm,
+  leaderFromTable,
+  toMatchPreviewPhaseFlags,
+} from "@/lib/sports-core/predictions/preview/signals";
+
+export type {
+  PreviewPhaseFlags,
+  SignalConflict,
+  SignalContradiction,
+  SignalLeaders,
+  SignalSummary,
+} from "@/lib/sports-core/predictions/preview/signals";

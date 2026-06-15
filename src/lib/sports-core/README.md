@@ -4,16 +4,23 @@ Núcleo reutilizable de lógica deportiva / quiniela. Plan maestro: `SPORTS_CORE
 
 ## SC-2 — Estado actual
 
-**Solo tipos.** Ningún módulo de la app importa esta carpeta todavía. Cero cambio de runtime en producción.
+Tipos en `*/types.ts`. Ver mapping abajo.
+
+## SC-3 — Preview (motor puro)
 
 ```
-sports-core/
-├── matches/types.ts      # Team, Competition, Match, guards
-├── standings/types.ts    # StandingRow, StandingGroup
-├── predictions/types.ts  # Prediction, PickInput, MatchPreview*
-├── profiles/types.ts     # PlayerProfile, ProfileMetrics
-└── index.ts              # barrel
+predictions/preview/
+├── match-preview.ts   # computeMatchPreviewVerdict
+└── signals.ts         # contradicción crowd/table/form
 ```
+
+Rutas legacy (re-export `@deprecated`):
+
+- `src/lib/prediction-engine/match-preview.ts`
+- Funciones en `src/lib/partidos/pitoniso-signals.ts` (tipos producto quedan ahí)
+
+TODO(SC-4): `pick-aggregates` → `sports-core/predictions/aggregates.ts`
+TODO(SC-6): renombrar local/visitante y Pitoniso* → nombres genéricos
 
 ## Reglas de imports
 
