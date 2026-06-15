@@ -24,8 +24,11 @@ export async function loadApiSportsFixtures(
     timezone: env.timezone,
   };
 
-  if (options.fixture ?? env.pilotFixtureId) {
-    query.fixture = options.fixture ?? env.pilotFixtureId;
+  const fixtureId =
+    options.fixture ?? (isPilot ? env.pilotFixtureId : undefined);
+
+  if (fixtureId) {
+    query.fixture = fixtureId;
   } else if (isPilot) {
     query.date = options.date ?? env.pilotDate;
     query.team = options.team ?? env.pilotTeamId ?? API_SPORTS_MEXICO_TEAM_ID;
