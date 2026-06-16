@@ -1,6 +1,7 @@
 import { buildRelojFromApiSportsFixture } from "@/lib/api-football/match-clock";
 import { mapApiStatus } from "@/lib/api-football/status-map";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
+import { getTeamStorageCode } from "@/lib/utils";
 import type { EstatusPartido, FaseMundial } from "@/types/database";
 
 export interface PartidoUpsertRow {
@@ -22,56 +23,11 @@ export interface PartidoUpsertRow {
   metadata: Record<string, unknown>;
 }
 
-/** IDs API-Football → código FIFA (3 letras) cuando `team.code` viene vacío */
-const TEAM_ID_TO_FIFA: Record<number, string> = {
-  13: "SEN",
-  14: "NED",
-  16: "ENG",
-  17: "POL",
-  18: "FRA",
-  19: "GER",
-  20: "POR",
-  21: "ESP",
-  22: "URU",
-  23: "ARG",
-  24: "BRA",
-  25: "MEX",
-  26: "USA",
-  27: "CRC",
-  29: "COL",
-  30: "JPN",
-  31: "KOR",
-  32: "MAR",
-  33: "TUN",
-  34: "EGY",
-  35: "IRN",
-  36: "AUS",
-  37: "SAU",
-  38: "CAN",
-  39: "ECU",
-  40: "QAT",
-  41: "SUI",
-  42: "SRB",
-  43: "DEN",
-  44: "WAL",
-  45: "CRO",
-  46: "BEL",
-  47: "ITA",
-  48: "AUT",
-  1500: "MEX",
-  1501: "USA",
-  1502: "CAN",
-};
-
 function resolveTeamCode(team: { id: number; name: string; code?: string | null }): string {
   if (team.code && /^[A-Za-z]{2,4}$/.test(team.code)) {
     return team.code.toUpperCase().slice(0, 3);
   }
-  const mapped = TEAM_ID_TO_FIFA[team.id];
-  if (mapped) return mapped;
-  const letters = team.name.replace(/[^A-Za-z]/g, "");
-  if (letters.length >= 3) return letters.slice(0, 3).toUpperCase();
-  return `T${team.id}`.slice(0, 3).toUpperCase();
+  return getTeamStorageCode(team.name);
 }
 
 function parseFaseAndGrupo(round: string | null | undefined): {
@@ -84,9 +40,10 @@ function parseFaseAndGrupo(round: string | null | undefined): {
   const r = round.toLowerCase();
 
   const groupMatch = r.match(/group\s+([a-l])/i);
-  if (groupMatch || r.includes("group")) {
+  if (groupMatch || r.includes("group stage") || r.includes("group")) {
     const grupo = groupMatch?.[1]?.toUpperCase() ?? null;
-    const jornadaMatch = r.match(/-?\s*(\d+)\s*$/);
+    const jornadaMatch =
+      r.match(/group\s+stage\s*-\s*(\d+)/i) ?? r.match(/-?\s*(\d+)\s*$/);
     return {
       fase: "grupos",
       grupo,
