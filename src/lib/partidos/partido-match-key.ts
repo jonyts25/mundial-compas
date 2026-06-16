@@ -1,6 +1,6 @@
 /** Normaliza nombres de selección para emparejar el mismo partido entre proveedores. */
 export function normalizeTeamNameForMatch(name: string): string {
-  return name
+  const normalized = name
     .trim()
     .toLowerCase()
     .normalize("NFD")
@@ -11,6 +11,25 @@ export function normalizeTeamNameForMatch(name: string): string {
     .replace(/^czechia$/i, "czech republic")
     .replace(/^curaçao$/i, "curacao")
     .replace(/\s+/g, " ");
+
+  return normalizeDrCongoAlias(normalized);
+}
+
+/** Congo DR / D.R. Congo / DR Congo → misma clave (apifootball vs api-sports). */
+function normalizeDrCongoAlias(name: string): string {
+  if (!name.includes("congo")) return name;
+
+  const isDrCongo =
+    name.includes("congo dr") ||
+    name.includes("dr congo") ||
+    name.includes("d.r. congo") ||
+    name.includes("d r congo") ||
+    name.includes("democratic republic") ||
+    name.includes("rep dem") ||
+    /^dr\.?\s*congo/.test(name);
+
+  if (isDrCongo) return "congo dr";
+  return name;
 }
 
 export function buildPartidoMatchKey(input: {
