@@ -2,6 +2,10 @@ import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { filterOutPilotPartidos } from "@/lib/apifootball/pilot-config";
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
 import {
+  dedupePartidosByMatchKey,
+  remapPronosticosToDedupedPartidos,
+} from "@/lib/partidos/partido-match-key";
+import {
   assertAuthenticatedUserId,
   createServerDataClient,
 } from "@/lib/supabase/server-data";
@@ -49,22 +53,35 @@ export async function fetchCalendarioPartidosData(
     throw new Error(pronosError.message);
   }
 
-  const partidosMundial = filterOutPilotPartidos(partidos ?? []);
+  const partidosMundial = filterOutPilotPartidos(partidos ?? []) as Partido[];
 
   const pronosticosGuardados: Record<string, boolean> = {};
   for (const p of pronosticos ?? []) {
     pronosticosGuardados[p.partido_id] = true;
   }
 
+  const partidosDeduped = dedupePartidosByMatchKey(partidosMundial, pronosticosGuardados);
+  const pronosticosRemapped = remapPronosticosToDedupedPartidos(
+    partidosDeduped,
+    partidosMundial,
+    Object.fromEntries(
+      Object.keys(pronosticosGuardados).map((id) => [id, { partido_id: id }]),
+    ),
+  );
+  const pronosticosGuardadosDeduped: Record<string, boolean> = {};
+  for (const id of Object.keys(pronosticosRemapped)) {
+    pronosticosGuardadosDeduped[id] = true;
+  }
+
   const diaSet = new Set<string>();
-  for (const p of partidosMundial) {
+  for (const p of partidosDeduped) {
     diaSet.add(toMexicoDateKey(p.fecha_kickoff));
   }
   const diasConPartidos = Array.from(diaSet).sort();
 
   return {
-    partidos: partidosMundial as Partido[],
-    pronosticosGuardados,
+    partidos: partidosDeduped,
+    pronosticosGuardados: pronosticosGuardadosDeduped,
     diasConPartidos,
   };
 }

@@ -8,7 +8,7 @@ import { searchLeaguesByKeyword } from "@/lib/apifootball/resolve-league";
 import { loadApiSportsFixtures } from "@/lib/api-football/cargar-fixtures";
 import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
 import { getAdminEnv, getApiFootballEnv, getFootballDataProvider } from "@/lib/env";
-import { mergePartidoUpsertRowsWithStoredMetadata } from "@/lib/partidos/merge-upsert-metadata";
+import { upsertPartidoRows } from "@/lib/partidos/upsert-partido-rows";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -177,26 +177,7 @@ export async function POST(request: Request) {
     });
 
     const supabase = createAdminClient();
-    const rowsToUpsert = await mergePartidoUpsertRowsWithStoredMetadata(supabase, rows);
-    const BATCH = 50;
-    let upserted = 0;
-    const batchErrors: string[] = [];
-
-    for (let i = 0; i < rowsToUpsert.length; i += BATCH) {
-      const batch = rowsToUpsert.slice(i, i + BATCH);
-      const batchNum = Math.floor(i / BATCH) + 1;
-
-      const { error } = await supabase.from("partidos").upsert(batch, {
-        onConflict: "api_football_fixture_id",
-        ignoreDuplicates: false,
-      });
-
-      if (error) {
-        batchErrors.push(`Lote ${batchNum}: ${error.message}`);
-      } else {
-        upserted += batch.length;
-      }
-    }
+    const { upserted, batchErrors } = await upsertPartidoRows(supabase, rows);
 
     if (batchErrors.length > 0) {
       return NextResponse.json(
@@ -296,26 +277,7 @@ async function cargarPartidosApiSports(
   });
 
   const supabase = createAdminClient();
-  const rowsToUpsert = await mergePartidoUpsertRowsWithStoredMetadata(supabase, rows);
-  const BATCH = 50;
-  let upserted = 0;
-  const batchErrors: string[] = [];
-
-  for (let i = 0; i < rowsToUpsert.length; i += BATCH) {
-    const batch = rowsToUpsert.slice(i, i + BATCH);
-    const batchNum = Math.floor(i / BATCH) + 1;
-
-    const { error } = await supabase.from("partidos").upsert(batch, {
-      onConflict: "api_football_fixture_id",
-      ignoreDuplicates: false,
-    });
-
-    if (error) {
-      batchErrors.push(`Lote ${batchNum}: ${error.message}`);
-    } else {
-      upserted += batch.length;
-    }
-  }
+  const { upserted, batchErrors } = await upsertPartidoRows(supabase, rows);
 
   if (batchErrors.length > 0) {
     return NextResponse.json(
