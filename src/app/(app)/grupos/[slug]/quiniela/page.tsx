@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { DisclaimerBlock } from "@/components/legal/DisclaimerBlock";
 import { QuinielaCompactHeader } from "@/components/quiniela/QuinielaCompactHeader";
+import { PronosticoFusionBanner } from "@/components/quiniela/PronosticoFusionBanner";
 import { DISCLAIMER_COOPERACHA } from "@/lib/legal/disclaimers";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
 import { QuinielaTipoFilters } from "@/components/quiniela/QuinielaTipoFilters";
@@ -10,6 +11,7 @@ import { fetchGrupoBySlug } from "@/lib/liga/grupos-queries";
 import { fetchQuinielaFilterOptions } from "@/lib/quiniela/filter-options";
 import { fetchQuinielaSelectorOptions } from "@/lib/quiniela/selector-options";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
+import { fetchPronosticoFusionPendientes } from "@/lib/quiniela/fusion-queries";
 import { createClient } from "@/lib/supabase/server";
 import type { FaseMundial } from "@/types/database";
 
@@ -58,7 +60,7 @@ export default async function GrupoQuinielaPage({ params, searchParams }: PagePr
   const jornada = parseJornada(sp.jornada);
   const fase = parseFase(sp.fase);
 
-  const [data, selectorOptions, filterOptions] = await Promise.all([
+  const [data, selectorOptions, filterOptions, fusionPendientes] = await Promise.all([
     fetchQuinielaData(user.id, {
       ligaId: grupo.id,
       tipoQuiniela: grupo.tipo_quiniela,
@@ -67,6 +69,7 @@ export default async function GrupoQuinielaPage({ params, searchParams }: PagePr
     }),
     fetchQuinielaSelectorOptions(user.id),
     fetchQuinielaFilterOptions(),
+    fetchPronosticoFusionPendientes(user.id, grupo.id),
   ]);
 
   return (
@@ -95,6 +98,8 @@ export default async function GrupoQuinielaPage({ params, searchParams }: PagePr
             faseActual={fase}
           />
         </Suspense>
+
+        <PronosticoFusionBanner pendientes={fusionPendientes} />
 
         <QuinielaList
           partidos={data.partidos}

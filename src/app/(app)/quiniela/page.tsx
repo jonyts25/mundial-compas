@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
 import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
+import { PronosticoFusionBanner } from "@/components/quiniela/PronosticoFusionBanner";
 import { QuinielaCompactHeader } from "@/components/quiniela/QuinielaCompactHeader";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchQuinielaSelectorOptions } from "@/lib/quiniela/selector-options";
+import { fetchPronosticoFusionPendientes } from "@/lib/quiniela/fusion-queries";
 import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
 import { fetchCompetenciaLiga } from "@/lib/liga/competencia-queries";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
@@ -24,7 +26,7 @@ export default async function QuinielaPage() {
     redirect("/login?next=/quiniela");
   }
 
-  const [data, competencia, pilot, selectorOptions] = await Promise.all([
+  const [data, competencia, pilot, selectorOptions, fusionPendientes] = await Promise.all([
     fetchQuinielaData(user.id),
     fetchCompetenciaLiga().catch(() => ({
       estado: "activa" as const,
@@ -37,6 +39,7 @@ export default async function QuinielaPage() {
     })),
     fetchPilotUiState(),
     fetchQuinielaSelectorOptions(user.id),
+    fetchPronosticoFusionPendientes(user.id),
   ]);
 
   return (
@@ -56,6 +59,8 @@ export default async function QuinielaPage() {
             partidosPilotCount={pilot.partidosPilotCount}
           />
         )}
+
+        <PronosticoFusionBanner pendientes={fusionPendientes} />
 
         <QuinielaList
           partidos={data.partidos}
