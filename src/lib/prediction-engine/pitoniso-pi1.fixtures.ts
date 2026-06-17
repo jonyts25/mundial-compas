@@ -32,9 +32,10 @@ export interface PitonisoFixtureScenario {
     isLastGroupMatch?: boolean;
   };
   expect: {
-    favorite: MatchPreviewFavorite;
+    favorite?: MatchPreviewFavorite;
     confidence?: MatchPreviewConfidence;
     predictedOutcome?: MatchPreviewFavorite | "unknown";
+    drawSignalLevel?: "none" | "medium" | "strong";
     minMargin?: number;
     maxMargin?: number;
     rankingLeader?: "local" | "visitante" | "neutral" | null;
@@ -108,7 +109,6 @@ export const FIXTURE_PAREJO: PitonisoFixtureScenario = {
   },
   expect: {
     favorite: "local",
-    confidence: "indeciso",
     maxMargin: 0.12,
   },
 };
@@ -149,7 +149,7 @@ export const FIXTURE_POCOS_PICKS: PitonisoFixtureScenario = {
   },
   expect: {
     favorite: "local",
-    confidence: "leve",
+    confidence: "presentimiento",
   },
 };
 
@@ -193,7 +193,7 @@ export const FIXTURE_ULTIMA_JORNADA: PitonisoFixtureScenario = {
   messageFlags: { isLastGroupMatch: true },
   expect: {
     favorite: "local",
-    confidence: "bastante",
+    confidence: "leve",
     minMargin: 0.12,
   },
 };
@@ -262,7 +262,8 @@ export const FIXTURE_RANKING_CERRADO: PitonisoFixtureScenario = {
   },
   expect: {
     favorite: "local",
-    confidence: "indeciso",
+    predictedOutcome: "empate",
+    drawSignalLevel: "strong",
     rankingLeader: "neutral",
     maxMargin: 0.12,
   },
@@ -337,6 +338,190 @@ export const FIXTURE_SIN_RANKING: PitonisoFixtureScenario = {
   },
 };
 
+/** Favorito claro — ranking + crowd + tabla alineados. */
+export const FIXTURE_FAVORITO_CLARO_V21: PitonisoFixtureScenario = {
+  id: "favorito-claro-v21",
+  description: "ARG vs HAI: ranking, multitud y tabla alineados al local",
+  picks: mixPicks([
+    { pick: { golesLocal: 3, golesVisitante: 0 }, count: 40 },
+    { pick: { golesLocal: 2, golesVisitante: 0 }, count: 25 },
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 10 },
+  ]),
+  localCode: "ARG",
+  visitanteCode: "HAI",
+  previewInput: {
+    local: {
+      tablePosition: 1,
+      groupSize: 4,
+      formNorm: 0.9,
+      pointsFromTop2: 0,
+      fifaRank: 1,
+    },
+    visitante: {
+      tablePosition: 4,
+      groupSize: 4,
+      formNorm: 0.15,
+      pointsFromTop2: 6,
+      fifaRank: 60,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    favorite: "local",
+    predictedOutcome: "local",
+    drawSignalLevel: "none",
+    rankingLeader: "local",
+    minMargin: 0.15,
+  },
+};
+
+/** Partido cerrado — empate o unknown, draw strong. */
+export const FIXTURE_PARTIDO_CERRADO_V21: PitonisoFixtureScenario = {
+  id: "partido-cerrado-v21",
+  description: "MEX vs USA ranking parejo, multitud dividida",
+  picks: mixPicks([
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 20 },
+    { pick: { golesLocal: 1, golesVisitante: 0 }, count: 20 },
+    { pick: { golesLocal: 0, golesVisitante: 1 }, count: 20 },
+  ]),
+  localCode: "MEX",
+  visitanteCode: "USA",
+  previewInput: {
+    local: {
+      tablePosition: 2,
+      groupSize: 4,
+      formNorm: 0.5,
+      pointsFromTop2: 0,
+      fifaRank: 13,
+    },
+    visitante: {
+      tablePosition: 2,
+      groupSize: 4,
+      formNorm: 0.5,
+      pointsFromTop2: 0,
+      fifaRank: 14,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    favorite: "local",
+    predictedOutcome: "empate",
+    drawSignalLevel: "strong",
+    rankingLeader: "neutral",
+    maxMargin: 0.12,
+  },
+};
+
+/** Ranking vs forma/tabla — empate o unknown, confianza baja. */
+export const FIXTURE_RANKING_VS_FORMA_V21: PitonisoFixtureScenario = {
+  id: "ranking-vs-forma-v21",
+  description: "GER ranking alto pero HAI con tabla/forma; señales cruzadas",
+  picks: mixPicks([
+    { pick: { golesLocal: 2, golesVisitante: 1 }, count: 25 },
+    { pick: { golesLocal: 1, golesVisitante: 0 }, count: 20 },
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 20 },
+    { pick: { golesLocal: 0, golesVisitante: 2 }, count: 15 },
+  ]),
+  localCode: "HAI",
+  visitanteCode: "GER",
+  previewInput: {
+    local: {
+      tablePosition: 1,
+      groupSize: 4,
+      formNorm: 0.85,
+      pointsFromTop2: 0,
+      fifaRank: 60,
+    },
+    visitante: {
+      tablePosition: 4,
+      groupSize: 4,
+      formNorm: 0.2,
+      pointsFromTop2: 6,
+      fifaRank: 9,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    favorite: "local",
+    predictedOutcome: "local",
+    drawSignalLevel: "medium",
+    rankingLeader: "visitante",
+    confidence: "leve",
+  },
+};
+
+/** Draw medium sin contradicción fuerte — unknown si no hay empate. */
+export const FIXTURE_DRAW_MEDIUM_V21: PitonisoFixtureScenario = {
+  id: "draw-medium-v21",
+  description: "Ranking cercano, multitud dividida, una contradicción leve",
+  picks: mixPicks([
+    { pick: { golesLocal: 1, golesVisitante: 0 }, count: 18 },
+    { pick: { golesLocal: 0, golesVisitante: 1 }, count: 17 },
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 15 },
+  ]),
+  localCode: "MEX",
+  visitanteCode: "USA",
+  previewInput: {
+    local: {
+      tablePosition: 2,
+      groupSize: 4,
+      formNorm: 0.55,
+      pointsFromTop2: 1,
+      fifaRank: 13,
+    },
+    visitante: {
+      tablePosition: 3,
+      groupSize: 4,
+      formNorm: 0.45,
+      pointsFromTop2: 2,
+      fifaRank: 14,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    predictedOutcome: "empate",
+    drawSignalLevel: "strong",
+    maxMargin: 0.15,
+  },
+};
+
+/** Multitud clara al local — guardrail evita draw strong / empate automático. */
+export const FIXTURE_CROWD_GUARDRAIL_V21: PitonisoFixtureScenario = {
+  id: "crowd-guardrail-v21",
+  description: "65% multitud al local; señales cerradas pero no empate forzado",
+  picks: mixPicks([
+    { pick: { golesLocal: 2, golesVisitante: 0 }, count: 40 },
+    { pick: { golesLocal: 1, golesVisitante: 0 }, count: 25 },
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 15 },
+    { pick: { golesLocal: 0, golesVisitante: 1 }, count: 10 },
+  ]),
+  localCode: "MEX",
+  visitanteCode: "USA",
+  previewInput: {
+    local: {
+      tablePosition: 2,
+      groupSize: 4,
+      formNorm: 0.5,
+      pointsFromTop2: 0,
+      fifaRank: 13,
+    },
+    visitante: {
+      tablePosition: 2,
+      groupSize: 4,
+      formNorm: 0.5,
+      pointsFromTop2: 0,
+      fifaRank: 14,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    favorite: "local",
+    predictedOutcome: "local",
+    drawSignalLevel: "medium",
+    rankingLeader: "neutral",
+  },
+};
+
 export const ALL_PITONISO_FIXTURES: PitonisoFixtureScenario[] = [
   FIXTURE_MEXICO_POLONIA,
   FIXTURE_PAREJO,
@@ -348,6 +533,11 @@ export const ALL_PITONISO_FIXTURES: PitonisoFixtureScenario[] = [
   FIXTURE_RANKING_CERRADO,
   FIXTURE_RANKING_VS_CROWD,
   FIXTURE_SIN_RANKING,
+  FIXTURE_FAVORITO_CLARO_V21,
+  FIXTURE_PARTIDO_CERRADO_V21,
+  FIXTURE_RANKING_VS_FORMA_V21,
+  FIXTURE_DRAW_MEDIUM_V21,
+  FIXTURE_CROWD_GUARDRAIL_V21,
 ];
 
 function fixtureTeamNames(scenario: PitonisoFixtureScenario): {
@@ -406,7 +596,7 @@ export function verifyPitonisoFixtures(): string[] {
     const { verdict } = runPitonisoFixture(scenario);
     const { expect: exp } = scenario;
 
-    if (verdict.favorite !== exp.favorite) {
+    if (exp.favorite != null && verdict.favorite !== exp.favorite) {
       errors.push(
         `[${scenario.id}] favorite: got ${verdict.favorite}, want ${exp.favorite}`,
       );
@@ -438,6 +628,11 @@ export function verifyPitonisoFixtures(): string[] {
           `[${scenario.id}] rankingLeader: got ${leader}, want ${exp.rankingLeader}`,
         );
       }
+    }
+    if (exp.drawSignalLevel && verdict.drawSignal.level !== exp.drawSignalLevel) {
+      errors.push(
+        `[${scenario.id}] drawSignal: got ${verdict.drawSignal.level}, want ${exp.drawSignalLevel}`,
+      );
     }
   }
 

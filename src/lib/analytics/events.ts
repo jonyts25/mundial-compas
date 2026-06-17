@@ -32,7 +32,9 @@ export type AnalyticsEventMap = {
     predicted_outcome: "local" | "empate" | "visitante" | "unknown";
     ranking_signal: "none" | "local" | "visitante" | "neutral";
     intuition_signal: string;
-    version: "pitoniso-v2-ranking";
+    version: "pitoniso-v2.1-draw";
+    draw_signal_level: "none" | "medium" | "strong";
+    draw_signal_reasons_count: number;
   };
   pitoniso_expanded: {
     partido_id: string;

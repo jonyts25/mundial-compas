@@ -61,6 +61,20 @@ export {
   matchPreviewWeights,
 } from "@/lib/sports-core/predictions/preview/match-preview";
 
+export {
+  computeDrawSignal,
+  countAlignedWinnerSignals,
+  crowdBlocksAutoDraw,
+  crowdClearByPopularOutcomeShare,
+  crowdDrawCoLeadsTop,
+  crowdLeaderShare,
+  CROWD_CLEAR_LEADER_SHARE,
+  hasCrowdClearLeader,
+  hasStrongContradiction,
+  type DrawSignal,
+  type DrawSignalLevel,
+} from "@/lib/sports-core/predictions/preview/draw-signal";
+
 export type {
   MatchPreviewSignals,
 } from "@/lib/sports-core/predictions/preview/match-preview";

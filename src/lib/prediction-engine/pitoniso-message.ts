@@ -144,6 +144,23 @@ function rankingPhrase(
   return null;
 }
 
+function drawPhrase(verdict: MatchPreviewVerdict): string | null {
+  const { drawSignal, predictedOutcome } = verdict;
+  if (predictedOutcome === "empate" && drawSignal.level === "strong") {
+    return "El Pitoniso ve este partido demasiado cerrado como para casarse con un ganador.";
+  }
+  if (predictedOutcome === "empate" && drawSignal.level === "medium") {
+    return "Las señales se estorban entre sí; el empate empieza a asomarse.";
+  }
+  if (drawSignal.level === "medium" && predictedOutcome === "unknown") {
+    return "El ranking inclina la balanza, pero no lo suficiente para dormir tranquilo.";
+  }
+  if (drawSignal.level === "strong" && predictedOutcome === "unknown") {
+    return "Aquí huele a empate travieso.";
+  }
+  return null;
+}
+
 function closingPhrase(confidence: MatchPreviewConfidence, favoriteName: string): string {
   switch (confidence) {
     case "indeciso":
@@ -247,10 +264,28 @@ export function buildPitonisoMessage(input: PitonisoMessageInput): PitonisoMessa
     );
   }
 
-  if (verdict.favorite === "empate") {
+  if (verdict.predictedOutcome === "empate") {
+    const drawLine = drawPhrase(verdict);
+    if (drawLine) {
+      parts.push(drawLine);
+    } else {
+      parts.push(
+        `A El Pitoniso le huele a partido cerrado: **${crowdPct}%** en la quiniela inclinan al empate y la tabla está pareja. Puede ser un día de empates y nervios.`,
+      );
+    }
+  } else if (verdict.predictedOutcome === "unknown") {
+    const drawLine = drawPhrase(verdict);
+    if (drawLine) parts.push(drawLine);
     parts.push(
-      `A El Pitoniso le huele a partido cerrado: **${crowdPct}%** en la quiniela inclinan al empate y la tabla está pareja. Puede ser un día de empates y nervios.`,
+      "El Pitoniso movió las cartas y sigue en duda. Típico partido donde cualquiera se complica la vida.",
     );
+    const popular = popularScoreLine(pickValueTop, verdict.mostPopularScore);
+    if (popular) parts.push(popular);
+    return {
+      message: parts.join(" "),
+      confidenceLabel: ui.label,
+      confidenceEmoji: ui.emoji,
+    };
   } else if (crowdVsFavorite && formFavorsAway && verdict.favorite === "visitante") {
     parts.push(
       `La multitud apunta hacia **${crowdSideName}** (**${crowdSidePct}%**), pero el torneo cuenta otra historia: **${awayName}** llega con mejor forma. El Pitoniso inclina hacia el visitante con cautela.`,
@@ -280,6 +315,11 @@ export function buildPitonisoMessage(input: PitonisoMessageInput): PitonisoMessa
   }
 
   parts.push(closingPhrase(verdict.confidence, favoriteName));
+
+  const drawLine = drawPhrase(verdict);
+  if (drawLine && verdict.predictedOutcome !== "empate") {
+    parts.push(drawLine);
+  }
 
   if (rankingSignal) {
     const rankLine = rankingPhrase(

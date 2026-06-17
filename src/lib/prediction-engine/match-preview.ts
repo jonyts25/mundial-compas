@@ -16,3 +16,8 @@ export {
   type MatchPreviewTeamInput,
   type MatchPreviewVerdict,
 } from "@/lib/sports-core/predictions/preview/match-preview";
+
+export type {
+  DrawSignal,
+  DrawSignalLevel,
+} from "@/lib/sports-core/predictions/preview/draw-signal";

@@ -1,5 +1,5 @@
 /**
- * Evaluación interna Pitoniso v2 — 1X2 vs resultados finalizados.
+ * Evaluación interna Pitoniso v2 / v2.1 — 1X2 vs resultados finalizados.
  *
  * Ejecutar: npx -y tsx scripts/evaluate-pitoniso-v2.ts
  *
@@ -28,7 +28,12 @@ import {
   getFifaRankingSignal,
   rankingSignalAnalyticsValue,
 } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
+import type { DrawSignalLevel } from "@/lib/sports-core/predictions/preview/draw-signal";
 import type { MatchPreviewConfidence } from "@/lib/sports-core/predictions/preview/match-preview";
+
+const V2_PREVIOUS_ACCURACY_PCT = 47.1;
+const V2_PREVIOUS_EVALUATED = 17;
+const V2_PREVIOUS_HITS = 8;
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -81,6 +86,7 @@ interface EvalRow {
   predicted: string;
   confidence: MatchPreviewConfidence;
   ranking_signal: string;
+  draw_signal: DrawSignalLevel;
   intuition: string;
   hit: boolean | null;
   fifa_baseline_hit: boolean | null;
@@ -131,12 +137,17 @@ async function main(): Promise<void> {
   const byConfidence = new Map<string, { hits: number; total: number }>();
   const byRanking = new Map<string, { hits: number; total: number }>();
   const byIntuition = new Map<string, { hits: number; total: number }>();
+  const byDrawSignal = new Map<string, { hits: number; total: number }>();
 
   let totalEvaluated = 0;
   let totalHits = 0;
   let skippedUnknown = 0;
   let fifaBaselineHits = 0;
   let fifaBaselineTotal = 0;
+  let actualDraws = 0;
+  let predictedDraws = 0;
+  let drawPredictedHits = 0;
+  let drawMissedAsWinner = 0;
 
   for (const p of partidos) {
     const ml = p.marcador_local as number;
@@ -209,6 +220,21 @@ async function main(): Promise<void> {
 
     const intuition = intuitionSeed(p.id as string);
     const rankingKey = rankingSignalAnalyticsValue(verdict.rankingSignal);
+    const drawKey = verdict.drawSignal.level;
+
+    if (actual === "empate") {
+      actualDraws += 1;
+      if (
+        verdict.predictedOutcome !== "empate" &&
+        verdict.predictedOutcome !== "unknown"
+      ) {
+        drawMissedAsWinner += 1;
+      }
+    }
+    if (verdict.predictedOutcome === "empate") {
+      predictedDraws += 1;
+      if (actual === "empate") drawPredictedHits += 1;
+    }
 
     const baseline = fifaBaselineOutcome(localCode, visitanteCode);
     if (baseline) {
@@ -225,6 +251,7 @@ async function main(): Promise<void> {
         predicted: "unknown",
         confidence: verdict.confidence,
         ranking_signal: rankingKey,
+        draw_signal: drawKey,
         intuition,
         hit: null,
         fifa_baseline_hit: baseline === actual,
@@ -246,6 +273,7 @@ async function main(): Promise<void> {
     bump(byConfidence, verdict.confidence);
     bump(byRanking, rankingKey);
     bump(byIntuition, intuition);
+    bump(byDrawSignal, drawKey);
 
     evalRows.push({
       partido_id: p.id as string,
@@ -254,22 +282,47 @@ async function main(): Promise<void> {
       predicted: verdict.predictedOutcome,
       confidence: verdict.confidence,
       ranking_signal: rankingKey,
+      draw_signal: drawKey,
       intuition,
       hit,
       fifa_baseline_hit: baseline === actual,
     });
   }
 
-  console.log("PITONISO V2 — Evaluación 1X2 (interna)\n");
+  const accuracyV21 = pct(totalHits, totalEvaluated);
+  const delta =
+    totalEvaluated > 0
+      ? (totalHits / totalEvaluated) * 100 - V2_PREVIOUS_ACCURACY_PCT
+      : 0;
+
+  console.log("PITONISO V2.1 — Evaluación 1X2 (interna)\n");
   console.log(`Partidos finalizados:     ${partidos.length}`);
   console.log(`Evaluados (≠ unknown):    ${totalEvaluated}`);
-  console.log(`Skipped (indeciso):       ${skippedUnknown}`);
+  console.log(`Skipped (unknown):        ${skippedUnknown}`);
   console.log(`Aciertos:                 ${totalHits}`);
-  console.log(`Accuracy Pitoniso v2:     ${pct(totalHits, totalEvaluated)}`);
+  console.log(`Accuracy Pitoniso v2.1:   ${accuracyV21}`);
+  console.log(
+    `Accuracy Pitoniso v2 (prev): ${V2_PREVIOUS_ACCURACY_PCT}% (${V2_PREVIOUS_HITS}/${V2_PREVIOUS_EVALUATED})`,
+  );
+  console.log(
+    `Delta vs v2:              ${delta >= 0 ? "+" : ""}${delta.toFixed(1)} pp`,
+  );
   console.log(
     `Baseline FIFA ranking:    ${pct(fifaBaselineHits, fifaBaselineTotal)} (${fifaBaselineHits}/${fifaBaselineTotal})`,
   );
 
+  console.log("\nEmpates (foco v2.1):");
+  console.log(`  Empates reales:                    ${actualDraws}`);
+  console.log(`  Predichos como empate:             ${predictedDraws}`);
+  console.log(`  Empates reales acertados (pred=empate): ${drawPredictedHits}`);
+  console.log(
+    `  Empates reales fallados (pred local/visitante): ${drawMissedAsWinner}`,
+  );
+
+  printTable(
+    "Accuracy por draw_signal",
+    [...byDrawSignal.entries()].map(([key, v]) => ({ key, ...v })),
+  );
   printTable(
     "Accuracy por confidence",
     [...byConfidence.entries()].map(([key, v]) => ({ key, ...v })),
@@ -283,9 +336,25 @@ async function main(): Promise<void> {
     [...byIntuition.entries()].map(([key, v]) => ({ key, ...v })),
   );
 
-  console.log("\nDetalle (últimos 15):");
+  const hits = evalRows.filter((r) => r.hit === true);
+  const misses = evalRows.filter((r) => r.hit === false);
+
+  console.log("\nAciertos:");
+  for (const row of hits) {
+    console.log(
+      `  ✓ ${row.partido} (${row.actual}) draw=${row.draw_signal} pred=${row.predicted}`,
+    );
+  }
+  console.log("\nFallos:");
+  for (const row of misses) {
+    console.log(
+      `  ✗ ${row.partido} (${row.actual}) draw=${row.draw_signal} pred=${row.predicted}`,
+    );
+  }
+
+  console.log("\nDetalle (últimos 10):");
   console.log("─".repeat(90));
-  for (const row of evalRows.slice(-15)) {
+  for (const row of evalRows.slice(-10)) {
     const mark = row.hit === null ? "—" : row.hit ? "✓" : "✗";
     console.log(
       `${mark} ${row.partido.padEnd(36)} actual=${row.actual.padEnd(10)} pred=${row.predicted.padEnd(10)} conf=${row.confidence}`,

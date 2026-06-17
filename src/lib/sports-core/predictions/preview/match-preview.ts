@@ -10,10 +10,24 @@
 
 import type { Outcome, PickAggregates, ScoreBucket } from "@/lib/insights/pick-aggregates";
 import {
+  buildPreviewSignalLeaders,
+  computeDrawSignal,
+  countAlignedWinnerSignals,
+  crowdBlocksAutoDraw,
+  crowdDrawCoLeadsTop,
+  crowdLeaderShare,
+  hasStrongContradiction,
+  type DrawSignal,
+} from "@/lib/sports-core/predictions/preview/draw-signal";
+import {
   fifaRankNorm,
   getFifaRankingSignal,
   type FifaRankingSignal,
 } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
+import {
+  analyzeSignalContradiction,
+  type SignalContradiction,
+} from "@/lib/sports-core/predictions/preview/signals";
 
 export const matchPreviewWeights = {
   crowd: 0.4,
@@ -84,13 +98,16 @@ export interface MatchPreviewScores {
 
 export interface MatchPreviewVerdict {
   favorite: MatchPreviewFavorite;
-  /** 1X2 explícito para evaluación interna; `unknown` si confianza indeciso. */
+  /** 1X2 explícito para evaluación interna. */
   predictedOutcome: MatchPreviewPredictedOutcome;
   confidence: MatchPreviewConfidence;
   margin: number;
   scores: MatchPreviewScores;
   signals: MatchPreviewSignals;
   rankingSignal: FifaRankingSignal | null;
+  drawSignal: DrawSignal;
+  signalContradiction: SignalContradiction;
+  alignedSignalCount: number;
   crowdSampleOk: boolean;
   totalPicks: number;
   mostPopularScore: ScoreBucket | null;
@@ -248,12 +265,181 @@ function nonCrowdAgreement(
   return count;
 }
 
+function hasStaticTournamentSignals(input: MatchPreviewInput): boolean {
+  return (
+    input.local.tablePosition != null ||
+    input.visitante.tablePosition != null ||
+    input.local.formNorm != null ||
+    input.visitante.formNorm != null ||
+    input.local.fifaRank != null ||
+    input.visitante.fifaRank != null
+  );
+}
+
+/** Evita empate automático en draw strong cuando multitud/modas favorecen ganador. */
+function shouldPreferWinnerOverStrongDraw(
+  signals: MatchPreviewSignals,
+  crowdSampleOk: boolean,
+  totalPicks: number,
+  favorite: MatchPreviewFavorite,
+  mostPopularOutcome: Outcome | null,
+): boolean {
+  if (!crowdSampleOk && totalPicks === 0) {
+    return true;
+  }
+
+  const { leader } = crowdLeaderShare(signals);
+  const modaAlignsWithFavorite =
+    mostPopularOutcome != null &&
+    mostPopularOutcome === leader &&
+    mostPopularOutcome === favorite;
+
+  if (crowdSampleOk && modaAlignsWithFavorite && crowdDrawCoLeadsTop(signals)) {
+    return true;
+  }
+
+  return false;
+}
+
 function resolvePredictedOutcome(
   favorite: MatchPreviewFavorite,
-  confidence: MatchPreviewConfidence,
+  margin: number,
+  drawSignal: DrawSignal,
+  contradiction: SignalContradiction,
+  signals: MatchPreviewSignals,
+  crowdSampleOk: boolean,
+  totalPicks: number,
+  hasStatic: boolean,
+  mostPopularOutcome: Outcome | null,
+  mostPopularOutcomeShare: number | null,
 ): MatchPreviewPredictedOutcome {
-  if (confidence === "indeciso") return "unknown";
+  if (totalPicks === 0 && !hasStatic) {
+    return "unknown";
+  }
+
+  const crowdBlocksDraw = crowdBlocksAutoDraw(
+    signals,
+    crowdSampleOk,
+    mostPopularOutcome,
+    mostPopularOutcomeShare,
+  );
+
+  if (drawSignal.level === "strong" && !crowdBlocksDraw) {
+    if (
+      favorite !== "empate" &&
+      shouldPreferWinnerOverStrongDraw(
+        signals,
+        crowdSampleOk,
+        totalPicks,
+        favorite,
+        mostPopularOutcome,
+      )
+    ) {
+      return favorite;
+    }
+    return "empate";
+  }
+
+  if (drawSignal.level === "medium" && !crowdBlocksDraw) {
+    if (hasStrongContradiction(contradiction)) {
+      return "empate";
+    }
+    if (contradiction.hasContradiction) {
+      return "unknown";
+    }
+    if (favorite !== "empate") {
+      return "unknown";
+    }
+  }
+
+  if (crowdBlocksDraw && drawSignal.level !== "none" && favorite !== "empate") {
+    return favorite;
+  }
+
+  if (!crowdSampleOk && totalPicks > 0 && drawSignal.level !== "none") {
+    return "unknown";
+  }
+
+  if (favorite === "empate") {
+    return "empate";
+  }
+
   return favorite;
+}
+
+function resolveConfidence(
+  margin: number,
+  crowdSampleOk: boolean,
+  favorite: MatchPreviewFavorite,
+  predictedOutcome: MatchPreviewPredictedOutcome,
+  drawSignal: DrawSignal,
+  alignedCount: number,
+  contradiction: SignalContradiction,
+  totalPicks: number,
+  hasStatic: boolean,
+): MatchPreviewConfidence {
+  if (totalPicks === 0 && !hasStatic) {
+    return "indeciso";
+  }
+
+  if (predictedOutcome === "unknown") {
+    if (drawSignal.level === "strong") {
+      return "indeciso";
+    }
+    return "indeciso";
+  }
+
+  if (predictedOutcome === "empate") {
+    if (drawSignal.level === "strong") {
+      return "presentimiento";
+    }
+    return "leve";
+  }
+
+  const strongContradiction = hasStrongContradiction(contradiction);
+  const mildContradiction = contradiction.hasContradiction;
+
+  if (
+    drawSignal.level === "none" &&
+    alignedCount >= 3 &&
+    !strongContradiction &&
+    margin >= 0.18 &&
+    crowdSampleOk
+  ) {
+    return "presentimiento";
+  }
+
+  if (
+    drawSignal.level === "none" &&
+    alignedCount >= 3 &&
+    !mildContradiction &&
+    margin >= 0.12
+  ) {
+    return "bastante";
+  }
+
+  if (
+    drawSignal.level === "none" &&
+    alignedCount >= 2 &&
+    margin >= 0.12 &&
+    !strongContradiction
+  ) {
+    return mildContradiction ? "bastante" : "presentimiento";
+  }
+
+  if (drawSignal.level === "medium" || mildContradiction || margin < 0.12) {
+    return "leve";
+  }
+
+  if (margin < 0.08) {
+    return "indeciso";
+  }
+
+  if (!crowdSampleOk) {
+    return "leve";
+  }
+
+  return favorite === "empate" ? "leve" : "bastante";
 }
 
 function resolveRankingSignal(input: MatchPreviewInput): FifaRankingSignal | null {
@@ -264,43 +450,6 @@ function resolveRankingSignal(input: MatchPreviewInput): FifaRankingSignal | nul
     return getFifaRankingSignal(input.localCode, input.visitanteCode);
   }
   return null;
-}
-
-function resolveConfidence(
-  margin: number,
-  crowdSampleOk: boolean,
-  favorite: MatchPreviewFavorite,
-  signals: MatchPreviewSignals,
-  nonCrowdAgreementCount: number,
-): MatchPreviewConfidence {
-  const formsNeutral =
-    Math.abs(signals.formLocal - DEFAULT_NORM) < 0.05 &&
-    Math.abs(signals.formAway - DEFAULT_NORM) < 0.05;
-
-  if (margin < 0.08 || (!crowdSampleOk && formsNeutral && margin < 0.12)) {
-    return "indeciso";
-  }
-
-  let confidence: MatchPreviewConfidence;
-  if (margin < 0.15) {
-    confidence = "leve";
-  } else if (margin < 0.25) {
-    confidence = crowdSampleOk ? "bastante" : "leve";
-  } else if (nonCrowdAgreementCount >= 2 && crowdSampleOk) {
-    confidence = "presentimiento";
-  } else {
-    confidence = "bastante";
-  }
-
-  if (!crowdSampleOk) {
-    confidence = "leve";
-  }
-
-  if (confidence === "presentimiento" && nonCrowdAgreementCount < 2) {
-    confidence = "bastante";
-  }
-
-  return confidence;
 }
 
 export function computeMatchPreviewVerdict(
@@ -350,14 +499,54 @@ export function computeMatchPreviewVerdict(
   const scores = computeScores(signals, hasRanking);
   const { favorite, margin } = favoriteFromScores(scores);
   const agreement = nonCrowdAgreement(favorite, signals, hasRanking);
+
+  const drawSignalInput = {
+    signals,
+    scores,
+    margin,
+    crowdSampleOk: crowd.sampleOk,
+    totalPicks: input.aggregates.total,
+    rankingSignal,
+    hasRanking,
+    local: input.local,
+    visitante: input.visitante,
+    mostPopularOutcome: input.aggregates.mostPopularOutcome?.outcome ?? null,
+    mostPopularOutcomeShare:
+      input.aggregates.mostPopularOutcome != null
+        ? input.aggregates.mostPopularOutcome.pct / 100
+        : null,
+  };
+  const drawSignal = computeDrawSignal(drawSignalInput);
+  const leaders = buildPreviewSignalLeaders(drawSignalInput);
+  const signalContradiction = analyzeSignalContradiction(leaders);
+  const alignedSignalCount = countAlignedWinnerSignals(leaders);
+  const hasStatic = hasStaticTournamentSignals(input);
+
+  const predictedOutcome = resolvePredictedOutcome(
+    favorite,
+    margin,
+    drawSignal,
+    signalContradiction,
+    signals,
+    crowd.sampleOk,
+    input.aggregates.total,
+    hasStatic,
+    input.aggregates.mostPopularOutcome?.outcome ?? null,
+    input.aggregates.mostPopularOutcome != null
+      ? input.aggregates.mostPopularOutcome.pct / 100
+      : null,
+  );
   const confidence = resolveConfidence(
     margin,
     crowd.sampleOk,
     favorite,
-    signals,
-    agreement,
+    predictedOutcome,
+    drawSignal,
+    alignedSignalCount,
+    signalContradiction,
+    input.aggregates.total,
+    hasStatic,
   );
-  const predictedOutcome = resolvePredictedOutcome(favorite, confidence);
 
   return {
     favorite,
@@ -367,6 +556,9 @@ export function computeMatchPreviewVerdict(
     scores,
     signals,
     rankingSignal,
+    drawSignal,
+    signalContradiction,
+    alignedSignalCount,
     crowdSampleOk: crowd.sampleOk,
     totalPicks: input.aggregates.total,
     mostPopularScore: input.aggregates.mostPopularScore,

@@ -231,7 +231,9 @@ export function PitonisoCard({
       predicted_outcome: computed.verdict.predictedOutcome,
       ranking_signal: rankingSignalAnalyticsValue(computed.verdict.rankingSignal),
       intuition_signal: computed.intuitionSignal,
-      version: "pitoniso-v2-ranking",
+      draw_signal_level: computed.verdict.drawSignal.level,
+      draw_signal_reasons_count: computed.verdict.drawSignal.reasons.length,
+      version: "pitoniso-v2.1-draw",
     });
   }, [computed, partidoId, ligaScope, aggError, aggregatesReady, ligaId]);
 
