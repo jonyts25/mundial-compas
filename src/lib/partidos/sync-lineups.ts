@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getApiFootballEnv } from "@/lib/env";
-import { fetchLineupsFromApi } from "@/lib/apifootball/fetch-lineups";
+import { fetchLineupsFromApiSports } from "@/lib/api-football/fetch-lineups";
+import { fetchLineupsFromApi as fetchLineupsFromApifootball } from "@/lib/apifootball/fetch-lineups";
 import { queuePartidoPushNotifications } from "@/lib/apifootball/webhook/notifications";
+import {
+  getApiFootballEnv,
+  getApiSportsEnv,
+  getFootballDataProvider,
+} from "@/lib/env";
 import {
   readLineupsFromMetadata,
   type PartidoLineups,
@@ -30,6 +35,26 @@ function shouldFetchAgain(existing: PartidoLineups | null): boolean {
   if (!existing) return true;
   const age = Date.now() - new Date(existing.fetchedAt).getTime();
   return age >= MIN_RETRY_MS;
+}
+
+async function fetchLineupsForFixture(
+  fixtureId: number,
+): Promise<PartidoLineups | null> {
+  if (getFootballDataProvider() === "api-sports") {
+    try {
+      const { apiKey } = getApiSportsEnv();
+      return await fetchLineupsFromApiSports(apiKey, fixtureId);
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const { apiKey } = getApiFootballEnv();
+    return await fetchLineupsFromApifootball(apiKey, fixtureId);
+  } catch {
+    return null;
+  }
 }
 
 export type SyncLineupsResult = {
@@ -82,19 +107,7 @@ export async function syncPartidoLineups(
     };
   }
 
-  let apiKey: string;
-  try {
-    apiKey = getApiFootballEnv().apiKey;
-  } catch {
-    return {
-      available: Boolean(cached),
-      lineups: cached,
-      fromCache: true,
-      skipped: "sin_api_key",
-    };
-  }
-
-  const fresh = await fetchLineupsFromApi(apiKey, fixtureId);
+  const fresh = await fetchLineupsForFixture(fixtureId);
   if (!fresh) {
     if (cached) {
       return { available: true, lineups: cached, fromCache: true };
@@ -127,7 +140,7 @@ export async function syncPartidoLineups(
       "alineaciones",
       `📋 Alineaciones: ${local} vs ${visitante}`,
       "Ya puedes ver titulares y banca en la app.",
-      { fuente: "get_lineups" },
+      { fuente: getFootballDataProvider() === "api-sports" ? "fixtures/lineups" : "get_lineups" },
     );
 
     lineups.notifiedAt = new Date().toISOString();
