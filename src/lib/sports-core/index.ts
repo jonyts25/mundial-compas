@@ -71,6 +71,7 @@ export {
   buildStaticSignalLeaders,
   leaderFromCrowdOutcomes,
   leaderFromForm,
+  leaderFromRanking,
   leaderFromTable,
   toMatchPreviewPhaseFlags,
 } from "@/lib/sports-core/predictions/preview/signals";

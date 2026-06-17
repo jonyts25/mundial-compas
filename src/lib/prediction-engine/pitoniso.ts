@@ -26,4 +26,10 @@ export {
   type PitonisoMessageInput,
 } from "./pitoniso-message";
 
+export {
+  intuitionCopy,
+  intuitionSeed,
+  type IntuitionSignal,
+} from "./pitoniso-intuition";
+
 export { computeMatchPreviewVerdict as computePitonisoVerdict } from "./match-preview";

@@ -11,6 +11,8 @@ import type {
   MatchPreviewFavorite,
   MatchPreviewVerdict,
 } from "@/lib/prediction-engine/match-preview";
+import type { IntuitionSignal } from "@/lib/prediction-engine/pitoniso-intuition";
+import type { FifaRankingSignal } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
 
 export const PITONISO_DISCLAIMER_SHORT =
   "Solo entretenimiento. El Pitoniso resume datos de la quiniela y del torneo; no es predicción real ni consejo de apuesta.";
@@ -28,6 +30,9 @@ export interface PitonisoMessageInput {
   localFormDebut?: boolean;
   awayFormDebut?: boolean;
   isLastGroupMatch?: boolean;
+  rankingSignal?: FifaRankingSignal | null;
+  intuitionSignal?: IntuitionSignal;
+  intuitionLine?: string | null;
 }
 
 export interface PitonisoMessage {
@@ -107,6 +112,38 @@ function popularScoreLine(
   return `El marcador más repetido en la quiniela: **${mostPopularScore.local}-${mostPopularScore.visitante}** (**${pickValueTop.scoreSharePct}%**). Eso es moda de picks, no un resultado asegurado — ojo ahí.`;
 }
 
+function rankingPhrase(
+  ranking: FifaRankingSignal,
+  homeName: string,
+  awayName: string,
+  verdictFavorite: MatchPreviewFavorite,
+): string | null {
+  const favoredName =
+    ranking.leader === "local"
+      ? homeName
+      : ranking.leader === "visitante"
+        ? awayName
+        : null;
+
+  if (!favoredName) return null;
+
+  const rankingVsVerdict =
+    ranking.leader !== "neutral" &&
+    verdictFavorite !== "empate" &&
+    ranking.leader !== verdictFavorite;
+
+  if (ranking.confidence === "high") {
+    return `El ranking mundial también le guiña el ojo a **${favoredName}**.`;
+  }
+  if (ranking.confidence === "medium") {
+    return `En el papel, **${favoredName}** llega mejor parado según el ranking FIFA.`;
+  }
+  if (rankingVsVerdict) {
+    return "El ranking dice una cosa, pero el Mundial suele burlarse de los papeles.";
+  }
+  return null;
+}
+
 function closingPhrase(confidence: MatchPreviewConfidence, favoriteName: string): string {
   switch (confidence) {
     case "indeciso":
@@ -134,6 +171,8 @@ export function buildPitonisoMessage(input: PitonisoMessageInput): PitonisoMessa
     localFormDebut,
     awayFormDebut,
     isLastGroupMatch,
+    rankingSignal,
+    intuitionLine,
   } = input;
 
   const ui = CONFIDENCE_UI[verdict.confidence];
@@ -241,6 +280,20 @@ export function buildPitonisoMessage(input: PitonisoMessageInput): PitonisoMessa
   }
 
   parts.push(closingPhrase(verdict.confidence, favoriteName));
+
+  if (rankingSignal) {
+    const rankLine = rankingPhrase(
+      rankingSignal,
+      homeName,
+      awayName,
+      verdict.favorite,
+    );
+    if (rankLine) parts.push(rankLine);
+  }
+
+  if (intuitionLine) {
+    parts.push(intuitionLine);
+  }
 
   const popular = popularScoreLine(pickValueTop, verdict.mostPopularScore);
   if (popular) parts.push(popular);

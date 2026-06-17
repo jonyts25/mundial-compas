@@ -29,6 +29,10 @@ export type AnalyticsEventMap = {
     confidence: "indeciso" | "leve" | "bastante" | "presentimiento";
     favorite: "local" | "empate" | "visitante";
     crowd_sample_ok: boolean;
+    predicted_outcome: "local" | "empate" | "visitante" | "unknown";
+    ranking_signal: "none" | "local" | "visitante" | "neutral";
+    intuition_signal: string;
+    version: "pitoniso-v2-ranking";
   };
   pitoniso_expanded: {
     partido_id: string;

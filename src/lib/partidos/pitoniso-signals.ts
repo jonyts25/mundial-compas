@@ -57,6 +57,8 @@ export interface PitonisoTeamStaticBundle {
   formDebut: boolean;
 }
 
+import type { FifaRankingSignal } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
+
 export interface PitonisoStaticContext {
   partido: PitonisoPartidoSnapshot;
   phase: import("@/lib/sports-core/predictions/preview/signals").PreviewPhaseFlags;
@@ -65,4 +67,5 @@ export interface PitonisoStaticContext {
   groupStandings: GroupMiniStandings | null;
   signalLeaders: import("@/lib/sports-core/predictions/preview/signals").SignalLeaders;
   staticSignalContradiction: import("@/lib/sports-core/predictions/preview/signals").SignalContradiction;
+  rankingSignal: FifaRankingSignal | null;
 }

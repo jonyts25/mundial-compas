@@ -20,7 +20,12 @@ import {
   PITONISO_DISCLAIMER_LONG,
   PITONISO_DISCLAIMER_SHORT,
 } from "@/lib/prediction-engine/pitoniso-message";
+import {
+  intuitionCopy,
+  intuitionSeed,
+} from "@/lib/prediction-engine/pitoniso-intuition";
 import { computePickValue } from "@/lib/prediction-engine/pick-value";
+import { rankingSignalAnalyticsValue } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
 import { fetchPronosticosPartidoAgregados } from "@/lib/quiniela/pronosticos-agregados-action";
 
 interface PitonisoCardProps {
@@ -40,6 +45,12 @@ function contradictionExtraLine(summary: PitonisoSignalSummary): string | null {
       return "La multitud ve una cosa, pero la tabla cuenta otra historia.";
     case "table_vs_form":
       return "La tabla dice una cosa, la forma reciente otra.";
+    case "crowd_vs_ranking":
+      return "La multitud y el ranking mundial no se ponen de acuerdo.";
+    case "table_vs_ranking":
+      return "La tabla y el ranking FIFA cuentan historias distintas.";
+    case "form_vs_ranking":
+      return "La racha del torneo y el ranking mundial no van a la par.";
     case "mixed":
       return "Las señales están cruzadas: multitud, tabla y forma no cuentan la misma historia.";
     default:
@@ -137,8 +148,19 @@ export function PitonisoCard({
       aggregates,
       local: staticContext.local.teamInput,
       visitante: staticContext.visitante.teamInput,
+      localCode: staticContext.partido.equipoLocalCodigo,
+      visitanteCode: staticContext.partido.equipoVisitanteCodigo,
+      rankingSignal: staticContext.rankingSignal,
       ...toMatchPreviewPhaseFlags(staticContext.phase),
     });
+
+    const intuitionSignal = intuitionSeed(partidoId);
+    const favoriteName = favoriteDisplayName(
+      verdict.favorite,
+      staticContext.partido.equipoLocalNombre,
+      staticContext.partido.equipoVisitanteNombre,
+    );
+    const intuitionLine = intuitionCopy(intuitionSignal, favoriteName);
 
     const top = aggregates.mostPopularScore;
     const pickValueTop = top
@@ -163,6 +185,7 @@ export function PitonisoCard({
       {
         table: staticContext.signalLeaders.table,
         form: staticContext.signalLeaders.form,
+        ranking: staticContext.signalLeaders.ranking,
       },
       crowdLeader,
     );
@@ -177,6 +200,9 @@ export function PitonisoCard({
       localFormDebut: staticContext.local.formDebut,
       awayFormDebut: staticContext.visitante.formDebut,
       isLastGroupMatch: staticContext.phase.isLastGroupMatch,
+      rankingSignal: staticContext.rankingSignal,
+      intuitionSignal,
+      intuitionLine,
     });
 
     const extraLine = contradictionExtraLine(signalContradiction.summary);
@@ -188,8 +214,9 @@ export function PitonisoCard({
       signalContradiction,
       extraLine,
       popularScore: top,
+      intuitionSignal,
     };
-  }, [picks, aggregatesReady, staticContext]);
+  }, [picks, aggregatesReady, staticContext, partidoId]);
 
   useEffect(() => {
     if (!computed || aggError || !aggregatesReady) return;
@@ -201,6 +228,10 @@ export function PitonisoCard({
       confidence: computed.verdict.confidence,
       favorite: computed.verdict.favorite,
       crowd_sample_ok: computed.verdict.crowdSampleOk,
+      predicted_outcome: computed.verdict.predictedOutcome,
+      ranking_signal: rankingSignalAnalyticsValue(computed.verdict.rankingSignal),
+      intuition_signal: computed.intuitionSignal,
+      version: "pitoniso-v2-ranking",
     });
   }, [computed, partidoId, ligaScope, aggError, aggregatesReady, ligaId]);
 

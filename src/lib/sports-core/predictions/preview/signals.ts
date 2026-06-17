@@ -7,6 +7,7 @@
  */
 
 import type { Outcome } from "@/lib/insights/pick-aggregates";
+import type { FifaRankingSignal } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
 import type {
   MatchPreviewInput,
   MatchPreviewTeamInput,
@@ -26,6 +27,7 @@ export interface SignalLeaders {
   crowd: Outcome | null;
   table: Outcome | null;
   form: Outcome | null;
+  ranking: Outcome | null;
 }
 
 /** @deprecated SC-6 — usar SignalLeaders */
@@ -34,7 +36,10 @@ export type PitonisoSignalLeaders = SignalLeaders;
 export type SignalConflict =
   | "crowd_vs_table"
   | "crowd_vs_form"
-  | "table_vs_form";
+  | "table_vs_form"
+  | "crowd_vs_ranking"
+  | "table_vs_ranking"
+  | "form_vs_ranking";
 
 /** @deprecated SC-6 */
 export type PitonisoSignalConflict = SignalConflict;
@@ -44,6 +49,9 @@ export type SignalSummary =
   | "crowd_vs_form"
   | "crowd_vs_table"
   | "table_vs_form"
+  | "crowd_vs_ranking"
+  | "table_vs_ranking"
+  | "form_vs_ranking"
   | "mixed";
 
 /** @deprecated SC-6 */
@@ -91,6 +99,12 @@ export function analyzeSignalContradiction(
   if (cvf) conflicts.push(cvf);
   const tvf = conflictKey(leaders.table, leaders.form, "table_vs_form");
   if (tvf) conflicts.push(tvf);
+  const cvr = conflictKey(leaders.crowd, leaders.ranking, "crowd_vs_ranking");
+  if (cvr) conflicts.push(cvr);
+  const tvr = conflictKey(leaders.table, leaders.ranking, "table_vs_ranking");
+  if (tvr) conflicts.push(tvr);
+  const fvr = conflictKey(leaders.form, leaders.ranking, "form_vs_ranking");
+  if (fvr) conflicts.push(fvr);
 
   let summary: SignalSummary = "aligned";
   if (conflicts.length >= 2) {
@@ -111,13 +125,14 @@ export function analyzeSignalContradiction(
 export const analyzePitonisoSignalContradiction = analyzeSignalContradiction;
 
 export function analyzeSignalContradictionWithCrowd(
-  staticLeaders: Pick<SignalLeaders, "table" | "form">,
+  staticLeaders: Pick<SignalLeaders, "table" | "form" | "ranking">,
   crowd: Outcome | null,
 ): SignalContradiction {
   return analyzeSignalContradiction({
     crowd,
     table: staticLeaders.table,
     form: staticLeaders.form,
+    ranking: staticLeaders.ranking,
   });
 }
 
@@ -163,13 +178,22 @@ export function leaderFromForm(
   return lf > af ? "local" : "visitante";
 }
 
+export function leaderFromRanking(
+  ranking: FifaRankingSignal | null,
+): Outcome | null {
+  if (!ranking || ranking.leader === "neutral") return null;
+  return ranking.leader === "local" ? "local" : "visitante";
+}
+
 export function buildStaticSignalLeaders(
   localInput: MatchPreviewTeamInput,
   visitanteInput: MatchPreviewTeamInput,
+  ranking?: FifaRankingSignal | null,
 ): SignalLeaders {
   return {
     crowd: null,
     table: leaderFromTable(localInput, visitanteInput),
     form: leaderFromForm(localInput, visitanteInput),
+    ranking: leaderFromRanking(ranking ?? null),
   };
 }

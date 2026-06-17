@@ -9,6 +9,11 @@
  */
 
 import type { Outcome, PickAggregates, ScoreBucket } from "@/lib/insights/pick-aggregates";
+import {
+  fifaRankNorm,
+  getFifaRankingSignal,
+  type FifaRankingSignal,
+} from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
 
 export const matchPreviewWeights = {
   crowd: 0.4,
@@ -16,6 +21,10 @@ export const matchPreviewWeights = {
   form: 0.25,
   context: 0.15,
 } as const;
+
+export const matchPreviewRankingWeight = 0.1 as const;
+
+export type MatchPreviewPredictedOutcome = MatchPreviewFavorite | "unknown";
 
 export const matchPreviewMinSample = 5;
 
@@ -32,6 +41,8 @@ export interface MatchPreviewTeamInput {
   groupSize: number | null;
   formNorm: number | null;
   pointsFromTop2: number | null;
+  /** Posición FIFA (snapshot estático); opcional. */
+  fifaRank?: number | null;
 }
 
 export interface MatchPreviewInput {
@@ -42,6 +53,11 @@ export interface MatchPreviewInput {
   isGroupPhase?: boolean;
   isLastGroupMatch?: boolean;
   minSample?: number;
+  /** Códigos de equipo para resolver señal FIFA si no se pasa `rankingSignal`. */
+  localCode?: string;
+  visitanteCode?: string;
+  /** Señal precalculada (p. ej. desde pitoniso-queries). */
+  rankingSignal?: FifaRankingSignal | null;
 }
 
 export interface MatchPreviewSignals {
@@ -56,6 +72,8 @@ export interface MatchPreviewSignals {
   ctxAway: number;
   drawTableBlend: number;
   drawFormBlend: number;
+  rankLocal: number;
+  rankAway: number;
 }
 
 export interface MatchPreviewScores {
@@ -66,10 +84,13 @@ export interface MatchPreviewScores {
 
 export interface MatchPreviewVerdict {
   favorite: MatchPreviewFavorite;
+  /** 1X2 explícito para evaluación interna; `unknown` si confianza indeciso. */
+  predictedOutcome: MatchPreviewPredictedOutcome;
   confidence: MatchPreviewConfidence;
   margin: number;
   scores: MatchPreviewScores;
   signals: MatchPreviewSignals;
+  rankingSignal: FifaRankingSignal | null;
   crowdSampleOk: boolean;
   totalPicks: number;
   mostPopularScore: ScoreBucket | null;
@@ -151,24 +172,37 @@ function drawBlend(a: number, b: number): number {
   return clamp01((1 - Math.abs(a - b)) * 0.5);
 }
 
-function computeScores(signals: MatchPreviewSignals): MatchPreviewScores {
+function computeScores(
+  signals: MatchPreviewSignals,
+  hasRanking: boolean,
+): MatchPreviewScores {
   const w = matchPreviewWeights;
+  const rw = matchPreviewRankingWeight;
+  const rankShare = hasRanking ? rw : 0;
+  const scale = hasRanking ? 1 - rankShare : 1;
+
   return {
     local:
-      w.crowd * signals.crowdLocal +
-      w.table * signals.tableLocal +
-      w.form * signals.formLocal +
-      w.context * signals.ctxLocal,
+      scale *
+        (w.crowd * signals.crowdLocal +
+          w.table * signals.tableLocal +
+          w.form * signals.formLocal +
+          w.context * signals.ctxLocal) +
+      (hasRanking ? rankShare * signals.rankLocal : 0),
     draw:
-      w.crowd * signals.crowdDraw +
-      w.table * signals.drawTableBlend +
-      w.form * signals.drawFormBlend +
-      w.context * 0.5,
+      scale *
+        (w.crowd * signals.crowdDraw +
+          w.table * signals.drawTableBlend +
+          w.form * signals.drawFormBlend +
+          w.context * 0.5) +
+      (hasRanking ? rankShare * 0.5 : 0),
     visitante:
-      w.crowd * signals.crowdAway +
-      w.table * signals.tableAway +
-      w.form * signals.formAway +
-      w.context * signals.ctxAway,
+      scale *
+        (w.crowd * signals.crowdAway +
+          w.table * signals.tableAway +
+          w.form * signals.formAway +
+          w.context * signals.ctxAway) +
+      (hasRanking ? rankShare * signals.rankAway : 0),
   };
 }
 
@@ -190,22 +224,46 @@ function favoriteFromScores(scores: MatchPreviewScores): {
 function nonCrowdAgreement(
   favorite: MatchPreviewFavorite,
   signals: MatchPreviewSignals,
+  hasRanking: boolean,
 ): number {
   let count = 0;
   if (favorite === "local") {
     if (signals.tableLocal >= signals.tableAway) count += 1;
     if (signals.formLocal >= signals.formAway) count += 1;
     if (signals.ctxLocal > signals.ctxAway) count += 1;
+    if (hasRanking && signals.rankLocal >= signals.rankAway) count += 1;
   } else if (favorite === "visitante") {
     if (signals.tableAway >= signals.tableLocal) count += 1;
     if (signals.formAway >= signals.formLocal) count += 1;
     if (signals.ctxAway > signals.ctxLocal) count += 1;
+    if (hasRanking && signals.rankAway >= signals.rankLocal) count += 1;
   } else {
     if (signals.drawTableBlend >= 0.4) count += 1;
     if (signals.drawFormBlend >= 0.4) count += 1;
     if (Math.abs(signals.crowdDraw - NEUTRAL) <= 0.08) count += 1;
+    if (hasRanking && Math.abs(signals.rankLocal - signals.rankAway) < 0.05) {
+      count += 1;
+    }
   }
   return count;
+}
+
+function resolvePredictedOutcome(
+  favorite: MatchPreviewFavorite,
+  confidence: MatchPreviewConfidence,
+): MatchPreviewPredictedOutcome {
+  if (confidence === "indeciso") return "unknown";
+  return favorite;
+}
+
+function resolveRankingSignal(input: MatchPreviewInput): FifaRankingSignal | null {
+  if (input.rankingSignal !== undefined) {
+    return input.rankingSignal;
+  }
+  if (input.localCode && input.visitanteCode) {
+    return getFifaRankingSignal(input.localCode, input.visitanteCode);
+  }
+  return null;
 }
 
 function resolveConfidence(
@@ -263,6 +321,16 @@ export function computeMatchPreviewVerdict(
   const drawTableBlend = drawBlend(tableLocal, tableAway);
   const drawFormBlend = drawBlend(formLocal, formAway);
 
+  const rankingSignal = resolveRankingSignal(input);
+  const localFifaRank =
+    input.local.fifaRank ?? rankingSignal?.localRank ?? null;
+  const visitanteFifaRank =
+    input.visitante.fifaRank ?? rankingSignal?.visitanteRank ?? null;
+  const hasRanking =
+    rankingSignal != null && localFifaRank != null && visitanteFifaRank != null;
+  const rankLocal = hasRanking ? fifaRankNorm(localFifaRank) : DEFAULT_NORM;
+  const rankAway = hasRanking ? fifaRankNorm(visitanteFifaRank) : DEFAULT_NORM;
+
   const signals: MatchPreviewSignals = {
     crowdLocal: crowd.local,
     crowdDraw: crowd.draw,
@@ -275,11 +343,13 @@ export function computeMatchPreviewVerdict(
     ctxAway,
     drawTableBlend,
     drawFormBlend,
+    rankLocal,
+    rankAway,
   };
 
-  const scores = computeScores(signals);
+  const scores = computeScores(signals, hasRanking);
   const { favorite, margin } = favoriteFromScores(scores);
-  const agreement = nonCrowdAgreement(favorite, signals);
+  const agreement = nonCrowdAgreement(favorite, signals, hasRanking);
   const confidence = resolveConfidence(
     margin,
     crowd.sampleOk,
@@ -287,13 +357,16 @@ export function computeMatchPreviewVerdict(
     signals,
     agreement,
   );
+  const predictedOutcome = resolvePredictedOutcome(favorite, confidence);
 
   return {
     favorite,
+    predictedOutcome,
     confidence,
     margin,
     scores,
     signals,
+    rankingSignal,
     crowdSampleOk: crowd.sampleOk,
     totalPicks: input.aggregates.total,
     mostPopularScore: input.aggregates.mostPopularScore,

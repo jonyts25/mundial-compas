@@ -5,6 +5,7 @@
  * Ejecutar: npx -y tsx scripts/verify-pitoniso-pi1.ts
  */
 
+import { getFifaRankingSignal } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
 import {
   computePickAggregates,
   type PickInput,
@@ -23,6 +24,8 @@ export interface PitonisoFixtureScenario {
   description: string;
   picks: PickInput[];
   previewInput: Omit<MatchPreviewInput, "aggregates">;
+  localCode?: string;
+  visitanteCode?: string;
   messageFlags?: {
     localFormDebut?: boolean;
     awayFormDebut?: boolean;
@@ -31,8 +34,10 @@ export interface PitonisoFixtureScenario {
   expect: {
     favorite: MatchPreviewFavorite;
     confidence?: MatchPreviewConfidence;
+    predictedOutcome?: MatchPreviewFavorite | "unknown";
     minMargin?: number;
     maxMargin?: number;
+    rankingLeader?: "local" | "visitante" | "neutral" | null;
   };
 }
 
@@ -193,6 +198,145 @@ export const FIXTURE_ULTIMA_JORNADA: PitonisoFixtureScenario = {
   },
 };
 
+/** Favorito claro por ranking FIFA (ARG vs HAI). */
+export const FIXTURE_RANKING_CLARO: PitonisoFixtureScenario = {
+  id: "ranking-favorito-claro",
+  description: "Ranking FIFA muy favorable al local (ARG 1 vs HAI 60)",
+  picks: mixPicks([
+    { pick: { golesLocal: 2, golesVisitante: 0 }, count: 12 },
+    { pick: { golesLocal: 1, golesVisitante: 0 }, count: 8 },
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 5 },
+  ]),
+  localCode: "ARG",
+  visitanteCode: "HAI",
+  previewInput: {
+    local: {
+      tablePosition: null,
+      groupSize: null,
+      formNorm: 0.5,
+      pointsFromTop2: null,
+      fifaRank: 1,
+    },
+    visitante: {
+      tablePosition: null,
+      groupSize: null,
+      formNorm: 0.5,
+      pointsFromTop2: null,
+      fifaRank: 60,
+    },
+  },
+  expect: {
+    favorite: "local",
+    rankingLeader: "local",
+    minMargin: 0.1,
+  },
+};
+
+/** Ranking FIFA casi empatado (MEX vs USA). */
+export const FIXTURE_RANKING_CERRADO: PitonisoFixtureScenario = {
+  id: "ranking-cerrado",
+  description: "Ranking FIFA muy parejo (MEX 13 vs USA 14)",
+  picks: mixPicks([
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 20 },
+    { pick: { golesLocal: 1, golesVisitante: 0 }, count: 20 },
+    { pick: { golesLocal: 0, golesVisitante: 1 }, count: 20 },
+  ]),
+  localCode: "MEX",
+  visitanteCode: "USA",
+  previewInput: {
+    local: {
+      tablePosition: 2,
+      groupSize: 4,
+      formNorm: 0.5,
+      pointsFromTop2: 0,
+      fifaRank: 13,
+    },
+    visitante: {
+      tablePosition: 2,
+      groupSize: 4,
+      formNorm: 0.5,
+      pointsFromTop2: 0,
+      fifaRank: 14,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    favorite: "local",
+    confidence: "indeciso",
+    rankingLeader: "neutral",
+    maxMargin: 0.12,
+  },
+};
+
+/** Ranking contradice multitud y forma. */
+export const FIXTURE_RANKING_VS_CROWD: PitonisoFixtureScenario = {
+  id: "ranking-vs-crowd-form",
+  description: "Multitud y forma al local; ranking FIFA al visitante (GER)",
+  picks: mixPicks([
+    { pick: { golesLocal: 2, golesVisitante: 1 }, count: 35 },
+    { pick: { golesLocal: 2, golesVisitante: 0 }, count: 30 },
+    { pick: { golesLocal: 1, golesVisitante: 1 }, count: 10 },
+    { pick: { golesLocal: 0, golesVisitante: 2 }, count: 5 },
+  ]),
+  localCode: "HAI",
+  visitanteCode: "GER",
+  previewInput: {
+    local: {
+      tablePosition: 1,
+      groupSize: 4,
+      formNorm: 0.9,
+      pointsFromTop2: 0,
+      fifaRank: 60,
+    },
+    visitante: {
+      tablePosition: 4,
+      groupSize: 4,
+      formNorm: 0.2,
+      pointsFromTop2: 6,
+      fifaRank: 9,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    favorite: "local",
+    rankingLeader: "visitante",
+    minMargin: 0.05,
+  },
+};
+
+/** Equipo sin ranking en snapshot. */
+export const FIXTURE_SIN_RANKING: PitonisoFixtureScenario = {
+  id: "equipo-sin-ranking",
+  description: "Código fuera del snapshot — se ignora señal FIFA",
+  picks: mixPicks([
+    { pick: { golesLocal: 2, golesVisitante: 0 }, count: 8 },
+    { pick: { golesLocal: 1, golesVisitante: 0 }, count: 7 },
+  ]),
+  localCode: "ZZZ",
+  visitanteCode: "MEX",
+  previewInput: {
+    local: {
+      tablePosition: 1,
+      groupSize: 4,
+      formNorm: 0.8,
+      pointsFromTop2: 0,
+      fifaRank: null,
+    },
+    visitante: {
+      tablePosition: 4,
+      groupSize: 4,
+      formNorm: 0.2,
+      pointsFromTop2: 5,
+      fifaRank: 13,
+    },
+    isGroupPhase: true,
+  },
+  expect: {
+    favorite: "local",
+    rankingLeader: null,
+  },
+};
+
 export const ALL_PITONISO_FIXTURES: PitonisoFixtureScenario[] = [
   FIXTURE_MEXICO_POLONIA,
   FIXTURE_PAREJO,
@@ -200,25 +344,56 @@ export const ALL_PITONISO_FIXTURES: PitonisoFixtureScenario[] = [
   FIXTURE_POCOS_PICKS,
   FIXTURE_MULTITUD_VS_FORMA,
   FIXTURE_ULTIMA_JORNADA,
+  FIXTURE_RANKING_CLARO,
+  FIXTURE_RANKING_CERRADO,
+  FIXTURE_RANKING_VS_CROWD,
+  FIXTURE_SIN_RANKING,
 ];
+
+function fixtureTeamNames(scenario: PitonisoFixtureScenario): {
+  homeName: string;
+  awayName: string;
+} {
+  const names: Record<string, string> = {
+    ARG: "Argentina",
+    MEX: "México",
+    USA: "Estados Unidos",
+    GER: "Alemania",
+    HAI: "Haití",
+    POL: "Polonia",
+  };
+  return {
+    homeName: names[scenario.localCode ?? ""] ?? "Local",
+    awayName: names[scenario.visitanteCode ?? ""] ?? "Visitante",
+  };
+}
 
 export function runPitonisoFixture(scenario: PitonisoFixtureScenario) {
   const aggregates = computePickAggregates(scenario.picks, null);
+  const rankingSignal =
+    scenario.localCode && scenario.visitanteCode
+      ? getFifaRankingSignal(scenario.localCode, scenario.visitanteCode)
+      : null;
   const verdict = computeMatchPreviewVerdict({
     aggregates,
     ...scenario.previewInput,
+    localCode: scenario.localCode,
+    visitanteCode: scenario.visitanteCode,
+    rankingSignal,
   });
   const top = aggregates.mostPopularScore;
   const pickValueTop = top
     ? computePickValue(aggregates, { local: top.local, visitante: top.visitante })
     : null;
+  const { homeName, awayName } = fixtureTeamNames(scenario);
   const message = buildPitonisoMessage({
     verdict,
-    homeName: "México",
-    awayName: "Polonia",
+    homeName,
+    awayName,
     pickValueTop,
     localTablePosition: scenario.previewInput.local.tablePosition,
     awayTablePosition: scenario.previewInput.visitante.tablePosition,
+    rankingSignal: verdict.rankingSignal,
     ...scenario.messageFlags,
   });
   return { aggregates, verdict, pickValueTop, message };
@@ -250,6 +425,19 @@ export function verifyPitonisoFixtures(): string[] {
       errors.push(
         `[${scenario.id}] margin ${verdict.margin.toFixed(3)} > max ${exp.maxMargin}`,
       );
+    }
+    if (exp.predictedOutcome && verdict.predictedOutcome !== exp.predictedOutcome) {
+      errors.push(
+        `[${scenario.id}] predictedOutcome: got ${verdict.predictedOutcome}, want ${exp.predictedOutcome}`,
+      );
+    }
+    if (exp.rankingLeader !== undefined) {
+      const leader = verdict.rankingSignal?.leader ?? null;
+      if (leader !== exp.rankingLeader) {
+        errors.push(
+          `[${scenario.id}] rankingLeader: got ${leader}, want ${exp.rankingLeader}`,
+        );
+      }
     }
   }
 

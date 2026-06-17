@@ -14,6 +14,8 @@ import {
   type TeamCompetitionForm,
 } from "@/lib/prediction-engine/team-competition-form";
 import { createClient } from "@/lib/supabase/server";
+import { lookupFifaRank } from "@/lib/sports-core/data/fifa-ranking-2026-06";
+import { getFifaRankingSignal } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
 import type { FaseMundial } from "@/types/database";
 import {
   analyzePitonisoSignalContradiction,
@@ -47,12 +49,15 @@ function buildTeamInput(
   standing: GroupMiniStandings["local"] | null,
   form: TeamCompetitionForm,
   groupSize: number | null,
+  teamCode: string,
 ): MatchPreviewTeamInput {
+  const fifaEntry = lookupFifaRank(teamCode);
   return {
     tablePosition: standing?.position ?? null,
     groupSize,
     formNorm: form.formNorm,
     pointsFromTop2: standing?.pointsFromTop2 ?? null,
+    fifaRank: fifaEntry?.rank ?? null,
   };
 }
 
@@ -141,14 +146,25 @@ export async function fetchPitonisoStaticContext(
     groupStandings?.local ?? null,
     localForm,
     groupSize,
+    snapshot.equipoLocalCodigo,
   );
   const visitanteInput = buildTeamInput(
     groupStandings?.visitante ?? null,
     visitanteForm,
     groupSize,
+    snapshot.equipoVisitanteCodigo,
   );
 
-  const signalLeaders = buildStaticSignalLeaders(localInput, visitanteInput);
+  const rankingSignal = getFifaRankingSignal(
+    snapshot.equipoLocalCodigo,
+    snapshot.equipoVisitanteCodigo,
+  );
+
+  const signalLeaders = buildStaticSignalLeaders(
+    localInput,
+    visitanteInput,
+    rankingSignal,
+  );
   const staticSignalContradiction =
     analyzePitonisoSignalContradiction(signalLeaders);
 
@@ -176,6 +192,7 @@ export async function fetchPitonisoStaticContext(
       groupStandings,
       signalLeaders,
       staticSignalContradiction,
+      rankingSignal,
     },
   };
 }

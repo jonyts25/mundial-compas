@@ -38,7 +38,7 @@ function qaCrowdVsForm(): void {
     aggregates.outcomes.find((o) => o.outcome === "visitante")?.pct ?? 0,
   );
   const contradiction = analyzePitonisoSignalContradictionWithCrowd(
-    { table: "visitante", form: "visitante" },
+    { table: "visitante", form: "visitante", ranking: null },
     crowdLeader,
   );
   assert(crowdLeader === "local", "crowd vs form: multitud favorece local");
