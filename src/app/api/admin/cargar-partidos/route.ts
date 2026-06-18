@@ -9,6 +9,7 @@ import { loadApiSportsFixtures } from "@/lib/api-football/cargar-fixtures";
 import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
 import { getAdminEnv, getApiFootballEnv, getFootballDataProvider } from "@/lib/env";
 import { upsertPartidoRows } from "@/lib/partidos/upsert-partido-rows";
+import { withSeasonIdRows } from "@/lib/partidos/with-season-id";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -177,7 +178,10 @@ export async function POST(request: Request) {
     });
 
     const supabase = createAdminClient();
-    const { upserted, batchErrors } = await upsertPartidoRows(supabase, rows);
+    const { upserted, batchErrors } = await upsertPartidoRows(
+      supabase,
+      withSeasonIdRows(rows),
+    );
 
     if (batchErrors.length > 0) {
       return NextResponse.json(
@@ -277,7 +281,10 @@ async function cargarPartidosApiSports(
   });
 
   const supabase = createAdminClient();
-  const { upserted, batchErrors } = await upsertPartidoRows(supabase, rows);
+  const { upserted, batchErrors } = await upsertPartidoRows(
+    supabase,
+    withSeasonIdRows(rows),
+  );
 
   if (batchErrors.length > 0) {
     return NextResponse.json(

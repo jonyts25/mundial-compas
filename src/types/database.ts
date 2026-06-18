@@ -53,6 +53,7 @@ export interface Partido {
   canal_transmision: CanalTransmision;
   minuto_actual: number | null;
   metadata?: Record<string, unknown> | null;
+  season_id?: string | null;
 }
 
 export type TipoMensajeChat =

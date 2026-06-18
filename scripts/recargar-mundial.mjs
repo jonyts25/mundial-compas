@@ -5,6 +5,8 @@
 import { readFileSync } from "fs";
 import { createClient } from "@supabase/supabase-js";
 
+const DEFAULT_SEASON_ID = "b0000000-0000-4000-8000-000000000002";
+
 function loadEnv() {
   const raw = readFileSync(".env.local", "utf8");
   for (const line of raw.split("\n")) {
@@ -146,6 +148,7 @@ function mapRow(ev, timezone) {
         timezone,
       },
     },
+    season_id: DEFAULT_SEASON_ID,
   };
 }
 

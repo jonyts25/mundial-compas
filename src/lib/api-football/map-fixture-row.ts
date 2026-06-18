@@ -21,6 +21,7 @@ export interface PartidoUpsertRow {
   canal_transmision: "sin_asignar";
   minuto_actual: number | null;
   metadata: Record<string, unknown>;
+  season_id?: string | null;
 }
 
 function resolveTeamCode(team: { id: number; name: string; code?: string | null }): string {

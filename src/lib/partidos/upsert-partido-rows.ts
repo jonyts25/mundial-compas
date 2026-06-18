@@ -7,6 +7,7 @@ import {
   parseJornadaFromRound,
   resolveGrupoFromTeams,
 } from "@/lib/partidos/world-cup-group-lookup";
+import { withSeasonId } from "@/lib/partidos/with-season-id";
 import { getApiSportsEnv } from "@/lib/env";
 
 type PartidoUpsertRow = {
@@ -18,6 +19,7 @@ type PartidoUpsertRow = {
   fase?: string;
   grupo?: string | null;
   jornada?: number | null;
+  season_id?: string | null;
 };
 
 export async function upsertPartidoRows<T extends PartidoUpsertRow>(
@@ -52,7 +54,7 @@ export async function upsertPartidoRows<T extends PartidoUpsertRow>(
     const jornada =
       row.jornada ??
       parseJornadaFromRound(typeof round === "string" ? round : null);
-    return { ...row, grupo, jornada };
+    return withSeasonId({ ...row, grupo, jornada });
   };
 
   const batchErrors: string[] = [];

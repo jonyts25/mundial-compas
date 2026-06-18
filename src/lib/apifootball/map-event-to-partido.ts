@@ -27,6 +27,7 @@ export interface PartidoUpsertRow {
   marcador_visitante: number | null;
   minuto_actual: number | null;
   metadata: Record<string, unknown>;
+  season_id?: string | null;
 }
 
 function parseScore(value: string | undefined): number | null {
