@@ -2,8 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { metadataPartidoGlobal } from "@/lib/chat/scopes";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { isOwnGoalFromDetail } from "@/lib/api-football/goal-event-detail";
-import { generarFraseAutogol } from "@/lib/api-football/narradores/frases-autogol";
-import { generarFraseGol } from "@/lib/api-football/narradores/frases-gol";
 import {
   extractScoreFromPayload,
   extractTeamNames,
@@ -13,19 +11,20 @@ import {
   goalScoreKey,
   isGoalAlreadyNotified,
 } from "@/lib/api-football/goal-notify-state";
-import { queuePartidoPushNotifications } from "@/lib/apifootball/webhook/notifications";
+import { tryClaimLiveEvent } from "@/lib/api-football/push/claim-event";
+import { queuePartidoPushNotifications } from "@/lib/api-football/push/notifications";
+import { buildGoalPushTitle } from "@/lib/api-football/push/push-score";
+import { generarNarracionGol } from "@/lib/narracion/comentaristas";
+import { displayTeamPair } from "@/lib/teams/display-names";
 import type { ApiFootballWebhookPayload, WebhookHandlerResult } from "@/types/api-football";
 
 interface OnGoalContext {
   supabase: SupabaseClient;
   partidoId: string;
   payload: ApiFootballWebhookPayload;
+  period?: import("@/lib/partidos/match-clock").MatchPeriod;
 }
 
-/**
- * Actualiza marcador, inyecta mensaje de cronista (evento_partido) en todas las ligas
- * activas del partido vía chat de la liga global + notificaciones pendientes.
- */
 export async function handleGoalEvent(
   ctx: OnGoalContext,
 ): Promise<WebhookHandlerResult> {
@@ -35,9 +34,12 @@ export async function handleGoalEvent(
     return { ok: false, message: "Payload sin marcador válido" };
   }
 
+  const marcadorKey = goalScoreKey(score.local, score.visitante);
+  const eventKey = `gol-${marcadorKey}`;
+
   const { data: partido, error: readError } = await supabase
     .from("partidos")
-    .select("metadata")
+    .select("metadata, equipo_local_nombre, equipo_visitante_nombre")
     .eq("id", partidoId)
     .maybeSingle();
 
@@ -45,31 +47,19 @@ export async function handleGoalEvent(
     return { ok: false, message: readError.message };
   }
 
-  const marcadorKey = goalScoreKey(score.local, score.visitante);
-
   if (isGoalAlreadyNotified(partido?.metadata, score.local, score.visitante)) {
     return { ok: true, message: "Gol ya notificado" };
   }
 
-  const { count: chatDupCount } = await supabase
-    .from("mensajes_chat")
-    .select("id", { count: "exact", head: true })
-    .eq("partido_id", partidoId)
-    .eq("tipo", "evento_partido")
-    .contains("metadata", { marcador: marcadorKey });
-
-  if (chatDupCount && chatDupCount > 0) {
-    await supabase
-      .from("partidos")
-      .update({
-        metadata: buildGolNotifyMetadata(partido?.metadata, score.local, score.visitante),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", partidoId);
-    return { ok: true, message: "Gol ya notificado (chat)" };
+  if (!(await tryClaimLiveEvent(supabase, partidoId, eventKey, "gol"))) {
+    return { ok: true, message: "Gol ya notificado (claim)" };
   }
 
-  const teams = extractTeamNames(payload);
+  const teamsRaw = extractTeamNames(payload);
+  const dbLocal = String(partido?.equipo_local_nombre ?? teamsRaw.local);
+  const dbVisitante = String(partido?.equipo_visitante_nombre ?? teamsRaw.visitante);
+  const teams = displayTeamPair(dbLocal, dbVisitante);
+
   const goleador =
     payload.goal?.player?.name ??
     payload.goal?.team?.name ??
@@ -77,6 +67,30 @@ export async function handleGoalEvent(
   const minuto = payload.goal?.time?.elapsed ?? payload.fixture?.status?.elapsed ?? null;
   const esAutogol = isOwnGoalFromDetail(payload.goal?.detail);
   const equipoPropio = payload.goal?.team?.name ?? null;
+
+  const narracion = generarNarracionGol({
+    local: teams.local,
+    visitante: teams.visitante,
+    marcadorLocal: score.local,
+    marcadorVisitante: score.visitante,
+    goleador: goleador ?? "el delantero",
+    equipo: equipoPropio ?? teams.local,
+    minuto,
+    isOwnGoal: esAutogol,
+    isPenalty: (payload.goal?.detail ?? "").toLowerCase().includes("penalty"),
+  });
+
+  const pushTitulo = esAutogol
+    ? `⚽ Autogol: ${teams.local} ${score.local}-${score.visitante} ${teams.visitante}`
+    : buildGoalPushTitle({
+        localName: dbLocal,
+        visitanteName: dbVisitante,
+        homeScore: score.local,
+        awayScore: score.visitante,
+        homePenaltyScore: null,
+        awayPenaltyScore: null,
+        period: ctx.period ?? "1H",
+      });
 
   const { error: claimError } = await supabase
     .from("partidos")
@@ -94,33 +108,13 @@ export async function handleGoalEvent(
     return { ok: false, message: claimError.message };
   }
 
-  const fraseParams = {
-    local: teams.local,
-    visitante: teams.visitante,
-    marcadorLocal: score.local,
-    marcadorVisitante: score.visitante,
-    minuto,
-    goleador,
-    equipoPropio,
-  };
-
-  const frase = esAutogol
-    ? generarFraseAutogol(fraseParams)
-    : generarFraseGol(fraseParams);
-
-  const pushTitulo = esAutogol
-    ? `⚽ Autogol: ${teams.local} ${score.local}-${score.visitante} ${teams.visitante}`
-    : `⚽ Gol: ${teams.local} ${score.local}-${score.visitante} ${teams.visitante}`;
-
-  // MVP: mensaje en liga global; ligas privadas reciben el mismo evento vía fan-out futuro
   const { error: chatError } = await supabase.from("mensajes_chat").insert({
     partido_id: partidoId,
     liga_id: LIGA_GLOBAL_ID,
     tipo: "evento_partido",
-    contenido: frase.contenido,
+    contenido: narracion.texto,
     metadata: metadataPartidoGlobal({
-      narrador: frase.narrador,
-      narrador_display: frase.nombreVisible,
+      narrador_estilo: narracion.estilo,
       marcador: marcadorKey,
       minuto,
       goleador,
@@ -139,9 +133,10 @@ export async function handleGoalEvent(
     partidoId,
     "gol",
     pushTitulo,
-    frase.contenido,
+    narracion.texto,
     {
-      narrador: frase.narrador,
+      event_key: eventKey,
+      skip_claim: true,
       fuente: "api-sports-sync",
       ...(esAutogol ? { es_autogol: true } : {}),
     },

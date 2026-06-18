@@ -5,18 +5,21 @@ import {
   formatVarDatoMamalonMessage,
   pickDatoMamalonVariado,
 } from "@/lib/datos-mamalones/pick";
-import type { MatchPhaseKind } from "@/lib/apifootball/webhook/types";
-import { buildPhasePushMessage, isFinalMatch } from "@/lib/apifootball/webhook/phase-push";
-import { queuePartidoPushNotifications } from "@/lib/apifootball/webhook/notifications";
+import type { MatchPhaseKind } from "@/lib/api-football/push/types";
+import { tryClaimLiveEvent } from "@/lib/api-football/push/claim-event";
+import { buildPhasePushMessage, isFinalMatch } from "@/lib/api-football/push/phase-push";
+import { queuePartidoPushNotifications } from "@/lib/api-football/push/notifications";
 import {
   generarNarracionCampeon,
   generarNarracionFase,
   PLANTILLAS_FIN,
   PLANTILLAS_INICIO,
   PLANTILLAS_MEDIO_TIEMPO,
+  PLANTILLAS_MEDIO_TIEMPO_SIN_GOLES,
   PLANTILLAS_REGULATION_END,
   PLANTILLAS_SEGUNDO_TIEMPO,
 } from "@/lib/narracion/comentaristas";
+import { displayTeamPair } from "@/lib/teams/display-names";
 import {
   baselineAnnouncedPhases,
   getAnnouncedPhases,
@@ -124,10 +127,15 @@ function buildPhaseChat(
     case "kickoff":
       return fromNarracion(generarNarracionFase(PLANTILLAS_INICIO, local, visitante));
     case "halftime":
-    case "extra_time_halftime":
+    case "extra_time_halftime": {
+      const plantillas =
+        homeScore === 0 && awayScore === 0
+          ? PLANTILLAS_MEDIO_TIEMPO_SIN_GOLES
+          : PLANTILLAS_MEDIO_TIEMPO;
       return fromNarracion(
-        generarNarracionFase(PLANTILLAS_MEDIO_TIEMPO, local, visitante, marcadorStr),
+        generarNarracionFase(plantillas, local, visitante, marcadorStr),
       );
+    }
     case "regulation_end":
       return fromNarracion(
         generarNarracionFase(PLANTILLAS_REGULATION_END, local, visitante, marcadorStr),
@@ -162,7 +170,7 @@ function buildPhaseChat(
   }
 }
 
-/** Chat + push de transiciones de fase (reusa mensajes del webhook apifootball). */
+/** Chat + push de transiciones de fase (sync-live api-sports). */
 export async function notifyPhaseTransitions(
   ctx: PhaseSyncContext,
 ): Promise<{
@@ -203,9 +211,32 @@ export async function notifyPhaseTransitions(
   );
 
   const esFinal = isFinalMatch(ctx.fase, ctx.roundHint);
+  const teams = displayTeamPair(ctx.local, ctx.visitante);
 
   for (const phase of pending) {
     if (announced.includes(phase)) continue;
+
+    const pushPreview = buildPhasePushMessage(
+      phase,
+      ctx.local,
+      ctx.visitante,
+      ctx.homeScore,
+      ctx.awayScore,
+      null,
+      { isFinalMatch: esFinal },
+    );
+
+    if (
+      !(await tryClaimLiveEvent(
+        ctx.supabase,
+        ctx.partidoId,
+        pushPreview.event_key,
+        `phase:${phase}`,
+      ))
+    ) {
+      announced.push(phase);
+      continue;
+    }
 
     let contenido: string;
     let narradorEstilo: string | undefined;
@@ -226,8 +257,8 @@ export async function notifyPhaseTransitions(
       } else {
         const chat = buildPhaseChat(
           phase,
-          ctx.local,
-          ctx.visitante,
+          teams.local,
+          teams.visitante,
           ctx.homeScore,
           ctx.awayScore,
           esFinal,
@@ -238,8 +269,8 @@ export async function notifyPhaseTransitions(
     } else {
       const chat = buildPhaseChat(
         phase,
-        ctx.local,
-        ctx.visitante,
+        teams.local,
+        teams.visitante,
         ctx.homeScore,
         ctx.awayScore,
         esFinal,
@@ -265,23 +296,18 @@ export async function notifyPhaseTransitions(
       continue;
     }
 
-    const push = buildPhasePushMessage(
-      phase,
-      ctx.local,
-      ctx.visitante,
-      ctx.homeScore,
-      ctx.awayScore,
-      null,
-      { isFinalMatch: esFinal },
-    );
-
     await queuePartidoPushNotifications(
       ctx.supabase,
       ctx.partidoId,
-      push.tipo,
-      push.titulo,
-      push.cuerpo,
-      { fuente: "api-sports-sync", phase },
+      pushPreview.tipo,
+      pushPreview.titulo,
+      pushPreview.cuerpo,
+      {
+        event_key: pushPreview.event_key,
+        skip_claim: true,
+        fuente: "api-sports-sync",
+        phase,
+      },
     );
 
     announced.push(phase);

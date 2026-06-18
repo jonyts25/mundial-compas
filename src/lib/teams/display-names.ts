@@ -1,0 +1,103 @@
+import { normalizeTeamKey } from "@/lib/utils";
+
+/** Nombre para UI/push en español (api-sports devuelve inglés). */
+const TEAM_DISPLAY_ES: Record<string, string> = {
+  "south korea": "Corea del Sur",
+  "korea republic": "Corea del Sur",
+  "republic of korea": "Corea del Sur",
+  "south africa": "Sudáfrica",
+  mexico: "México",
+  brazil: "Brasil",
+  brasil: "Brasil",
+  spain: "España",
+  espana: "España",
+  "czech republic": "República Checa",
+  czechia: "República Checa",
+  "united states": "Estados Unidos",
+  usa: "Estados Unidos",
+  "costa rica": "Costa Rica",
+  "saudi arabia": "Arabia Saudita",
+  "new zealand": "Nueva Zelanda",
+  "ivory coast": "Costa de Marfil",
+  "cote d ivoire": "Costa de Marfil",
+  netherlands: "Países Bajos",
+  holland: "Países Bajos",
+  switzerland: "Suiza",
+  serbia: "Serbia",
+  croatia: "Croacia",
+  morocco: "Marruecos",
+  tunisia: "Túnez",
+  algeria: "Argelia",
+  egypt: "Egipto",
+  iran: "Irán",
+  japan: "Japón",
+  australia: "Australia",
+  ecuador: "Ecuador",
+  uruguay: "Uruguay",
+  colombia: "Colombia",
+  chile: "Chile",
+  peru: "Perú",
+  paraguay: "Paraguay",
+  venezuela: "Venezuela",
+  bolivia: "Bolivia",
+  argentina: "Argentina",
+  france: "Francia",
+  germany: "Alemania",
+  italy: "Italia",
+  england: "Inglaterra",
+  portugal: "Portugal",
+  belgium: "Bélgica",
+  poland: "Polonia",
+  denmark: "Dinamarca",
+  sweden: "Suecia",
+  norway: "Noruega",
+  austria: "Austria",
+  wales: "Gales",
+  scotland: "Escocia",
+  canada: "Canadá",
+  panama: "Panamá",
+  jamaica: "Jamaica",
+  honduras: "Honduras",
+  "el salvador": "El Salvador",
+  cuba: "Cuba",
+  qatar: "Catar",
+  ghana: "Ghana",
+  nigeria: "Nigeria",
+  senegal: "Senegal",
+  cameroon: "Camerún",
+  "bosnia and herzegovina": "Bosnia y Herzegovina",
+  "bosnia y herzegovina": "Bosnia y Herzegovina",
+  bosnia: "Bosnia y Herzegovina",
+  haiti: "Haití",
+  turkey: "Turquía",
+  turkeye: "Turquía",
+  turquia: "Turquía",
+  turkiye: "Turquía",
+  curacao: "Curazao",
+  "cape verde": "Cabo Verde",
+  "cabo verde": "Cabo Verde",
+  "cape verde islands": "Cabo Verde",
+  iraq: "Irak",
+  irak: "Irak",
+  jordan: "Jordania",
+  jordania: "Jordania",
+  uzbekistan: "Uzbekistán",
+  "democratic republic of the congo": "RD Congo",
+  "dr congo": "RD Congo",
+};
+
+export function getTeamDisplayNameEs(name: string): string {
+  const key = normalizeTeamKey(name);
+  if (!key) return name;
+  return TEAM_DISPLAY_ES[key] ?? name;
+}
+
+export function displayTeamPair(local: string, visitante: string): {
+  local: string;
+  visitante: string;
+} {
+  return {
+    local: getTeamDisplayNameEs(local),
+    visitante: getTeamDisplayNameEs(visitante),
+  };
+}

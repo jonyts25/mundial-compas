@@ -9,7 +9,7 @@ import { QuinielaList } from "@/components/quiniela/QuinielaList";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchQuinielaSelectorOptions } from "@/lib/quiniela/selector-options";
 import { fetchPronosticoFusionPendientes } from "@/lib/quiniela/fusion-queries";
-import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
+import { fetchPilotUiState } from "@/lib/api-football/pilot-queries";
 import { fetchCompetenciaLiga } from "@/lib/liga/competencia-queries";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
 import { createClient } from "@/lib/supabase/server";

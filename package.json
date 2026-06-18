@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
-    "start:relay": "node scripts/apifootball-livescore-relay.mjs",
     "lint": "eslint",
     "sync-lineups:cron": "node scripts/sync-lineups-cron.mjs",
     "sync-live:cron": "node scripts/sync-live-cron.mjs",
@@ -27,10 +26,7 @@
     "deploy:mexico-serbia-runner": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-mexico-serbia-runner.ps1",
     "test-webhook": "node scripts/test-webhook.mjs",
     "replay-penalties": "node scripts/replay-penalty-finale.mjs --reset",
-    "backfill-grupos": "node scripts/backfill-partidos-grupo.mjs",
-    "livescore-relay": "node scripts/apifootball-livescore-relay.mjs",
-    "relay-local": "powershell -ExecutionPolicy Bypass -File ./scripts/run-relay-local.ps1",
-    "deploy:relay": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-livescore-relay.ps1"
+    "backfill-grupos": "node scripts/backfill-partidos-grupo.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

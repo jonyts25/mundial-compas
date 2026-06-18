@@ -23,7 +23,7 @@ import {
 } from "@/lib/api-football/goal-notify-state";
 import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
-import { getPilotConfig } from "@/lib/apifootball/pilot-config";
+import { getPilotConfig } from "@/lib/api-football/pilot-config";
 import { getApiSportsEnv } from "@/lib/env";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
 
@@ -161,7 +161,8 @@ async function syncOneApiSportsFixture(
       result.errors.push(goalResult.message ?? "Error procesando gol");
     } else if (
       goalResult.message !== "Gol ya notificado" &&
-      goalResult.message !== "Gol ya notificado (chat)"
+      goalResult.message !== "Gol ya notificado (chat)" &&
+      goalResult.message !== "Gol ya notificado (claim)"
     ) {
       result.goalsNotified += 1;
     }
@@ -340,7 +341,10 @@ export async function syncLiveScoresFromApiSports(
       fetchStaleLiveFixtureIds(supabase, liveIds),
       fetchOverdueLiveFixtureIds(supabase),
     ]);
-    const refetchIds = [...new Set([...staleIds, ...overdueIds])];
+    const refetchIds = [...new Set([...staleIds, ...overdueIds])].filter(
+      (id) => !liveIds.has(id),
+    );
+
     await syncFixtureIdsByLookup(
       supabase,
       refetchIds,

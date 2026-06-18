@@ -11,7 +11,7 @@ import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
 import { LiveHomeRefresh } from "@/components/home/LiveHomeRefresh";
 import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
-import { fetchPilotUiState } from "@/lib/apifootball/pilot-queries";
+import { fetchPilotUiState } from "@/lib/api-football/pilot-queries";
 import { fetchOnboardingUserState } from "@/lib/onboarding/state";
 import { fetchCalendarioPartidosData } from "@/lib/partidos/calendario-queries";
 import {

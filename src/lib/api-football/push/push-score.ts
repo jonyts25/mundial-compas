@@ -1,4 +1,5 @@
 import type { MatchPeriod } from "@/lib/partidos/match-clock";
+import { displayTeamPair, getTeamDisplayNameEs } from "@/lib/teams/display-names";
 
 export type PenaltyScorePair = { home: number; away: number };
 
@@ -20,7 +21,6 @@ export function resolvePenaltyScores(
   return { home: homePen ?? 0, away: awayPen ?? 0 };
 }
 
-/** Marcador a mostrar en narración / cuerpo durante la tanda de penales. */
 export function scoresForLiveDisplay(params: {
   period: MatchPeriod;
   homeScore: number;
@@ -52,32 +52,24 @@ export function buildGoalPushTitle(params: {
   awayPenaltyScore: number | null;
   period: MatchPeriod;
 }): string {
-  const { localName, visitanteName, homeScore, awayScore, period } = params;
+  const { homeScore, awayScore, period } = params;
+  const { local, visitante } = displayTeamPair(
+    params.localName,
+    params.visitanteName,
+  );
   const live = scoresForLiveDisplay(params);
 
-  if (isPenaltyShootoutActive(period, params.homePenaltyScore, params.awayPenaltyScore)) {
-    return `⚽ Penal: ${localName} ${live.local}-${live.visitante} ${visitanteName}`;
+  if (
+    isPenaltyShootoutActive(
+      period,
+      params.homePenaltyScore,
+      params.awayPenaltyScore,
+    )
+  ) {
+    return `⚽ Penal: ${local} ${live.local}-${live.visitante} ${visitante}`;
   }
 
-  return `⚽ Gol: ${localName} ${homeScore}-${awayScore} ${visitanteName}`;
-}
-
-export function buildPenaltyScoredPushTitle(params: {
-  localName: string;
-  visitanteName: string;
-  penHome: number;
-  penAway: number;
-}): string {
-  return `⚽ Penal: ${params.localName} ${params.penHome}-${params.penAway} ${params.visitanteName}`;
-}
-
-export function buildPenaltyMissedPushTitle(params: {
-  localName: string;
-  visitanteName: string;
-  penHome: number;
-  penAway: number;
-}): string {
-  return `❌ Penal fallado: ${params.localName} ${params.penHome}-${params.penAway} ${params.visitanteName}`;
+  return `⚽ Gol: ${local} ${homeScore}-${awayScore} ${visitante}`;
 }
 
 export type MatchWinnerResult = {
@@ -94,14 +86,17 @@ export function resolveMatchWinner(params: {
   awayScore: number;
   penaltyScores: PenaltyScorePair | null;
 }): MatchWinnerResult {
+  const local = getTeamDisplayNameEs(params.localName);
+  const visitante = getTeamDisplayNameEs(params.visitanteName);
+
   if (params.penaltyScores) {
     const { home, away } = params.penaltyScores;
     if (home === away) {
       return { winner: "", loser: "", isDraw: true, wonOnPenalties: false };
     }
     return {
-      winner: home > away ? params.localName : params.visitanteName,
-      loser: home > away ? params.visitanteName : params.localName,
+      winner: home > away ? local : visitante,
+      loser: home > away ? visitante : local,
       isDraw: false,
       wonOnPenalties: true,
     };
@@ -112,14 +107,8 @@ export function resolveMatchWinner(params: {
   }
 
   return {
-    winner:
-      params.homeScore > params.awayScore
-        ? params.localName
-        : params.visitanteName,
-    loser:
-      params.homeScore > params.awayScore
-        ? params.visitanteName
-        : params.localName,
+    winner: params.homeScore > params.awayScore ? local : visitante,
+    loser: params.homeScore > params.awayScore ? visitante : local,
     isDraw: false,
     wonOnPenalties: false,
   };
@@ -153,7 +142,11 @@ export function buildFulltimePushBody(params: {
   awayScore: number;
   penaltyScores: PenaltyScorePair | null;
 }): string {
-  const reg = `${params.localName} ${params.homeScore}-${params.awayScore} ${params.visitanteName}`;
+  const { local, visitante } = displayTeamPair(
+    params.localName,
+    params.visitanteName,
+  );
+  const reg = `${local} ${params.homeScore}-${params.awayScore} ${visitante}`;
   const result = resolveMatchWinner(params);
 
   if (result.isDraw) {

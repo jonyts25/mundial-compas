@@ -3,7 +3,7 @@
  * Solo lectura — liga global, sin PII de otros usuarios.
  */
 
-import { filterOutPilotPartidos } from "@/lib/apifootball/pilot-config";
+import { filterOutPilotPartidos } from "@/lib/api-football/pilot-config";
 import { LIGA_GLOBAL_ID, LIGA_GLOBAL_SLUG } from "@/lib/constants";
 import { isDeadlineUrgent } from "@/lib/home/format-deadline";
 import { fetchUserProfile } from "@/lib/insights/profile-data";

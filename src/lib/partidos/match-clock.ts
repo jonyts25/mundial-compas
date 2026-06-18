@@ -1,5 +1,5 @@
 import type { EstatusPartido } from "@/types/database";
-import type { MatchPhaseKind } from "@/lib/apifootball/webhook/types";
+import type { MatchPhaseKind } from "@/lib/api-football/push/types";
 
 /** Periodo del partido (independiente de estatus en BD). */
 export type MatchPeriod =

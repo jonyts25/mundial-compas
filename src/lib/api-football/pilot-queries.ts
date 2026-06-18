@@ -1,4 +1,4 @@
-import { getPilotConfig } from "@/lib/apifootball/pilot-config";
+import { getPilotConfig } from "@/lib/api-football/pilot-config";
 import { createServerDataClient } from "@/lib/supabase/server-data";
 
 export interface PilotUiState {

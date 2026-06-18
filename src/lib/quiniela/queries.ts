@@ -1,5 +1,5 @@
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
-import { filterOutPilotPartidos } from "@/lib/apifootball/pilot-config";
+import { filterOutPilotPartidos } from "@/lib/api-football/pilot-config";
 import { filterPartidosPorTipo } from "@/lib/liga/partido-filters";
 import { dedupePartidosByMatchKey, remapPronosticosToDedupedPartidos } from "@/lib/partidos/partido-match-key";
 import {

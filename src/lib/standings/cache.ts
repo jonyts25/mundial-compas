@@ -1,10 +1,9 @@
 import { unstable_cache } from "next/cache";
-import { fetchApifootballStandings } from "@/lib/apifootball/fetch-standings";
-import { getApiFootballEnv } from "@/lib/env";
+import { fetchApiSportsStandings } from "@/lib/api-football/fetch-standings";
+import { getApiSportsEnv } from "@/lib/env";
 import { mapStandingsToGroups } from "@/lib/standings/map-standings";
 import type { GroupStandingsSnapshot } from "@/lib/standings/types";
 
-/** Tag para invalidar desde webhook/admin en el futuro: revalidateTag(STANDINGS_CACHE_TAG) */
 export const STANDINGS_CACHE_TAG = "world-cup-standings";
 
 const DEFAULT_REVALIDATE_SECONDS = 1800;
@@ -17,20 +16,15 @@ export function getStandingsRevalidateSeconds(): number {
 }
 
 async function fetchStandingsSnapshot(): Promise<GroupStandingsSnapshot> {
-  const { apiKey, leagueId } = getApiFootballEnv();
-  const resolvedLeagueId = leagueId ?? "28";
-  const rows = await fetchApifootballStandings(apiKey, { leagueId: resolvedLeagueId });
-  return mapStandingsToGroups(rows, resolvedLeagueId);
+  const { worldCupLeagueId } = getApiSportsEnv();
+  const rows = await fetchApiSportsStandings();
+  return mapStandingsToGroups(rows, worldCupLeagueId);
 }
 
-/**
- * Posiciones con caché en servidor (Next.js Data Cache).
- * Por defecto 30 min — la tabla no cambia en tiempo real.
- */
 export function getCachedGroupStandings(): Promise<GroupStandingsSnapshot> {
   const revalidate = getStandingsRevalidateSeconds();
 
-  return unstable_cache(fetchStandingsSnapshot, ["apifootball-group-standings-v1"], {
+  return unstable_cache(fetchStandingsSnapshot, ["api-sports-group-standings-v1"], {
     revalidate,
     tags: [STANDINGS_CACHE_TAG],
   })();

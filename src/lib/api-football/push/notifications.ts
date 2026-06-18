@@ -1,20 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { tryClaimLiveEvent } from "@/lib/api-football/push/claim-event";
+import type { PartidoPushTipo } from "@/lib/api-football/push/types";
 import { dispatchPushForNotifications } from "@/lib/push/send";
 
-export type PartidoPushTipo =
-  | "gol"
-  | "gol_anulado"
-  | "tarjeta_roja"
-  | "inicio_partido"
-  | "medio_tiempo"
-  | "inicio_segundo_tiempo"
-  | "fin_tiempo_reglamentario"
-  | "inicio_tiempo_extra"
-  | "inicio_penales"
-  | "penal_fallado"
-  | "fin_partido"
-  | "alineaciones";
+export type { PartidoPushTipo } from "@/lib/api-football/push/types";
 
 /** Encola notificaciones y las envía por Web Push si hay suscripción activa. */
 export async function queuePartidoPushNotifications(
@@ -25,6 +15,21 @@ export async function queuePartidoPushNotifications(
   cuerpo: string,
   metadata: Record<string, unknown> = {},
 ): Promise<void> {
+  const eventKey =
+    typeof metadata.event_key === "string" && metadata.event_key.trim()
+      ? metadata.event_key.trim()
+      : `${tipo}:${titulo}`;
+
+  if (metadata.skip_claim !== true) {
+    if (
+      !(await tryClaimLiveEvent(supabase, partidoId, eventKey, `push:${tipo}`))
+    ) {
+      return;
+    }
+  }
+
+  const metaWithKey = { ...metadata, event_key: eventKey };
+
   const { data: miembros } = await supabase
     .from("liga_miembros")
     .select("usuario_id")
@@ -59,23 +64,10 @@ export async function queuePartidoPushNotifications(
     cuerpo,
     partido_id: partidoId,
     liga_id: LIGA_GLOBAL_ID,
-    metadata,
+    metadata: metaWithKey,
   }));
 
   if (rows.length === 0) return;
-
-  if (tipo === "gol") {
-    const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    const { count: dupCount } = await supabase
-      .from("notificaciones")
-      .select("id", { count: "exact", head: true })
-      .eq("partido_id", partidoId)
-      .eq("tipo", "gol")
-      .eq("titulo", titulo)
-      .gte("created_at", since);
-
-    if (dupCount && dupCount > 0) return;
-  }
 
   const { data: inserted, error: insertError } = await supabase
     .from("notificaciones")
@@ -93,22 +85,4 @@ export async function queuePartidoPushNotifications(
   if (inserted?.length) {
     await dispatchPushForNotifications(supabase, inserted);
   }
-}
-
-/** @deprecated Usar queuePartidoPushNotifications */
-export async function queuePartidoGoalNotifications(
-  supabase: SupabaseClient,
-  partidoId: string,
-  titulo: string,
-  cuerpo: string,
-  metadata: Record<string, unknown> = {},
-): Promise<void> {
-  return queuePartidoPushNotifications(
-    supabase,
-    partidoId,
-    "gol",
-    titulo,
-    cuerpo,
-    metadata,
-  );
 }

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { tryClaimSyncLiveRun } from "@/lib/api-football/push/claim-event";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminEnv, getFootballDataProvider } from "@/lib/env";
 import { syncLiveScoresFromApi } from "@/lib/partidos/sync-live-scores";
 
-/** Actualiza marcador/estatus vía polling (apifootball get_events o api-sports live=all). */
+/** Actualiza marcador/estatus vía polling api-sports (sync-live-cron). */
 export async function POST(request: Request) {
   const auth = request.headers.get("authorization");
   const secret = getAdminEnv().cargarPartidosSecret;
@@ -15,6 +16,16 @@ export async function POST(request: Request) {
   const pilotOnly = url.searchParams.get("pilot") !== "0";
   const force = url.searchParams.get("force") === "1";
   const supabase = createAdminClient();
+
+  if (!(await tryClaimSyncLiveRun(supabase))) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: "sync-live ya en curso (lock)",
+      provider: getFootballDataProvider(),
+    });
+  }
+
   const result = await syncLiveScoresFromApi(supabase, { pilotOnly, force });
 
   return NextResponse.json({
@@ -37,9 +48,6 @@ export async function GET() {
       skip: "0 API requests fuera de ventana",
     },
     force: "POST ?force=1 para ignorar ventana (debug)",
-    hint:
-      provider === "api-sports"
-        ? "Polling live=all (pilot) o live=league (Mundial) — 1 req/sync en ventana"
-        : "Polling get_events — útil si el webhook de apifootball no está configurado",
+    hint: "Polling api-sports live=all (pilot) o live=league (Mundial) — 1 req/sync en ventana",
   });
 }

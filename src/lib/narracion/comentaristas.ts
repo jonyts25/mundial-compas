@@ -8,7 +8,9 @@ import {
   PLANTILLAS_GOL_MEXICO_EXTRA,
   PLANTILLAS_INICIO_MEXICO_EXTRA,
   PLANTILLAS_MEDIO_MEXICO_EXTRA,
+  PLANTILLAS_MEDIO_SIN_GOLES_MEXICO_EXTRA,
   PLANTILLAS_ROJA_MEXICO_EXTRA,
+  PLANTILLAS_SEGUNDO_TIEMPO_MEXICO_EXTRA,
 } from "@/lib/narracion/comentaristas-mexico";
 
 export type RegionNarracion =
@@ -375,6 +377,21 @@ export const PLANTILLAS_MEDIO_TIEMPO: readonly PlantillaNarracion[] = [
   ...PLANTILLAS_MEDIO_MEXICO_EXTRA,
 ];
 
+export const PLANTILLAS_MEDIO_TIEMPO_SIN_GOLES: readonly PlantillaNarracion[] = [
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡Medio tiempo! 0-0. Partido cerrado… por ahora. ¡La segunda mitad explota, señoras y señores!",
+  },
+  {
+    region: "general",
+    estilo: "VAR Compas",
+    plantilla: "⏸️ 0-0 al descanso. ¿Te la jugaste al empate? Respira, falta la segunda.",
+  },
+  ...PLANTILLAS_MEDIO_SIN_GOLES_MEXICO_EXTRA,
+];
+
 export const PLANTILLAS_VAR_GOL_ANULADO: readonly PlantillaNarracion[] = [
   {
     region: "mexico",
@@ -433,6 +450,7 @@ export const PLANTILLAS_SEGUNDO_TIEMPO: readonly PlantillaNarracion[] = [
     estilo: "VAR Compas",
     plantilla: "¡Segundo tiempo! {local} {marcador} {visitante}. ¿Quién la tiene bien?",
   },
+  ...PLANTILLAS_SEGUNDO_TIEMPO_MEXICO_EXTRA,
 ];
 
 export const PLANTILLAS_FIN: readonly PlantillaNarracion[] = [

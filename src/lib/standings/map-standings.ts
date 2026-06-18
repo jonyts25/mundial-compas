@@ -1,44 +1,25 @@
-import type { ApifootballStandingRow } from "@/lib/apifootball/types";
+import type { ApiSportsStandingRow } from "@/lib/api-football/fetch-standings";
 import type { GroupStandingsSnapshot, StandingGroup, StandingTeamRow } from "@/lib/standings/types";
 
-function parseNum(value: string | undefined): number {
-  const n = Number.parseInt(String(value ?? "0"), 10);
-  return Number.isFinite(n) ? n : 0;
+function parseGroupKey(groupLabel: string | null | undefined): string {
+  if (!groupLabel) return "—";
+  const m = groupLabel.match(/group\s+([a-l])/i);
+  return m?.[1]?.toUpperCase() ?? "—";
 }
 
-/** Extrae letra de grupo desde league_round / stage_name (ej. "Group A", "Grupo B"). */
-export function extractGroupKey(row: ApifootballStandingRow): string {
-  const candidates = [row.league_round, row.stage_name].filter(Boolean) as string[];
-
-  for (const raw of candidates) {
-    const text = raw.trim();
-    const letterMatch =
-      text.match(/(?:group|grupo)\s*([A-L])/i) ??
-      text.match(/^([A-Z])$/i);
-    if (letterMatch?.[1]) {
-      return letterMatch[1].toUpperCase();
-    }
-  }
-
-  return "—";
-}
-
-function mapRow(row: ApifootballStandingRow): StandingTeamRow {
-  const goalsFor = parseNum(row.overall_league_GF);
-  const goalsAgainst = parseNum(row.overall_league_GA);
-
+function mapRow(row: ApiSportsStandingRow): StandingTeamRow {
   return {
-    position: parseNum(row.overall_league_position),
-    teamId: row.team_id,
-    teamName: row.team_name,
-    played: parseNum(row.overall_league_payed),
-    wins: parseNum(row.overall_league_W),
-    draws: parseNum(row.overall_league_D),
-    losses: parseNum(row.overall_league_L),
-    goalsFor,
-    goalsAgainst,
-    goalDiff: goalsFor - goalsAgainst,
-    points: parseNum(row.overall_league_PTS),
+    position: row.rank,
+    teamId: String(row.team.id),
+    teamName: row.team.name,
+    played: row.all.played,
+    wins: row.all.win,
+    draws: row.all.draw,
+    losses: row.all.lose,
+    goalsFor: row.all.goals.for,
+    goalsAgainst: row.all.goals.against,
+    goalDiff: row.goalsDiff,
+    points: row.points,
   };
 }
 
@@ -53,17 +34,14 @@ function sortGroups(a: StandingGroup, b: StandingGroup): number {
   return a.groupKey.localeCompare(b.groupKey);
 }
 
-/**
- * Agrupa filas de get_standings por fase de grupos del Mundial.
- */
 export function mapStandingsToGroups(
-  rows: ApifootballStandingRow[],
-  leagueId: string,
+  rows: ApiSportsStandingRow[],
+  leagueId: string | number,
 ): GroupStandingsSnapshot {
   const byGroup = new Map<string, StandingTeamRow[]>();
 
   for (const row of rows) {
-    const key = extractGroupKey(row);
+    const key = parseGroupKey(row.group);
     const team = mapRow(row);
     const list = byGroup.get(key) ?? [];
     list.push(team);
@@ -81,12 +59,15 @@ export function mapStandingsToGroups(
 
   groups.sort(sortGroups);
 
-  const leagueName = rows[0]?.league_name ?? null;
-
   return {
-    leagueId,
-    leagueName,
+    leagueId: String(leagueId),
+    leagueName: "FIFA World Cup",
     fetchedAt: new Date().toISOString(),
     groups,
   };
+}
+
+/** @deprecated Compat tests — usa group de api-sports */
+export function extractGroupKey(row: { group?: string; league_round?: string; stage_name?: string }): string {
+  return parseGroupKey(row.group ?? row.league_round ?? row.stage_name);
 }

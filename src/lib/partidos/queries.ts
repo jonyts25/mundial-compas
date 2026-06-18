@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServerDataClient } from "@/lib/supabase/server-data";
-import { filterOutPilotPartidos } from "@/lib/apifootball/pilot-config";
+import { filterOutPilotPartidos } from "@/lib/api-football/pilot-config";
 import { pickDatoMamalonVariado } from "@/lib/datos-mamalones/pick";
 import { isPartidoEnVivo } from "@/lib/partidos/labels";
 import type { DatoMamalón, Partido, Usuario } from "@/types/database";

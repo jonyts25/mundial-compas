@@ -1,5 +1,5 @@
 /** Normaliza nombre de equipo para lookup en alias */
-function normalizeTeamKey(name: string): string {
+export function normalizeTeamKey(name: string): string {
   return name
     .trim()
     .toLowerCase()

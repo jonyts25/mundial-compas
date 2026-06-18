@@ -1,8 +1,7 @@
-/** Configuración del fin de semana de prueba (Champions / otra liga). Solo servidor. */
+/** Configuración del fin de semana de prueba (api-sports). Solo servidor. */
 
 export interface PilotConfig {
   enabled: boolean;
-  leagueId: string | null;
   from: string;
   to: string;
   label: string;
@@ -13,7 +12,6 @@ function trimOptional(name: string): string | undefined {
   return v || undefined;
 }
 
-/** Sábado–domingo siguiente al deploy si no defines fechas en env. */
 function defaultPilotWeekend(): { from: string; to: string } {
   const now = new Date();
   const day = now.getUTCDay();
@@ -29,18 +27,17 @@ function defaultPilotWeekend(): { from: string; to: string } {
 export function getPilotConfig(): PilotConfig {
   const enabled =
     trimOptional("PILOT_MODE_ENABLED")?.toLowerCase() === "true" ||
-    trimOptional("APIFOOTBALL_PILOT_ENABLED")?.toLowerCase() === "true";
+    trimOptional("API_SPORTS_PILOT_ENABLED")?.toLowerCase() === "true";
 
   const defaults = defaultPilotWeekend();
 
   return {
     enabled,
-    leagueId: trimOptional("APIFOOTBALL_PILOT_LEAGUE_ID") ?? null,
-    from: trimOptional("APIFOOTBALL_PILOT_FROM") ?? defaults.from,
-    to: trimOptional("APIFOOTBALL_PILOT_TO") ?? defaults.to,
+    from: trimOptional("API_SPORTS_PILOT_FROM") ?? defaults.from,
+    to: trimOptional("API_SPORTS_PILOT_TO") ?? defaults.to,
     label:
-      trimOptional("APIFOOTBALL_PILOT_LABEL") ??
-      "Champions League — fin de semana de prueba",
+      trimOptional("API_SPORTS_PILOT_LABEL") ??
+      "Fin de semana de prueba — api-sports",
   };
 }
 
@@ -50,7 +47,6 @@ export function isPilotPartidoMetadata(metadata: unknown): boolean {
   return m.competencia === "pilot" || m.pilot === true;
 }
 
-/** Excluye partidos de prueba (Champions, Concacaf, amistosos pilot, etc.). */
 export function filterOutPilotPartidos<T extends { metadata?: unknown }>(
   partidos: T[],
 ): T[] {

@@ -13,7 +13,7 @@ function sourceLabel(source: string): string {
     case "partidos":
       return "Tabla calculada desde partidos en la app (se actualiza con marcadores en vivo).";
     case "api":
-      return "Tabla desde apifootball.com (caché). Los partidos abajo vienen de tu base de datos.";
+      return "Tabla desde api-sports.io (caché). Los partidos abajo vienen de tu base de datos.";
     default:
       return "Tabla desde partidos; respaldo API si aún no hay resultados.";
   }

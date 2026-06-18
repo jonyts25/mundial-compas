@@ -1,4 +1,4 @@
-import type { MatchPhaseKind } from "@/lib/apifootball/webhook/types";
+import type { MatchPhaseKind } from "@/lib/api-football/push/types";
 import type { MatchPeriod } from "@/lib/partidos/match-clock";
 
 export function getAnnouncedPhases(metadata: unknown): MatchPhaseKind[] {

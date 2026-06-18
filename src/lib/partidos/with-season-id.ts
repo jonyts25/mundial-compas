@@ -1,5 +1,5 @@
 import { DEFAULT_SEASON_ID } from "@/lib/constants";
-import { isPilotPartidoMetadata } from "@/lib/apifootball/pilot-config";
+import { isPilotPartidoMetadata } from "@/lib/api-football/pilot-config";
 
 export type PartidoSeasonRow = {
   metadata?: unknown;

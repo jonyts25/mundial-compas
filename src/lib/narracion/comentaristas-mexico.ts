@@ -261,6 +261,12 @@ export const PLANTILLAS_INICIO_MEXICO_EXTRA: readonly PlantillaNarracion[] = [
   {
     region: "mexico",
     estilo: "Jesús Bracamontes · Yisus (parodia)",
+    plantilla:
+      "¡Se encienden las pasiones! {local} vs {visitante}. ¡Papá, que empiece la fiesta!",
+  },
+  {
+    region: "mexico",
+    estilo: "Jesús Bracamontes · Yisus (parodia)",
     plantilla: "¡Sale el balón! {local} contra {visitante}. ¡Papá, que empiece la fiesta!",
   },
   {
@@ -286,7 +292,90 @@ export const PLANTILLAS_MEDIO_MEXICO_EXTRA: readonly PlantillaNarracion[] = [
     estilo: "Fernando Palomo (parodia · ESPN)",
     plantilla: "¡Medio tiempo! {marcador}. Hidratación y drama en la segunda mitad.",
   },
+  {
+    region: "mexico",
+    estilo: "Martinoli (parodia)",
+    plantilla:
+      "¡Medio tiempo! {marcador}. A hidratarse y revisar la quiniela. ¡Señoras y señores, qué primer tiempo!",
+  },
+  {
+    region: "mexico",
+    estilo: "Perro Bermúdez (parodia)",
+    plantilla: "Al descanso: {marcador}. ¡Se prendió el partido, compadres!",
+  },
 ];
+
+/** Medio tiempo 0-0 — partido cerrado o aburrido */
+export const PLANTILLAS_MEDIO_SIN_GOLES_MEXICO_EXTRA: readonly PlantillaNarracion[] =
+  [
+    {
+      region: "mexico",
+      estilo: "Martinoli (parodia)",
+      plantilla:
+        "¡Medio tiempo! 0-0. Partido cerrado… por ahora. ¡La segunda mitad explota, señoras y señores!",
+    },
+    {
+      region: "mexico",
+      estilo: "Perro Bermúdez (parodia)",
+      plantilla:
+        "Al descanso 0-0. Partido de ajedrez, compadres. ¡Falta sangre en la segunda!",
+    },
+    {
+      region: "mexico",
+      estilo: "Dr. García (parodia)",
+      plantilla:
+        "Diagnóstico: 0-0 al descanso. Síntoma: aburrimiento leve. Receta: segundo tiempo urgente.",
+    },
+    {
+      region: "mexico",
+      estilo: "José Ramón Fernández (parodia)",
+      plantilla:
+        "0-0. El Profe lo dijo: faltan goles. ¡Segunda mitad obligatoria!",
+    },
+    {
+      region: "mexico",
+      estilo: "La Vaca (parodia)",
+      plantilla: "Muuu… 0-0. Las defensas pastando tranquilas. ¡Despierten!",
+    },
+  ];
+
+export const PLANTILLAS_SEGUNDO_TIEMPO_MEXICO_EXTRA: readonly PlantillaNarracion[] =
+  [
+    {
+      region: "mexico",
+      estilo: "Emilio Fernando Alonso (parodia)",
+      plantilla:
+        "¡Arrrrrrrancamos la segunda parte! {local} {marcador} {visitante}. ¡Así se juega, compadres!",
+    },
+    {
+      region: "mexico",
+      estilo: "Emilio Fernando Alonso (parodia)",
+      plantilla:
+        "¡Arrrrrrranca el segundo tiempo! Marcador {marcador}. ¡A remontar la quiniela, compadres!",
+    },
+    {
+      region: "mexico",
+      estilo: "Jesús Bracamontes · Yisus (parodia)",
+      plantilla:
+        "¡Se encienden las pasiones! Segundo tiempo: {local} {marcador} {visitante}. ¡Papá, que siga la fiesta!",
+    },
+    {
+      region: "mexico",
+      estilo: "Jesús Bracamontes · Yisus (parodia)",
+      plantilla:
+        "¡Se encienden las pasiones en la cancha! {marcador}. ¡Arranca la segunda mitad!",
+    },
+    {
+      region: "mexico",
+      estilo: "Fernando Palomo (parodia · ESPN)",
+      plantilla: "Segundo tiempo: {local} {marcador} {visitante}. Hidratación y drama.",
+    },
+    {
+      region: "mexico",
+      estilo: "Warrior (parodia)",
+      plantilla: "¡LET'S GOOO! Segundo tiempo. {marcador}. ¡Chat, no se duerman!",
+    },
+  ];
 
 export const PLANTILLAS_FIN_MEXICO_EXTRA: readonly PlantillaNarracion[] = [
   {
