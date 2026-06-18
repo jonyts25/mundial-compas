@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { PartidoEventosClave } from "@/components/partidos/PartidoEventosClave";
 import {
   MarcadorDisplay,
   usePartidoRealtime,
@@ -81,6 +82,9 @@ export function PartidoHeader({ partido }: PartidoHeaderProps) {
         />
       </div>
 
+      {(enJuego || finalizado) && (
+        <PartidoEventosClave metadata={live.metadata} />
+      )}
     </section>
   );
 }

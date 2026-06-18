@@ -11,6 +11,7 @@ export type SyncLiveResult = {
   updated: number;
   live: number;
   goalsNotified: number;
+  redCardsNotified: number;
   phasesNotified: number;
   errors: string[];
   skipped?: boolean;

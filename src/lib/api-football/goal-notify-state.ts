@@ -63,6 +63,12 @@ export function mergeLiveNotifyMetadata(
   if (Array.isArray(ex.announced_phases) && ex.announced_phases.length > 0) {
     out.announced_phases = ex.announced_phases;
   }
+  if (Array.isArray(ex.notified_red_cards) && ex.notified_red_cards.length > 0) {
+    out.notified_red_cards = ex.notified_red_cards;
+  }
+  if (Array.isArray(ex.eventos_clave) && ex.eventos_clave.length > 0) {
+    out.eventos_clave = ex.eventos_clave;
+  }
   return out;
 }
 

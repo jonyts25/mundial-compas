@@ -9,6 +9,7 @@ import {
   fetchApiSportsLiveFixtures,
 } from "@/lib/api-football/fetch-fixtures";
 import { handleGoalEvent } from "@/lib/api-football/handlers/on-goal";
+import { handleRedCardEvent } from "@/lib/api-football/handlers/on-red-card";
 import {
   mergeAnnouncedPhases,
   notifyPhaseTransitions,
@@ -23,6 +24,15 @@ import {
 } from "@/lib/api-football/goal-notify-state";
 import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
+import {
+  buildMomentosMetadata,
+  mapFixtureEventsToMomentos,
+} from "@/lib/api-football/match-events";
+import {
+  baselineNotifiedRedCards,
+  buildRedCardNotifyMetadata,
+  findNewRedCards,
+} from "@/lib/api-football/red-card-notify-state";
 import { getPilotConfig } from "@/lib/api-football/pilot-config";
 import { getApiSportsEnv } from "@/lib/env";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
@@ -115,6 +125,59 @@ async function syncOneApiSportsFixture(
 
   let persistMetadata = false;
 
+  const shouldSyncEvents =
+    row.estatus === "en_vivo" ||
+    row.estatus === "medio_tiempo" ||
+    row.estatus === "finalizado" ||
+    goalDetected;
+
+  let fetchedEvents: Awaited<ReturnType<typeof fetchApiSportsFixtureEvents>> | null =
+    null;
+
+  if (shouldSyncEvents) {
+    try {
+      fetchedEvents = await fetchApiSportsFixtureEvents(apiKey, fixtureId);
+      result.apiRequests = (result.apiRequests ?? 0) + 1;
+
+      const momentos = mapFixtureEventsToMomentos(
+        fetchedEvents,
+        item.teams.home.id,
+        String(existing.equipo_local_nombre ?? item.teams.home.name),
+        String(existing.equipo_visitante_nombre ?? item.teams.away.name),
+      );
+      Object.assign(metadata, buildMomentosMetadata(metadata, momentos));
+      persistMetadata = true;
+
+      const baselineRojas = baselineNotifiedRedCards(existing.metadata, momentos);
+      if (baselineRojas) {
+        Object.assign(
+          metadata,
+          buildRedCardNotifyMetadata(metadata, baselineRojas),
+        );
+      } else if (row.estatus === "en_vivo" || row.estatus === "medio_tiempo") {
+        let redCardMeta = existing.metadata;
+        for (const roja of findNewRedCards(redCardMeta, momentos)) {
+          const redResult = await handleRedCardEvent({
+            supabase,
+            partidoId: existing.id,
+            momento: roja,
+          });
+          if (!redResult.ok) {
+            result.errors.push(redResult.message ?? "Error procesando tarjeta roja");
+          } else if (redResult.message === "Tarjeta roja procesada") {
+            result.redCardsNotified = (result.redCardsNotified ?? 0) + 1;
+            redCardMeta = buildRedCardNotifyMetadata(redCardMeta, [roja.id]);
+            Object.assign(metadata, redCardMeta);
+          }
+        }
+      }
+    } catch (e) {
+      result.errors.push(
+        e instanceof Error ? e.message : "Error obteniendo eventos del partido",
+      );
+    }
+  }
+
   if (
     goalDetected &&
     notifyScore &&
@@ -124,10 +187,9 @@ async function syncOneApiSportsFixture(
   ) {
     let payload = fixtureItemToWebhookPayload(item);
 
-    try {
-      const events = await fetchApiSportsFixtureEvents(apiKey, fixtureId);
+    if (fetchedEvents) {
       const latestGoal = findLatestGoalForScore(
-        events,
+        fetchedEvents,
         {
           local: row.marcador_local,
           visitante: row.marcador_visitante,
@@ -147,8 +209,34 @@ async function syncOneApiSportsFixture(
           },
         };
       }
-    } catch {
-      // +1 req opcional; seguimos con gol genérico
+    } else {
+      try {
+        const events = await fetchApiSportsFixtureEvents(apiKey, fixtureId);
+        result.apiRequests = (result.apiRequests ?? 0) + 1;
+        const latestGoal = findLatestGoalForScore(
+          events,
+          {
+            local: row.marcador_local,
+            visitante: row.marcador_visitante,
+          },
+          item.teams.home.id,
+        );
+        if (latestGoal) {
+          payload = {
+            ...payload,
+            goal: {
+              team: { name: latestGoal.team.name },
+              player: latestGoal.player?.name
+                ? { name: latestGoal.player.name }
+                : undefined,
+              time: { elapsed: latestGoal.time.elapsed ?? undefined },
+              detail: latestGoal.detail ?? undefined,
+            },
+          };
+        }
+      } catch {
+        // +1 req opcional; seguimos con gol genérico
+      }
     }
 
     const goalResult = await handleGoalEvent({
@@ -310,6 +398,7 @@ export async function syncLiveScoresFromApiSports(
     updated: 0,
     live: 0,
     goalsNotified: 0,
+    redCardsNotified: 0,
     phasesNotified: 0,
     errors: [],
     apiRequests: 0,

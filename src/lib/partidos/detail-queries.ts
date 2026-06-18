@@ -6,6 +6,8 @@ import {
 } from "@/lib/supabase/server-data";
 import { fetchMensajesChatHistorial } from "@/lib/partidos/chat-queries";
 import { syncPartidoLineups } from "@/lib/partidos/sync-lineups";
+import { syncPartidoEventos } from "@/lib/partidos/sync-partido-eventos";
+import { parseMomentosFromMetadata } from "@/lib/api-football/match-events";
 import { readLineupsFromMetadata } from "@/lib/partidos/lineups-types";
 import { createClient } from "@/lib/supabase/server";
 import type { Partido, PronosticoPartido, Usuario } from "@/types/database";
@@ -15,6 +17,7 @@ const PARTIDO_SELECT =
   "id, api_football_fixture_id, fase, grupo, jornada, sede, metadata, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, updated_at";
 
 export type PartidoDetalle = Partido & {
+  api_football_fixture_id?: number | null;
   sede: string | null;
   metadata: Record<string, unknown> | null;
   updated_at?: string;
@@ -80,8 +83,28 @@ export async function fetchPartidoDetallePageData(
       partidoDetalle = {
         ...partidoDetalle,
         metadata: {
-          ...(partido.metadata ?? {}),
+          ...(partidoDetalle.metadata ?? {}),
           alineaciones: sync.lineups,
+        },
+      };
+    }
+  }
+
+  const estatusEventos = partidoDetalle.estatus;
+  if (
+    parseMomentosFromMetadata(partidoDetalle.metadata).length === 0 &&
+    partidoDetalle.api_football_fixture_id &&
+    (estatusEventos === "en_vivo" ||
+      estatusEventos === "medio_tiempo" ||
+      estatusEventos === "finalizado")
+  ) {
+    const { eventos } = await syncPartidoEventos(admin, partidoDetalle);
+    if (eventos.length > 0) {
+      partidoDetalle = {
+        ...partidoDetalle,
+        metadata: {
+          ...(partidoDetalle.metadata ?? {}),
+          eventos_clave: eventos,
         },
       };
     }

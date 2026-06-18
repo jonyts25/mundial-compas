@@ -80,6 +80,7 @@ export function emptySyncSkippedResult(
   updated: number;
   live: number;
   goalsNotified: number;
+  redCardsNotified: number;
   phasesNotified: number;
   errors: string[];
   skipped: true;
@@ -92,6 +93,7 @@ export function emptySyncSkippedResult(
     updated: 0,
     live: 0,
     goalsNotified: 0,
+    redCardsNotified: 0,
     phasesNotified: 0,
     errors: [],
     skipped: true,
