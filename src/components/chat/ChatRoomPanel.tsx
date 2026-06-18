@@ -106,7 +106,7 @@ export function ChatRoomPanel({
   const [error, setError] = useState<string | null>(null);
   const [accionId, setAccionId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const autoresCache = useRef<Map<string, ChatAutor>>(new Map());
 
   useEffect(() => {
@@ -115,7 +115,9 @@ export function ChatRoomPanel({
   }, [channelId, initialMessages]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    bottomRef.current?.scrollIntoView({ behavior, block: "end" });
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
 
   useEffect(() => {
@@ -321,6 +323,7 @@ export function ChatRoomPanel({
       </header>
 
       <div
+        ref={messagesRef}
         className="flex-1 space-y-3 overflow-y-auto px-3 py-3"
         aria-live="polite"
         aria-label="Mensajes del chat"
@@ -343,7 +346,6 @@ export function ChatRoomPanel({
             />
           ))
         )}
-        <div ref={bottomRef} className="h-px shrink-0" aria-hidden />
       </div>
 
       <form
