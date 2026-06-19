@@ -10,40 +10,53 @@ interface PartidoEventosClaveProps {
   metadata: Record<string, unknown> | null | undefined;
 }
 
+function byTiempo(a: MomentoClave, b: MomentoClave): number {
+  const ka = (a.minuto ?? 9999) * 100 + (a.extra ?? 0);
+  const kb = (b.minuto ?? 9999) * 100 + (b.extra ?? 0);
+  return ka - kb;
+}
+
 export function PartidoEventosClave({ metadata }: PartidoEventosClaveProps) {
   const momentos = parseMomentosFromMetadata(metadata);
   if (momentos.length === 0) return null;
 
-  const goles = momentos.filter((m) => m.tipo === "gol");
-  const rojas = momentos.filter((m) => m.tipo === "tarjeta_roja");
-  const rows = Math.max(goles.length, rojas.length, 1);
+  const local = momentos.filter((m) => m.es_local).sort(byTiempo);
+  const visitante = momentos.filter((m) => !m.es_local).sort(byTiempo);
 
   return (
     <div className="mt-4 border-t border-zinc-800/80 pt-3">
       <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-500">
         Eventos
       </p>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-        {Array.from({ length: rows }, (_, i) => (
-          <EventosRow key={i} gol={goles[i]} roja={rojas[i]} />
-        ))}
+      <div className="grid grid-cols-2 gap-x-3 text-xs">
+        <EventosColumn eventos={local} align="left" />
+        <EventosColumn eventos={visitante} align="right" />
       </div>
     </div>
   );
 }
 
-function EventosRow({
-  gol,
-  roja,
+function EventosColumn({
+  eventos,
+  align,
 }: {
-  gol?: MomentoClave;
-  roja?: MomentoClave;
+  eventos: MomentoClave[];
+  align: "left" | "right";
 }) {
+  if (eventos.length === 0) {
+    return <div className="min-h-[1.25rem]" aria-hidden />;
+  }
+
   return (
-    <>
-      <EventoCell evento={gol} align="left" />
-      <EventoCell evento={roja} align="right" />
-    </>
+    <div
+      className={`flex flex-col gap-1.5 ${
+        align === "right" ? "items-end text-right" : "items-start text-left"
+      }`}
+    >
+      {eventos.map((evento) => (
+        <EventoCell key={evento.id} evento={evento} align={align} />
+      ))}
+    </div>
   );
 }
 
@@ -51,33 +64,25 @@ function EventoCell({
   evento,
   align,
 }: {
-  evento?: MomentoClave;
+  evento: MomentoClave;
   align: "left" | "right";
 }) {
-  if (!evento) {
-    return <span className="min-h-[1.25rem]" aria-hidden />;
-  }
-
   const minuto = formatMomentoMinuto(evento.minuto, evento.extra);
   const isGol = evento.tipo === "gol";
 
   return (
     <div
       className={`flex items-center gap-1.5 ${
-        align === "right" ? "justify-end text-right" : "justify-start text-left"
+        align === "right" ? "flex-row-reverse" : "flex-row"
       }`}
     >
-      {align === "right" ? (
-        <>
-          <EventoTexto evento={evento} minuto={minuto} />
-          <EventoIcon isGol={isGol} />
-        </>
-      ) : (
-        <>
-          <EventoIcon isGol={isGol} />
-          <EventoTexto evento={evento} minuto={minuto} />
-        </>
-      )}
+      <EventoIcon isGol={isGol} />
+      <span className="min-w-0 leading-tight text-zinc-300">
+        <span className="font-semibold text-zinc-100">{evento.jugador}</span>
+        {minuto ? (
+          <span className="ml-1 font-mono text-[10px] text-zinc-500">{minuto}</span>
+        ) : null}
+      </span>
     </div>
   );
 }
@@ -92,23 +97,5 @@ function EventoIcon({ isGol }: { isGol: boolean }) {
       aria-hidden
       title="Tarjeta roja"
     />
-  );
-}
-
-function EventoTexto({
-  evento,
-  minuto,
-}: {
-  evento: MomentoClave;
-  minuto: string;
-}) {
-  return (
-    <span className="min-w-0 leading-tight text-zinc-300">
-      <span className="font-semibold text-zinc-100">{evento.jugador}</span>
-      {minuto ? (
-        <span className="ml-1 font-mono text-[10px] text-zinc-500">{minuto}</span>
-      ) : null}
-      <span className="ml-1 text-[10px] text-zinc-500">{evento.equipo}</span>
-    </span>
   );
 }
