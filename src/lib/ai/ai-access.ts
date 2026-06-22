@@ -1,8 +1,11 @@
 import { getAiConfig } from "@/lib/ai/ai-config";
+import { collectUserEmails } from "@/lib/ai/resolve-user-email";
 
 export interface AiLabUser {
   id: string;
   email?: string | null;
+  user_metadata?: Record<string, unknown>;
+  identities?: Array<{ identity_data?: Record<string, unknown> }>;
 }
 
 /** true solo para desarrollo con flag o allowlist en prod. */
@@ -19,8 +22,10 @@ export function canUseAiLab(user: AiLabUser | null | undefined): boolean {
 
   if (cfg.labAllowedUserIds.includes(user.id)) return true;
 
-  const email = user.email?.trim().toLowerCase();
-  if (email && cfg.labAllowedEmails.includes(email)) return true;
+  const emails = collectUserEmails(user);
+  if (emails.some((email) => cfg.labAllowedEmails.includes(email))) {
+    return true;
+  }
 
   return false;
 }

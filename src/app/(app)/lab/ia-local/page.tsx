@@ -2,7 +2,7 @@ import { IaLocalLabScreen } from "@/components/admin/IaLocalLabScreen";
 
 export const dynamic = "force-dynamic";
 
-/** Alias legacy — misma pantalla que /lab/ia-local. */
-export default function AdminIaLocalLabPage() {
+/** Lab IA — solo canUseAiLab (no requiere superadmin). */
+export default function IaLocalLabPage() {
   return <IaLocalLabScreen />;
 }

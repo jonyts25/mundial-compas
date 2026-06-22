@@ -48,7 +48,7 @@ export default async function AdminHomePage() {
         </Link>
         {showAiLab && (
           <Link
-            href="/admin/ia-local"
+            href="/lab/ia-local"
             className="flex items-center justify-between rounded-xl border border-violet-800/50 bg-violet-950/20 px-4 py-3 transition hover:border-violet-700"
           >
             <span className="text-sm font-semibold text-violet-200">
