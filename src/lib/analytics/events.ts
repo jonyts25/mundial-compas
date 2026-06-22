@@ -39,6 +39,11 @@ export type AnalyticsEventMap = {
   pitoniso_expanded: {
     partido_id: string;
   };
+  ai_lab_preview_generated: {
+    partido_id?: string;
+    source: "admin_lab" | "match_detail";
+    ok: boolean;
+  };
   user_signed_in: { provider?: string };
   onboarding_cta_clicked: { cta: "pronostico" | "crear_grupo" | "unirse" };
   onboarding_dismissed: Record<string, never>;

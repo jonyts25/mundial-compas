@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AnalyticsViewTracker } from "@/components/analytics/AnalyticsViewTracker";
 import { ChatPartido } from "@/components/partidos/ChatPartido";
+import { PartidoAiLabPanel } from "@/components/partidos/PartidoAiLabPanel";
 import { PartidoInfoPanel } from "@/components/partidos/PartidoInfoPanel";
 import { PartidoPronosticoPitonisoBlock } from "@/components/partidos/PartidoPronosticoPitonisoBlock";
 import { PartidoHeader } from "@/components/partidos/PartidoHeader";
 import { PronosticoReminder } from "@/components/partidos/PronosticoReminder";
 import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
 import { SilenciarNotificacionesPartido } from "@/components/partidos/SilenciarNotificacionesPartido";
+import { canUseAiLab } from "@/lib/ai/ai-access";
+import { pitonisoStaticContextToLabInput } from "@/lib/ai/pitoniso-signals-format";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchPartidoDetallePageData } from "@/lib/partidos/detail-queries";
 import { fetchPitonisoStaticContext } from "@/lib/partidos/pitoniso-queries";
@@ -48,6 +51,12 @@ export default async function PartidoPage({
       ? await fetchPitonisoStaticContext(id)
       : null;
 
+  const aiLabEnabled = canUseAiLab(user);
+  const aiLabInput =
+    aiLabEnabled && pitonisoStatic?.ok
+      ? pitonisoStaticContextToLabInput(pitonisoStatic.context)
+      : null;
+
   return (
     <div className="flex min-h-full flex-col">
       <AnalyticsViewTracker
@@ -75,6 +84,7 @@ export default async function PartidoPage({
             pitonisoContext={pitonisoStatic?.ok ? pitonisoStatic.context : null}
           />
         ) : null}
+        {aiLabInput ? <PartidoAiLabPanel labInput={aiLabInput} /> : null}
         <SilenciarNotificacionesPartido partidoId={data.partido.id} />
         <PartidoInfoPanel partido={data.partido} />
         {!esPronosticable ? (
