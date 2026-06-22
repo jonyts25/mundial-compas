@@ -1,10 +1,5 @@
 /** Lectura de env vars para AI Local Lab (sin throws). */
 
-function optional(name: string): string | undefined {
-  const v = process.env[name]?.trim();
-  return v || undefined;
-}
-
 function parseCsv(value: string | undefined): string[] {
   if (!value) return [];
   return value
@@ -33,17 +28,17 @@ function parseExtraHeadersJson(raw: string | undefined): Record<string, string> 
 
 export function getAiConfig() {
   return {
-    provider: optional("AI_PROVIDER") ?? "manual_chatgpt",
-    enableOllamaDevApi: optional("ENABLE_OLLAMA_DEV_API") === "true",
-    ollamaBaseUrl: optional("OLLAMA_BASE_URL") ?? "http://localhost:11434",
-    ollamaExtraHeaders: parseExtraHeadersJson(optional("OLLAMA_EXTRA_HEADERS_JSON")),
-    modelFast: optional("OLLAMA_MODEL_FAST") ?? "llama3.2:3b",
-    modelSpanish: optional("OLLAMA_MODEL_SPANISH") ?? "gemma3:4b",
-    modelSmart: optional("OLLAMA_MODEL_SMART") ?? "qwen3.5:latest",
-    timeoutMs: Number(optional("OLLAMA_TIMEOUT_MS") ?? "60000"),
-    labEnabled: optional("AI_LAB_ENABLED") === "true",
-    labAllowedUserIds: parseCsv(optional("AI_LAB_ALLOWED_USER_IDS")),
-    labAllowedEmails: parseCsv(optional("AI_LAB_ALLOWED_EMAILS")).map((e) =>
+    provider: (process.env.AI_PROVIDER ?? "manual_chatgpt").trim() || "manual_chatgpt",
+    enableOllamaDevApi: (process.env.ENABLE_OLLAMA_DEV_API ?? "").trim() === "true",
+    ollamaBaseUrl: (process.env.OLLAMA_BASE_URL ?? "http://localhost:11434").trim(),
+    ollamaExtraHeaders: parseExtraHeadersJson(process.env.OLLAMA_EXTRA_HEADERS_JSON?.trim()),
+    modelFast: (process.env.OLLAMA_MODEL_FAST ?? "llama3.2:3b").trim(),
+    modelSpanish: (process.env.OLLAMA_MODEL_SPANISH ?? "gemma3:4b").trim(),
+    modelSmart: (process.env.OLLAMA_MODEL_SMART ?? "qwen3.5:latest").trim(),
+    timeoutMs: Number(process.env.OLLAMA_TIMEOUT_MS ?? "60000"),
+    labEnabled: (process.env.AI_LAB_ENABLED ?? "").trim() === "true",
+    labAllowedUserIds: parseCsv(process.env.AI_LAB_ALLOWED_USER_IDS?.trim()),
+    labAllowedEmails: parseCsv(process.env.AI_LAB_ALLOWED_EMAILS?.trim()).map((e) =>
       e.toLowerCase(),
     ),
   };

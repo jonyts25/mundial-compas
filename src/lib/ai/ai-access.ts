@@ -1,5 +1,6 @@
 import { getAiConfig } from "@/lib/ai/ai-config";
 import { collectUserEmails } from "@/lib/ai/resolve-user-email";
+import { isAppAdmin } from "@/lib/admin/app-admin";
 
 export interface AiLabUser {
   id: string;
@@ -21,6 +22,8 @@ export function canUseAiLab(user: AiLabUser | null | undefined): boolean {
   if (!cfg.labEnabled) return false;
 
   if (cfg.labAllowedUserIds.includes(user.id)) return true;
+
+  if (isAppAdmin(user.id)) return true;
 
   const emails = collectUserEmails(user);
   if (emails.some((email) => cfg.labAllowedEmails.includes(email))) {
