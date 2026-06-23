@@ -5,6 +5,9 @@ import {
   findLatestGoalForScore,
 } from "@/lib/api-football/fetch-events";
 import {
+  fetchApiSportsFixtureStatistics,
+} from "@/lib/api-football/fetch-statistics";
+import {
   fetchApiSportsFixturesByIds,
   fetchApiSportsLiveFixtures,
 } from "@/lib/api-football/fetch-fixtures";
@@ -28,6 +31,11 @@ import {
   buildMomentosMetadata,
   mapFixtureEventsToMomentos,
 } from "@/lib/api-football/match-events";
+import {
+  buildStatisticsMetadata,
+  hasPersistedMatchStatistics,
+  normalizeApiSportsFixtureStatistics,
+} from "@/lib/api-football/match-statistics";
 import {
   baselineNotifiedRedCards,
   buildRedCardNotifyMetadata,
@@ -325,6 +333,32 @@ async function syncOneApiSportsFixture(
 
   if (phaseResult.notified.length > 0) {
     persistMetadata = true;
+  }
+
+  if (
+    row.estatus === "finalizado" &&
+    !hasPersistedMatchStatistics(existing.metadata)
+  ) {
+    try {
+      const statsTeams = await fetchApiSportsFixtureStatistics(apiKey, fixtureId);
+      result.apiRequests = (result.apiRequests ?? 0) + 1;
+      const normalized = normalizeApiSportsFixtureStatistics(
+        statsTeams,
+        item.teams.home.id,
+      );
+      if (normalized) {
+        Object.assign(
+          metadata,
+          buildStatisticsMetadata(metadata, normalized),
+        );
+        persistMetadata = true;
+      }
+    } catch (e) {
+      console.warn(
+        `[sync-live] statistics fetch skipped fixture=${fixtureId}:`,
+        e instanceof Error ? e.message : e,
+      );
+    }
   }
 
   if (persistMetadata) {

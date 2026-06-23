@@ -1,5 +1,6 @@
 import { parseMomentosFromMetadata } from "@/lib/api-football/match-events";
 import { isOwnGoalFromDetail } from "@/lib/api-football/goal-event-detail";
+import { readPersistedMatchStatistics } from "@/lib/api-football/match-statistics";
 import type { SportsNarratorPersonaId } from "@/lib/ai/sports-narrator-personas";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import {
@@ -49,26 +50,27 @@ function mapTimelineType(
 }
 
 function parseStatistics(metadata: Record<string, unknown> | null) {
-  const raw = metadata?.statistics;
-  if (!raw || typeof raw !== "object") return null;
-
-  const o = raw as Record<string, unknown>;
-  const home = o.home as Record<string, unknown> | undefined;
-  const away = o.away as Record<string, unknown> | undefined;
-  if (!home || !away) return null;
-
-  const num = (v: unknown) => (typeof v === "number" ? v : null);
+  const persisted = readPersistedMatchStatistics(metadata);
+  if (!persisted) return null;
 
   return {
-    possession_home_pct: num(home.possession_pct),
-    possession_away_pct: num(away.possession_pct),
-    shots_on_home: num(home.shots_on),
-    shots_on_away: num(away.shots_on),
-    corners_home: num(home.corners),
-    corners_away: num(away.corners),
-    xg_home: num(home.xg),
-    xg_away: num(away.xg),
+    possession_home_pct: persisted.possession_home_pct,
+    possession_away_pct: persisted.possession_away_pct,
+    shots_on_home: persisted.shots_on_home,
+    shots_on_away: persisted.shots_on_away,
+    corners_home: persisted.corners_home,
+    corners_away: persisted.corners_away,
+    xg_home: persisted.xg_home,
+    xg_away: persisted.xg_away,
   };
+}
+
+/** Exported for unit tests — maps metadata → resumen IA statistics block. */
+export function parseMatchSummaryStatisticsFromMetadata(
+  metadata: unknown,
+): ReturnType<typeof parseStatistics> {
+  if (!metadata || typeof metadata !== "object") return null;
+  return parseStatistics(metadata as Record<string, unknown>);
 }
 
 function readReferee(metadata: Record<string, unknown> | null): string | null {
