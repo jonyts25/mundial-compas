@@ -1,0 +1,128 @@
+{
+  "generatedAt": "2026-06-23T01:56:08.093Z",
+  "source": "supabase_read_only",
+  "users": {
+    "total": 24,
+    "withAtLeast1Pick": 20,
+    "withAtLeast5Picks": 18,
+    "withAtLeast10Picks": 18,
+    "activeLast24h": 5,
+    "activeLast7d": 17
+  },
+  "global": {
+    "ligaId": "a0000000-0000-4000-8000-000000000001",
+    "totalPicks": 420,
+    "participatingUsers": 13,
+    "avgPicksPerUser": 32.3,
+    "topMatches": [
+      {
+        "id": "23e16006-cd0e-4fbc-be28-d53b446653c2",
+        "label": "Argentina vs Algeria",
+        "count": 9
+      },
+      {
+        "id": "01f5c88f-6506-49eb-a77c-54ef1d3f1b43",
+        "label": "Austria vs Jordan",
+        "count": 8
+      },
+      {
+        "id": "9e350b10-4df7-4d53-91d5-28ed53733e1d",
+        "label": "Portugal vs Congo DR",
+        "count": 8
+      },
+      {
+        "id": "facbf2da-d8ef-42f6-97b9-78b13dfe644b",
+        "label": "Netherlands vs Sweden",
+        "count": 8
+      },
+      {
+        "id": "02865294-07f7-452a-817d-6d4af2b9e962",
+        "label": "Spain vs Saudi Arabia",
+        "count": 8
+      }
+    ],
+    "bottomMatches": [
+      {
+        "id": "3d7c7e7f-69b2-4014-aace-f3d2e09cb887",
+        "label": "Egypt vs Iran",
+        "count": 4
+      },
+      {
+        "id": "eb54957b-19eb-4a48-93cc-5e2926ae2e2c",
+        "label": "Senegal vs Iraq",
+        "count": 4
+      },
+      {
+        "id": "16142229-9f14-4827-b71e-102e8c91ad72",
+        "label": "Congo DR vs Uzbekistan",
+        "count": 4
+      },
+      {
+        "id": "31d366b7-cf15-4184-9592-6a48452e0122",
+        "label": "Croatia vs Ghana",
+        "count": 4
+      },
+      {
+        "id": "db7eeb2c-6dea-43f9-b246-8e806857e82b",
+        "label": "New Zealand vs Belgium",
+        "count": 4
+      }
+    ],
+    "picksBeforeKickoff": 420,
+    "picksAfterKickoff": 0,
+    "picksBeforeKickoffPct": 100,
+    "picksAfterKickoffPct": 0
+  },
+  "private": {
+    "totalLeagues": 11,
+    "activeWith2PlusMembers": 4,
+    "activeWith5PlusMembers": 1,
+    "leaguesFromUsers": 11,
+    "leaguesByDistinctCreators": 7,
+    "abandonedLeagues": 3,
+    "totalPicks": 754,
+    "avgMembersPerActiveLeague": 3
+  },
+  "retention": {
+    "usersWithFirstPick": 13,
+    "multiJornadaUsers": 8,
+    "cohorts": [
+      {
+        "cohortWeek": "2026-05",
+        "cohortSize": 2,
+        "returnedNextDay": 0,
+        "returnedNextDayPct": 0,
+        "returnedWithin7d": 0,
+        "returnedWithin7dPct": 0
+      },
+      {
+        "cohortWeek": "2026-06",
+        "cohortSize": 11,
+        "returnedNextDay": 4,
+        "returnedNextDayPct": 36.4,
+        "returnedWithin7d": 8,
+        "returnedWithin7dPct": 72.7
+      }
+    ]
+  },
+  "engagement": {
+    "chatMessagesTotal": 10,
+    "chatDistinctMatches": 4,
+    "chatDistinctLeagues": 2
+  },
+  "posthog": {
+    "available": false,
+    "reason": "PostHog client-side only; sin API key de proyecto en env para consultas server-side.",
+    "eventsToReviewManually": [
+      "match_view",
+      "pitoniso_shown",
+      "pitoniso_expanded",
+      "prediction_updated",
+      "leaderboard_viewed",
+      "whats_new_shown",
+      "whats_new_dismissed",
+      "oracle_lab_generated",
+      "ai_lab_preview_generated"
+    ]
+  }
+}

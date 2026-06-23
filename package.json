@@ -27,10 +27,15 @@
     "discover-api-sports": "node scripts/discover-api-sports.mjs",
     "inspect:api-football-match": "node scripts/inspect-api-football-match-data.mjs",
     "evaluate:pitoniso-v3": "tsx scripts/evaluate-pitoniso-v3-simulation.ts",
+    "evaluate:ai-oracle": "tsx scripts/evaluate-ai-oracle-lab.ts",
     "deploy:mexico-serbia-runner": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-mexico-serbia-runner.ps1",
     "test-webhook": "node scripts/test-webhook.mjs",
     "replay-penalties": "node scripts/replay-penalty-finale.mjs --reset",
-    "backfill-grupos": "node scripts/backfill-partidos-grupo.mjs"
+    "backfill-grupos": "node scripts/backfill-partidos-grupo.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:core": "vitest run src/lib",
+    "analytics:snapshot": "node scripts/product-analytics-snapshot.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -50,6 +55,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.6"
   }
 }
