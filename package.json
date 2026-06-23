@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:ollama": "node scripts/test-ollama-local.mjs",
+    "test:match-summary": "node scripts/test-match-summary-lab.mjs",
     "sync-lineups:cron": "node scripts/sync-lineups-cron.mjs",
     "sync-live:cron": "node scripts/sync-live-cron.mjs",
     "sync-calendar:cron": "node scripts/sync-calendar-cron.mjs",
