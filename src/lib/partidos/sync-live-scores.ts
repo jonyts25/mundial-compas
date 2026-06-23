@@ -24,6 +24,9 @@ export type SyncLiveResult = {
   };
   apiRequests?: number;
   phases?: string[];
+  /** Telemetría del ciclo (logs + JSON cron). */
+  durationMs?: number;
+  liveFixtureCount?: number;
 };
 
 /** Polling de marcador vía api-sports.io (api-football). */

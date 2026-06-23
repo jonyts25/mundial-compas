@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { tryClaimSyncLiveRun } from "@/lib/api-football/push/claim-event";
+import { warnSyncLiveLockSkipped } from "@/lib/partidos/sync-live-telemetry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminEnv, getFootballDataProvider } from "@/lib/env";
 import { syncLiveScoresFromApi } from "@/lib/partidos/sync-live-scores";
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
 
   if (!(await tryClaimSyncLiveRun(supabase))) {
+    warnSyncLiveLockSkipped();
     return NextResponse.json({
       ok: true,
       skipped: true,

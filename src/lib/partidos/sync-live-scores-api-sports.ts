@@ -36,6 +36,12 @@ import {
 import { getPilotConfig } from "@/lib/api-football/pilot-config";
 import { getApiSportsEnv } from "@/lib/env";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
+import {
+  logSyncLiveComplete,
+  logSyncLiveFixture,
+  logSyncLiveStart,
+  type SyncLiveFixtureLog,
+} from "@/lib/partidos/sync-live-telemetry";
 
 async function syncOneApiSportsFixture(
   supabase: SupabaseClient,
@@ -46,6 +52,13 @@ async function syncOneApiSportsFixture(
   result: SyncLiveResult,
 ): Promise<void> {
   const fixtureId = item.fixture.id;
+  const startedAt = Date.now();
+  let partidoId: string | null = null;
+  let status: string | null = null;
+  let minuto: number | null = null;
+  let outcome: SyncLiveFixtureLog["outcome"] = "updated";
+
+  try {
   const row = mapFixtureToPartidoRow(item, {
     pilot: pilotEnabled ? { label: pilotLabel } : undefined,
   });
@@ -59,10 +72,16 @@ async function syncOneApiSportsFixture(
     .maybeSingle();
 
   if (findError) {
+    outcome = "db_error";
     result.errors.push(findError.message);
     return;
   }
-  if (!existing) return;
+  if (!existing) {
+    outcome = "not_in_db";
+    return;
+  }
+
+  partidoId = existing.id;
 
   let notifyScore = getGolNotifyScore(existing.metadata);
   const baseline = baselineGolNotifyScore(existing.metadata, {
@@ -114,9 +133,13 @@ async function syncOneApiSportsFixture(
     .eq("id", existing.id);
 
   if (updateError) {
+    outcome = "update_error";
     result.errors.push(updateError.message);
     return;
   }
+
+  status = row.estatus;
+  minuto = minutoReloj ?? row.minuto_actual ?? null;
 
   result.updated += 1;
   if (row.estatus === "en_vivo" || row.estatus === "medio_tiempo") {
@@ -313,6 +336,16 @@ async function syncOneApiSportsFixture(
       })
       .eq("id", existing.id);
   }
+  } finally {
+    logSyncLiveFixture({
+      fixture_id: fixtureId,
+      partido_id: partidoId,
+      status,
+      minuto,
+      duration_ms: Date.now() - startedAt,
+      outcome,
+    });
+  }
 }
 
 /** Partidos en BD aún "en vivo" que ya no aparecen en live=all (p. ej. FT). */
@@ -391,6 +424,7 @@ async function syncFixtureIdsByLookup(
 export async function syncLiveScoresFromApiSports(
   supabase: SupabaseClient,
 ): Promise<SyncLiveResult> {
+  const syncStartedAt = Date.now();
   const { apiKey, timezone } = getApiSportsEnv();
   const pilot = getPilotConfig();
   const result: SyncLiveResult = {
@@ -407,6 +441,8 @@ export async function syncLiveScoresFromApiSports(
   const liveItems = await fetchApiSportsLiveFixtures(apiKey, timezone, "all");
   result.apiRequests = 1;
   result.fetched = liveItems.length;
+  result.liveFixtureCount = liveItems.length;
+  logSyncLiveStart(liveItems.length);
 
   const liveIds = new Set(liveItems.map((item) => item.fixture.id));
 
@@ -446,6 +482,18 @@ export async function syncLiveScoresFromApiSports(
   } catch (e) {
     result.errors.push(e instanceof Error ? e.message : String(e));
   }
+
+  const durationMs = Date.now() - syncStartedAt;
+  result.durationMs = durationMs;
+  logSyncLiveComplete({
+    duration_ms: durationMs,
+    live_fixture_count: liveItems.length,
+    fetched: result.fetched,
+    updated: result.updated,
+    live: result.live,
+    api_requests: result.apiRequests ?? 0,
+    errors: result.errors.length,
+  });
 
   return result;
 }
