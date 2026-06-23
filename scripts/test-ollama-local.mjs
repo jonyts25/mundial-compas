@@ -1,6 +1,5 @@
 /**
  * Smoke test Ollama + pitoniso-preview (AI Local Lab).
- * Requiere app en marcha y ENABLE_OLLAMA_DEV_API=true (o sesión no aplica — usa fetch directo a Ollama + validación local).
  *
  * Uso:
  *   npm run test:ollama
@@ -16,6 +15,7 @@ const baseUrl = process.env.OLLAMA_BASE_URL?.replace(/\/$/, "") ?? "http://local
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS ?? "60000");
 
+/** Sin venue/city — el modelo NO debe inventar estadio (ej. "El Azteca"). */
 const MOCK = {
   match: {
     home: "México",
@@ -32,6 +32,14 @@ const MOCK = {
   },
 };
 
+const VENUE_HALLUCINATION_PATTERNS = [
+  /\bestadio\b/i,
+  /\bazteca\b/i,
+  /\barena\b/i,
+  /\bsede\b/i,
+  /\brugir[aá]\b/i,
+];
+
 function fail(msg) {
   console.error(`✗ ${msg}`);
   process.exit(1);
@@ -39,6 +47,47 @@ function fail(msg) {
 
 function pass(msg) {
   console.log(`✓ ${msg}`);
+}
+
+function buildLabPrompt(input) {
+  const { match, signals } = input;
+  return `Eres un cronista de quiniela. Explica señales.
+
+PARTIDO:
+Local: ${match.home}
+Visitante: ${match.away}
+Kickoff: ${match.kickoff ?? "no tengo esa señal"}
+Venue: no tengo esa señal
+Ciudad: no tengo esa señal
+
+SEÑALES:
+- Multitud: ${signals.crowd}
+- Forma: ${signals.form}
+- Tabla: ${signals.table}
+- Ranking: ${signals.ranking}
+- Empate: ${signals.drawSignal}
+- Contradicciones: ${(signals.contradictions ?? []).join(", ")}
+
+REGLAS ESTRICTAS:
+- PROHIBIDO mencionar estadio, sede o ciudad (no vienen en input).
+- PROHIBIDO mencionar jugadores o historial.
+- No inventes stats ni porcentajes extra.
+- No apuestas. Disclaimer obligatorio.
+- Máximo 2 bullets.
+
+Responde SOLO JSON:
+{"headline":"","summary":"","risk_label":"bajo|medio|alto","bullets":[],"disclaimer":""}`;
+}
+
+function assertNoVenueHallucination(parsed, input) {
+  const blob = JSON.stringify(parsed);
+  if (input.match.venue?.trim()) return;
+  for (const pattern of VENUE_HALLUCINATION_PATTERNS) {
+    if (pattern.test(blob)) {
+      fail(`alucinación de sede/estadio detectada (input sin venue): ${blob.slice(0, 300)}`);
+    }
+  }
+  pass("sin alucinación de estadio/sede (input sin venue)");
 }
 
 async function testHealth() {
@@ -76,16 +125,7 @@ function pickModel(models) {
 
 async function testPreviewDirect(models) {
   const model = pickModel(models);
-  const prompt = `Responde SOLO JSON válido:
-{
-  "headline": "string",
-  "summary": "string",
-  "risk_label": "bajo|medio|alto",
-  "bullets": ["string"],
-  "disclaimer": "string"
-}
-Señales: ${JSON.stringify(MOCK.signals)}
-No inventes stats. Disclaimer obligatorio.`;
+  const prompt = buildLabPrompt(MOCK);
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -97,7 +137,11 @@ No inventes stats. Disclaimer obligatorio.`;
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: "Solo JSON válido." },
+          {
+            role: "system",
+            content:
+              "Solo JSON válido. Nunca menciones estadio ni ciudad si no están en el input.",
+          },
           { role: "user", content: prompt },
         ],
         stream: false,
@@ -119,9 +163,7 @@ No inventes stats. Disclaimer obligatorio.`;
     for (const key of ["headline", "summary", "risk_label", "bullets", "disclaimer"]) {
       if (!(key in parsed)) fail(`falta campo ${key}`);
     }
-    if (!Array.isArray(parsed.bullets)) {
-      fail("bullets debe ser array");
-    }
+    if (!Array.isArray(parsed.bullets)) fail("bullets debe ser array");
     if (parsed.bullets.length > 2) {
       console.warn(`⚠ modelo devolvió ${parsed.bullets.length} bullets (máx recomendado: 2)`);
     }
@@ -133,6 +175,8 @@ No inventes stats. Disclaimer obligatorio.`;
     for (const d of dangerous) {
       if (blob.includes(d)) fail(`campo peligroso detectado: ${d}`);
     }
+
+    assertNoVenueHallucination(parsed, MOCK);
 
     pass(`preview JSON válido (modelo ${model})`);
     console.log(JSON.stringify(parsed, null, 2));
@@ -154,6 +198,7 @@ async function testPreviewApi() {
   }
   const data = await res.json();
   if (!res.ok) fail(`API preview: ${JSON.stringify(data)}`);
+  assertNoVenueHallucination(data, MOCK);
   pass("API pitoniso-preview respondió ok");
 }
 

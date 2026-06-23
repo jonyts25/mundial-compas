@@ -30,6 +30,8 @@ function parseInput(body: unknown): PitonisoLabInput | null {
       home: m.home,
       away: m.away,
       kickoff: typeof m.kickoff === "string" ? m.kickoff : undefined,
+      venue: typeof m.venue === "string" ? m.venue : undefined,
+      city: typeof m.city === "string" ? m.city : undefined,
     },
     signals: {
       crowd: typeof s.crowd === "string" ? s.crowd : undefined,
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
       {
         role: "system",
         content:
-          "Eres un asistente que solo responde JSON válido para explicar señales deportivas de quiniela. Nunca inventes datos.",
+          "Eres un asistente que solo responde JSON válido para explicar señales deportivas de quiniela. Nunca inventes datos. Nunca menciones estadio, ciudad, jugadores ni historial si no están en el input.",
       },
       { role: "user", content: buildPitonisoPreviewPrompt(input) },
     ],

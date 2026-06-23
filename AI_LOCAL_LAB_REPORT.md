@@ -105,11 +105,35 @@ AI_LAB_ALLOWED_EMAILS=
 
 ## Siguiente paso recomendado
 
-1. Probar en local con Ollama activo.
-2. Commit + push + `npx railway up --detach`.
-3. Configurar túnel estable (Tailscale/CF) si quieres preview desde prod.
-4. Si el copy es bueno, considerar enriquecer señales `crowd`/`drawSignal` desde agregados cliente (sin cambiar scoring).
-5. Evento PostHog `ai_lab_preview_generated` en cliente cuando se use el panel (opcional).
+1. ~~Probar en local con Ollama activo.~~ ✅
+2. ~~Commit + push + Railway deploy.~~ ✅
+3. Fase A (`SPORTS_DATA_AI_AUDIT.md`): pasar `sede`/`fase`/`grupo` al input AI Lab desde DB.
+4. Implementar endpoints lab adicionales (`AI_SPORTS_CONTENT_PLAN.md`) — pre/post/jornada.
+5. Script offline evaluación Pitoniso (`PITONISO_MODEL_RESEARCH_PLAN.md`).
+
+## Prompt anti-alucinación (SPORTS-DATA-AI-AUDIT-1 / Parte 4)
+
+**Problema:** Con México vs Corea sin venue, Ollama inventó “El Azteca rugirá…”.
+
+**Fix aplicado:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/ai/ai-sports-prompt-guardrails.ts` | Reglas compartidas + `detectSportsContentHallucinations()` |
+| `src/lib/ai/pitoniso-preview-prompt.ts` | `formatMatchBlock` con venue/city explícitos o “no tengo esa señal” |
+| `src/lib/ai/pitoniso-lab-types.ts` | `match.venue`, `match.city` opcionales |
+| `src/app/api/dev/ai/pitoniso-preview/route.ts` | Parse venue/city; system prompt reforzado |
+| `scripts/test-ollama-local.mjs` | Assert sin estadio/azteca/sede cuando input sin venue |
+
+**Reglas prohibidas en copy:** estadio, ciudad, jugadores, historial — salvo que vengan en input.
+
+## Documentos de investigación (nuevos)
+
+| Documento | Contenido |
+|-----------|-----------|
+| `SPORTS_DATA_AI_AUDIT.md` | API data audit + fases ingest |
+| `AI_SPORTS_CONTENT_PLAN.md` | 8 casos de uso Ollama + schemas |
+| `PITONISO_MODEL_RESEARCH_PLAN.md` | Feature v3, baselines, evaluación |
 
 ## QA
 
@@ -118,4 +142,4 @@ AI_LAB_ALLOWED_EMAILS=
 | `npm run lint` | Pre-existentes en repo (16 errors fuera del lab); archivos AI lab sin errores nuevos |
 | `npm run typecheck` | OK (tras `npm install` + limpiar `.next`) |
 | `npm run build` | OK — rutas `/api/dev/ai/*` y `/admin/ia-local` en manifest |
-| `npm run test:ollama` | OK — health 4 modelos; preview JSON con disclaimer (gemma3:4b) |
+| `npm run test:ollama` | OK — health; preview JSON; **assert sin alucinación estadio** (si Ollama activo) |

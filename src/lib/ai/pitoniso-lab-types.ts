@@ -2,6 +2,10 @@ export interface PitonisoLabMatch {
   home: string;
   away: string;
   kickoff?: string;
+  /** Estadio/sede — solo mencionar en copy si está presente. */
+  venue?: string;
+  /** Ciudad — solo mencionar en copy si está presente. */
+  city?: string;
 }
 
 export interface PitonisoLabSignals {
