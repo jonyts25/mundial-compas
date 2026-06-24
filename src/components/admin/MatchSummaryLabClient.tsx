@@ -1,11 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { MatchSummaryInputFacts } from "@/components/ai/MatchSummaryInputFacts";
+import {
+  parseMatchSummaryApiFailure,
+  parseMatchSummaryInput,
+} from "@/lib/ai/match-summary/match-summary-availability";
+import type { MatchSummaryInput } from "@/lib/ai/match-summary/match-summary-types";
 import {
   DEFAULT_NARRATOR_PERSONA_ID,
   listSportsNarratorPersonas,
   type SportsNarratorPersonaId,
 } from "@/lib/ai/sports-narrator-personas";
+import { trackEvent } from "@/lib/analytics/track";
 
 export function MatchSummaryLabClient() {
   const personas = listSportsNarratorPersonas();
@@ -13,14 +20,18 @@ export function MatchSummaryLabClient() {
   const [personaId, setPersonaId] = useState<SportsNarratorPersonaId>(
     DEFAULT_NARRATOR_PERSONA_ID,
   );
+  const [inputFacts, setInputFacts] = useState<MatchSummaryInput | null>(null);
   const [inputJson, setInputJson] = useState<string | null>(null);
   const [output, setOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleGenerate() {
     setError(null);
+    setUnavailable(false);
     setInputJson(null);
+    setInputFacts(null);
     setOutput(null);
 
     const id = partidoId.trim();
@@ -46,24 +57,40 @@ export function MatchSummaryLabClient() {
           return;
         }
 
+        const input = parseMatchSummaryInput(data.input);
+        if (input) {
+          setInputFacts(input);
+          setInputJson(JSON.stringify(input, null, 2));
+        }
+
         if (!res.ok) {
-          const msg =
-            typeof data.error === "string" ? data.error : `Error ${res.status}`;
-          setError(msg);
-          if (data.input) {
-            setInputJson(JSON.stringify(data.input, null, 2));
+          const failure = parseMatchSummaryApiFailure(data);
+          if (failure.unavailable) {
+            setUnavailable(true);
+            setError(failure.message);
+            trackEvent("ai_summary_unavailable", {
+              partido_id: id,
+              source: "admin_lab",
+              reason: failure.reason,
+            });
+          } else {
+            setError(failure.message);
           }
           setOutput(JSON.stringify(data, null, 2));
           return;
         }
 
-        if (data.input) {
-          setInputJson(JSON.stringify(data.input, null, 2));
-        }
         const summary = data.match_summary_output ?? data;
         setOutput(JSON.stringify(summary, null, 2));
       } catch {
-        setError("No se pudo generar el resumen");
+        const failure = parseMatchSummaryApiFailure({}, true);
+        setUnavailable(true);
+        setError(failure.message);
+        trackEvent("ai_summary_unavailable", {
+          partido_id: id,
+          source: "admin_lab",
+          reason: "network",
+        });
       }
     });
   }
@@ -119,10 +146,30 @@ export function MatchSummaryLabClient() {
         {isPending ? "Generando resumen…" : "Generar resumen IA"}
       </button>
 
-      {error && (
+      {unavailable && error && (
+        <div
+          className="rounded-lg border border-amber-600/40 bg-amber-950/20 px-3 py-2.5"
+          role="status"
+        >
+          <p className="text-sm text-amber-100/90">{error}</p>
+        </div>
+      )}
+
+      {!unavailable && error && (
         <p className="text-sm text-red-400" role="alert">
           {error}
         </p>
+      )}
+
+      {inputFacts && (unavailable || output) && (
+        <div className="rounded-lg border border-zinc-800 bg-zinc-950/80 p-3">
+          <p className="text-xs font-semibold text-zinc-400">
+            Datos del partido (sin IA)
+          </p>
+          <div className="mt-2">
+            <MatchSummaryInputFacts input={inputFacts} compact />
+          </div>
+        </div>
       )}
 
       {inputJson && (

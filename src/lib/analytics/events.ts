@@ -44,6 +44,11 @@ export type AnalyticsEventMap = {
     source: "admin_lab" | "match_detail";
     ok: boolean;
   };
+  ai_summary_unavailable: {
+    partido_id: string;
+    source: "admin_lab" | "match_detail";
+    reason: "ollama_unavailable" | "ollama_timeout" | "network" | "other";
+  };
   user_signed_in: { provider?: string };
   onboarding_cta_clicked: { cta: "pronostico" | "crear_grupo" | "unirse" };
   onboarding_dismissed: Record<string, never>;

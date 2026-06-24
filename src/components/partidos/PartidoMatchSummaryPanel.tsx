@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { MatchSummaryInputFacts } from "@/components/ai/MatchSummaryInputFacts";
+import {
+  parseMatchSummaryApiFailure,
+  parseMatchSummaryInput,
+} from "@/lib/ai/match-summary/match-summary-availability";
+import type {
+  MatchSummaryInput,
+  MatchSummaryOutput,
+} from "@/lib/ai/match-summary/match-summary-types";
 import {
   DEFAULT_NARRATOR_PERSONA_ID,
   type SportsNarratorPersonaId,
 } from "@/lib/ai/sports-narrator-personas";
-import type { MatchSummaryOutput } from "@/lib/ai/match-summary/match-summary-types";
+import { trackEvent } from "@/lib/analytics/track";
 
 interface PartidoMatchSummaryPanelProps {
   partidoId: string;
@@ -17,12 +26,15 @@ export function PartidoMatchSummaryPanel({
   partidoLabel,
 }: PartidoMatchSummaryPanelProps) {
   const [summary, setSummary] = useState<MatchSummaryOutput | null>(null);
+  const [inputFacts, setInputFacts] = useState<MatchSummaryInput | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const [isPending, startTransition] = useTransition();
   const personaId: SportsNarratorPersonaId = DEFAULT_NARRATOR_PERSONA_ID;
 
   function handleGenerate() {
     setError(null);
+    setUnavailable(false);
     startTransition(async () => {
       try {
         const res = await fetch("/api/dev/ai/match-summary", {
@@ -31,19 +43,43 @@ export function PartidoMatchSummaryPanel({
           body: JSON.stringify({ partido_id: partidoId, persona_id: personaId }),
         });
         const data = (await res.json()) as Record<string, unknown>;
+
         if (!res.ok) {
-          setError(
-            typeof data.error === "string" ? data.error : `Error ${res.status}`,
-          );
+          const failure = parseMatchSummaryApiFailure(data);
+          if (failure.input) setInputFacts(failure.input);
+          if (failure.unavailable) {
+            setUnavailable(true);
+            setError(failure.message);
+            trackEvent("ai_summary_unavailable", {
+              partido_id: partidoId,
+              source: "match_detail",
+              reason: failure.reason,
+            });
+            return;
+          }
+          setError(failure.message);
           return;
         }
+
         const output = data.match_summary_output as MatchSummaryOutput;
+        const input = parseMatchSummaryInput(data.input);
+        if (input) setInputFacts(input);
         setSummary(output);
       } catch {
-        setError("No se pudo generar el resumen");
+        setUnavailable(true);
+        setError(
+          parseMatchSummaryApiFailure({}, true).message,
+        );
+        trackEvent("ai_summary_unavailable", {
+          partido_id: partidoId,
+          source: "match_detail",
+          reason: "network",
+        });
       }
     });
   }
+
+  const showFacts = unavailable && inputFacts != null;
 
   return (
     <section className="rounded-2xl border border-dashed border-violet-600/40 bg-violet-950/10 px-4 py-3">
@@ -107,7 +143,22 @@ export function PartidoMatchSummaryPanel({
         </div>
       )}
 
-      {error && (
+      {unavailable && error && (
+        <div
+          className="mt-3 rounded-lg border border-amber-600/40 bg-amber-950/20 px-3 py-2.5"
+          role="status"
+        >
+          <p className="text-sm text-amber-100/90">{error}</p>
+        </div>
+      )}
+
+      {showFacts && (
+        <div className="mt-3 border-t border-zinc-800/80 pt-3">
+          <MatchSummaryInputFacts input={inputFacts} compact />
+        </div>
+      )}
+
+      {!unavailable && error && (
         <p className="mt-2 text-xs text-red-400" role="alert">
           {error}
         </p>
