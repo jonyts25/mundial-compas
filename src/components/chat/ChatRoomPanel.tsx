@@ -39,6 +39,8 @@ interface ChatRoomPanelProps {
     soloGrupoPrivado?: boolean;
   };
   footerExtra?: ReactNode;
+  defaultCollapsed?: boolean;
+  collapsedPreview?: string | null;
 }
 
 function getInitials(nombre: string): string {
@@ -100,8 +102,11 @@ export function ChatRoomPanel({
   onEliminar,
   realtime,
   footerExtra,
+  defaultCollapsed = false,
+  collapsedPreview,
 }: ChatRoomPanelProps) {
   const [mensajes, setMensajes] = useState(initialMessages);
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
   const [texto, setTexto] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [accionId, setAccionId] = useState<string | null>(null);
@@ -113,6 +118,12 @@ export function ChatRoomPanel({
     setMensajes(initialMessages);
     autoresCache.current.clear();
   }, [channelId, initialMessages]);
+
+  useEffect(() => {
+    setExpanded(!defaultCollapsed);
+  }, [channelId, defaultCollapsed]);
+
+  const visibleCount = mensajes.filter((m) => !m.oculto || esModerador).length;
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = messagesRef.current;
@@ -295,33 +306,59 @@ export function ChatRoomPanel({
   }
 
   return (
-    <section className="flex min-h-[min(380px,45vh)] flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60">
+    <section
+      className={
+        expanded
+          ? "flex min-h-[min(380px,45vh)] flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60"
+          : "overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60"
+      }
+    >
       <header className="shrink-0 border-b border-zinc-800 px-4 py-2.5">
-        <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 text-left"
+          aria-expanded={expanded}
+        >
           <div className="min-w-0">
             <h2 className="truncate text-sm font-bold text-white">{headerTitle}</h2>
-            <p className="text-[10px] text-zinc-500">{headerSubtitle}</p>
-            {headerHint && (
+            <p className="text-[10px] text-zinc-500">
+              {expanded
+                ? headerSubtitle
+                : (collapsedPreview ??
+                  `${visibleCount} mensaje${visibleCount === 1 ? "" : "s"}`)}
+            </p>
+            {expanded && headerHint && (
               <p className="mt-1 text-[10px] leading-snug text-zinc-500">
                 {headerHint}
               </p>
             )}
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {closedBadge && (
+          <div className="flex shrink-0 items-center gap-2">
+            {!expanded && closedBadge && (
               <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-zinc-400 ring-1 ring-zinc-700">
                 {closedBadge}
               </span>
             )}
-            {esModerador && (
+            {expanded && closedBadge && (
+              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-zinc-400 ring-1 ring-zinc-700">
+                {closedBadge}
+              </span>
+            )}
+            {esModerador && expanded && (
               <span className="rounded-full bg-red-950/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-red-300 ring-1 ring-red-800/60">
                 {moderadorBadge}
               </span>
             )}
+            <span className="text-xs text-zinc-500" aria-hidden>
+              {expanded ? "▾" : "▸"}
+            </span>
           </div>
-        </div>
+        </button>
       </header>
 
+      {expanded && (
+        <>
       <div
         ref={messagesRef}
         className="flex-1 space-y-3 overflow-y-auto px-3 py-3"
@@ -378,6 +415,8 @@ export function ChatRoomPanel({
           </button>
         </div>
       </form>
+        </>
+      )}
     </section>
   );
 }
