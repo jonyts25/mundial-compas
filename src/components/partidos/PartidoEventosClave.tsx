@@ -68,7 +68,6 @@ function EventoCell({
   align: "left" | "right";
 }) {
   const minuto = formatMomentoMinuto(evento.minuto, evento.extra);
-  const isGol = evento.tipo === "gol";
 
   return (
     <div
@@ -76,7 +75,7 @@ function EventoCell({
         align === "right" ? "flex-row-reverse" : "flex-row"
       }`}
     >
-      <EventoIcon isGol={isGol} />
+      <EventoIcon evento={evento} />
       <span className="min-w-0 leading-tight text-zinc-300">
         <span className="font-semibold text-zinc-100">{evento.jugador}</span>
         {minuto ? (
@@ -87,9 +86,30 @@ function EventoCell({
   );
 }
 
-function EventoIcon({ isGol }: { isGol: boolean }) {
-  if (isGol) {
+function EventoIcon({ evento }: { evento: MomentoClave }) {
+  if (evento.tipo === "gol") {
     return <span className="shrink-0 text-sm leading-none" aria-hidden>⚽</span>;
+  }
+  if (evento.tipo === "penal_fallado") {
+    return (
+      <span className="shrink-0 text-sm leading-none" aria-hidden title="Penal fallado">
+        🎯
+      </span>
+    );
+  }
+  if (evento.tipo === "var") {
+    return (
+      <span className="shrink-0 text-[10px] font-bold leading-none text-amber-400" aria-hidden title="VAR">
+        VAR
+      </span>
+    );
+  }
+  if (evento.tipo === "gol_anulado") {
+    return (
+      <span className="shrink-0 text-sm leading-none" aria-hidden title="Gol anulado">
+        ❌
+      </span>
+    );
   }
   return (
     <span

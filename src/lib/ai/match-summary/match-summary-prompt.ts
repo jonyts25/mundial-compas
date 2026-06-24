@@ -19,7 +19,14 @@ export function buildMatchSummaryPrompt(input: MatchSummaryInput): string {
       : `ESTADÍSTICAS (única fuente):\n${JSON.stringify(input.statistics, null, 2)}`;
 
   const varNote =
-    "VAR: no hay eventos VAR en el input — PROHIBIDO mencionar VAR, videoarbitraje o revisiones.";
+    input.timeline.some((e) => e.type === "var" || e.type === "gol_anulado")
+      ? "VAR: solo menciona revisiones o goles anulados si aparecen en timeline (type var o gol_anulado)."
+      : "VAR: no hay eventos VAR en el input — PROHIBIDO mencionar VAR, videoarbitraje o revisiones.";
+
+  const penalNote =
+    input.timeline.some((e) => e.type === "penal_fallado")
+      ? "PENAL FALLADO: puedes mencionarlo solo si está en timeline."
+      : "PENAL FALLADO: no hay en timeline — no lo menciones.";
 
   const venueNote =
     input.match.venue === null
@@ -40,6 +47,7 @@ ${JSON.stringify(input, null, 2)}
 
 ${statsBlock}
 ${varNote}
+${penalNote}
 ${venueNote}
 ${refereeNote}
 DATA_GAPS del builder: ${gaps}

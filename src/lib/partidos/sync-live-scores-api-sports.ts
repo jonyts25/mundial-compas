@@ -12,6 +12,8 @@ import {
   fetchApiSportsLiveFixtures,
 } from "@/lib/api-football/fetch-fixtures";
 import { handleGoalEvent } from "@/lib/api-football/handlers/on-goal";
+import { handleGoalCancelledEvent } from "@/lib/api-football/handlers/on-goal-cancelled";
+import { handlePenalFalladoEvent } from "@/lib/api-football/handlers/on-penal-fallado";
 import { handleRedCardEvent } from "@/lib/api-football/handlers/on-red-card";
 import {
   mergeAnnouncedPhases,
@@ -21,16 +23,31 @@ import { buildRelojFromApiSportsFixture } from "@/lib/api-football/match-clock";
 import {
   baselineGolNotifyScore,
   buildGolNotifyMetadata,
+  detectScoreDecreaseSide,
   getGolNotifyScore,
   isGoalAlreadyNotified,
+  scoreDecreased,
   scoreIncreased,
 } from "@/lib/api-football/goal-notify-state";
+import {
+  buildCancelledGoalNotifyMetadata,
+  cancelledGoalNotifyKey,
+  isCancelledGoalAlreadyNotified,
+} from "@/lib/api-football/goal-cancel-notify-state";
 import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
 import {
   buildMomentosMetadata,
+  buildGolAnuladoMomento,
+  findVarGoalCancelledForTeam,
   mapFixtureEventsToMomentos,
+  mergeGolAnuladoMomento,
 } from "@/lib/api-football/match-events";
+import {
+  baselineNotifiedPenalFallados,
+  buildPenalFalladoNotifyMetadata,
+  findNewPenalFallados,
+} from "@/lib/api-football/penal-fallado-notify-state";
 import {
   buildStatisticsMetadata,
   hasPersistedMatchStatistics,
@@ -42,6 +59,7 @@ import {
   findNewRedCards,
 } from "@/lib/api-football/red-card-notify-state";
 import { getPilotConfig } from "@/lib/api-football/pilot-config";
+import { getTeamDisplayNameEs } from "@/lib/teams/display-names";
 import { getApiSportsEnv } from "@/lib/env";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
 import {
@@ -104,6 +122,17 @@ async function syncOneApiSportsFixture(
     !isGoalAlreadyNotified(existing.metadata, row.marcador_local, row.marcador_visitante) &&
     notifyScore != null &&
     scoreIncreased(notifyScore, row.marcador_local, row.marcador_visitante);
+
+  const prevDbScore = {
+    local: existing.marcador_local,
+    away: existing.marcador_visitante,
+  };
+  const scoreDecreaseDetected =
+    prevDbScore.local != null &&
+    prevDbScore.away != null &&
+    row.marcador_local != null &&
+    row.marcador_visitante != null &&
+    scoreDecreased(prevDbScore, row.marcador_local, row.marcador_visitante);
 
   const { reloj, minuto_actual: minutoReloj } = buildRelojFromApiSportsFixture(
     item,
@@ -170,7 +199,7 @@ async function syncOneApiSportsFixture(
       fetchedEvents = await fetchApiSportsFixtureEvents(apiKey, fixtureId);
       result.apiRequests = (result.apiRequests ?? 0) + 1;
 
-      const momentos = mapFixtureEventsToMomentos(
+      let momentos = mapFixtureEventsToMomentos(
         fetchedEvents,
         item.teams.home.id,
         String(existing.equipo_local_nombre ?? item.teams.home.name),
@@ -199,6 +228,119 @@ async function syncOneApiSportsFixture(
             result.redCardsNotified = (result.redCardsNotified ?? 0) + 1;
             redCardMeta = buildRedCardNotifyMetadata(redCardMeta, [roja.id]);
             Object.assign(metadata, redCardMeta);
+          }
+        }
+      }
+
+      const baselinePenales = baselineNotifiedPenalFallados(existing.metadata, momentos);
+      if (baselinePenales) {
+        Object.assign(
+          metadata,
+          buildPenalFalladoNotifyMetadata(metadata, baselinePenales),
+        );
+      } else if (
+        (row.estatus === "en_vivo" || row.estatus === "medio_tiempo") &&
+        row.marcador_local != null &&
+        row.marcador_visitante != null
+      ) {
+        let penalMeta = existing.metadata;
+        const localName = String(existing.equipo_local_nombre ?? item.teams.home.name);
+        const visitanteName = String(
+          existing.equipo_visitante_nombre ?? item.teams.away.name,
+        );
+        for (const penal of findNewPenalFallados(penalMeta, momentos)) {
+          const penalResult = await handlePenalFalladoEvent({
+            supabase,
+            partidoId: existing.id,
+            momento: penal,
+            localName,
+            visitanteName,
+            marcadorLocal: row.marcador_local,
+            marcadorVisitante: row.marcador_visitante,
+          });
+          if (!penalResult.ok) {
+            result.errors.push(penalResult.message ?? "Error procesando penal fallado");
+          } else if (penalResult.message === "Penal fallado procesado") {
+            result.penalFalladosNotified = (result.penalFalladosNotified ?? 0) + 1;
+            penalMeta = buildPenalFalladoNotifyMetadata(penalMeta, [penal.id]);
+            Object.assign(metadata, penalMeta);
+          }
+        }
+      }
+
+      if (
+        scoreDecreaseDetected &&
+        prevDbScore.local != null &&
+        prevDbScore.away != null &&
+        row.marcador_local != null &&
+        row.marcador_visitante != null &&
+        (row.estatus === "en_vivo" || row.estatus === "medio_tiempo")
+      ) {
+        const side = detectScoreDecreaseSide(
+          { local: prevDbScore.local, away: prevDbScore.away },
+          { local: row.marcador_local, away: row.marcador_visitante },
+        );
+        if (side) {
+          const nextScore = {
+            local: row.marcador_local,
+            away: row.marcador_visitante,
+          };
+          const notifyKey = cancelledGoalNotifyKey(
+            { local: prevDbScore.local, away: prevDbScore.away },
+            nextScore,
+            side,
+          );
+          if (!isCancelledGoalAlreadyNotified(existing.metadata, notifyKey)) {
+            const affectedIsLocal = side === "local";
+            const localDisplay = getTeamDisplayNameEs(
+              String(existing.equipo_local_nombre ?? item.teams.home.name),
+            );
+            const visitanteDisplay = getTeamDisplayNameEs(
+              String(existing.equipo_visitante_nombre ?? item.teams.away.name),
+            );
+            const varEv = findVarGoalCancelledForTeam(
+              fetchedEvents,
+              item.teams.home.id,
+              affectedIsLocal,
+            );
+            const golAnulado = buildGolAnuladoMomento({
+              id: `gol-anulado:${notifyKey}`,
+              jugador:
+                varEv?.player?.name?.trim() ||
+                (affectedIsLocal ? localDisplay : visitanteDisplay),
+              equipo: affectedIsLocal ? localDisplay : visitanteDisplay,
+              minuto: varEv?.time.elapsed ?? null,
+              extra: varEv?.time.extra ?? null,
+              detail: varEv?.detail ?? "Goal cancelled",
+              es_local: affectedIsLocal,
+            });
+            momentos = mergeGolAnuladoMomento(momentos, golAnulado);
+            Object.assign(metadata, buildMomentosMetadata(metadata, momentos));
+
+            const cancelResult = await handleGoalCancelledEvent({
+              supabase,
+              partidoId: existing.id,
+              momento: golAnulado,
+              marcadorLocal: row.marcador_local,
+              marcadorVisitante: row.marcador_visitante,
+              notifyKey,
+            });
+            if (!cancelResult.ok) {
+              result.errors.push(
+                cancelResult.message ?? "Error procesando gol anulado",
+              );
+            } else if (cancelResult.message === "Gol anulado procesado") {
+              result.goalsCancelledNotified = (result.goalsCancelledNotified ?? 0) + 1;
+              Object.assign(
+                metadata,
+                buildCancelledGoalNotifyMetadata(metadata, [notifyKey]),
+                buildGolNotifyMetadata(
+                  metadata,
+                  row.marcador_local,
+                  row.marcador_visitante,
+                ),
+              );
+            }
           }
         }
       }

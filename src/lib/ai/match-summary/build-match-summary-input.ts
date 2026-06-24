@@ -1,5 +1,5 @@
-import { parseMomentosFromMetadata } from "@/lib/api-football/match-events";
-import { isOwnGoalFromDetail } from "@/lib/api-football/goal-event-detail";
+import { parseMomentosFromMetadata, type MomentoClaveTipo } from "@/lib/api-football/match-events";
+import { isOwnGoalFromDetail, isMissedPenaltyFromDetail } from "@/lib/api-football/goal-event-detail";
 import { readPersistedMatchStatistics } from "@/lib/api-football/match-statistics";
 import type { SportsNarratorPersonaId } from "@/lib/ai/sports-narrator-personas";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
@@ -36,16 +36,25 @@ type PartidoRow = {
 
 function isPenaltyDetail(detail: string | null): boolean {
   if (!detail) return false;
-  return detail.toLowerCase().includes("penalty");
+  const d = detail.toLowerCase();
+  return d.includes("penalty") && !d.includes("missed");
 }
 
-function mapTimelineType(
-  tipo: "gol" | "tarjeta_roja",
+/** Exported for unit tests — maps momento → timeline type for match summary. */
+export function mapMomentoToTimelineType(
+  tipo: MomentoClaveTipo,
   detail: string | null,
 ): MatchSummaryTimelineType {
   if (tipo === "tarjeta_roja") return "tarjeta_roja";
-  if (isOwnGoalFromDetail(detail)) return "own_goal";
-  if (isPenaltyDetail(detail)) return "penalty_goal";
+  if (tipo === "penal_fallado") return "penal_fallado";
+  if (tipo === "var") return "var";
+  if (tipo === "gol_anulado") return "gol_anulado";
+  if (tipo === "gol") {
+    if (isMissedPenaltyFromDetail(detail)) return "penal_fallado";
+    if (isOwnGoalFromDetail(detail)) return "own_goal";
+    if (isPenaltyDetail(detail)) return "penalty_goal";
+    return "gol";
+  }
   return "gol";
 }
 
@@ -268,7 +277,7 @@ export async function buildMatchSummaryInput(
   const timeline = momentos.map((m) => ({
     minute: m.minuto,
     extra: m.extra,
-    type: mapTimelineType(m.tipo, m.detail),
+    type: mapMomentoToTimelineType(m.tipo, m.detail),
     player: m.jugador,
     team_code: m.es_local ? row.equipo_local_codigo : row.equipo_visitante_codigo,
     detail: m.detail,

@@ -4,7 +4,10 @@ export type MatchSummaryTimelineType =
   | "gol"
   | "tarjeta_roja"
   | "penalty_goal"
-  | "own_goal";
+  | "own_goal"
+  | "penal_fallado"
+  | "var"
+  | "gol_anulado";
 
 export interface MatchSummaryInput {
   version: "match-summary-v1";

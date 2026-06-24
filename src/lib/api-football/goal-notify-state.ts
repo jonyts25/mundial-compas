@@ -21,6 +21,37 @@ export function scoreIncreased(
   return nextLocal > prev.local || nextAway > prev.away;
 }
 
+export function scoreDecreased(
+  prev: { local: number | null; away: number | null },
+  nextLocal: number | null,
+  nextAway: number | null,
+): boolean {
+  if (
+    prev.local == null ||
+    prev.away == null ||
+    nextLocal == null ||
+    nextAway == null
+  ) {
+    return false;
+  }
+  return nextLocal < prev.local || nextAway < prev.away;
+}
+
+export type ScoreDecreaseSide = "local" | "visitante";
+
+/** Lado cuyo marcador bajó (prioriza local si ambos bajan, p. ej. corrección masiva). */
+export function detectScoreDecreaseSide(
+  prev: { local: number; away: number },
+  next: { local: number; away: number },
+): ScoreDecreaseSide | null {
+  const localDown = next.local < prev.local;
+  const visitanteDown = next.away < prev.away;
+  if (!localDown && !visitanteDown) return null;
+  if (localDown && !visitanteDown) return "local";
+  if (visitanteDown && !localDown) return "visitante";
+  return "local";
+}
+
 export function goalScoreKey(local: number, away: number): string {
   return `${local}-${away}`;
 }
@@ -65,6 +96,18 @@ export function mergeLiveNotifyMetadata(
   }
   if (Array.isArray(ex.notified_red_cards) && ex.notified_red_cards.length > 0) {
     out.notified_red_cards = ex.notified_red_cards;
+  }
+  if (
+    Array.isArray(ex.notified_cancelled_goals) &&
+    ex.notified_cancelled_goals.length > 0
+  ) {
+    out.notified_cancelled_goals = ex.notified_cancelled_goals;
+  }
+  if (
+    Array.isArray(ex.notified_penal_fallados) &&
+    ex.notified_penal_fallados.length > 0
+  ) {
+    out.notified_penal_fallados = ex.notified_penal_fallados;
   }
   if (Array.isArray(ex.eventos_clave) && ex.eventos_clave.length > 0) {
     out.eventos_clave = ex.eventos_clave;

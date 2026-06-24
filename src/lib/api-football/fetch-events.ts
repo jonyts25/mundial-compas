@@ -1,4 +1,5 @@
 import { apiSportsGet } from "@/lib/api-football/client";
+import { isScoredGoalEvent } from "@/lib/api-football/match-events";
 
 export interface ApiSportsFixtureEvent {
   time: { elapsed: number | null; extra?: number | null };
@@ -27,7 +28,7 @@ export function findLatestGoalForScore(
   score: { local: number; visitante: number },
   homeTeamId?: number,
 ): ApiSportsFixtureEvent | null {
-  const goals = events.filter((e) => e.type === "Goal");
+  const goals = events.filter((e) => isScoredGoalEvent(e));
   if (goals.length === 0) return null;
 
   const total = score.local + score.visitante;
