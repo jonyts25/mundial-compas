@@ -9,6 +9,7 @@ import {
 } from "@/lib/standings/calculate-group-standings";
 import { isWorldCupGroupLetter } from "@/lib/standings/world-cup-groups";
 import { readLineupsFromMetadata } from "@/lib/partidos/lineups-types";
+import { enrichMatchSummaryInput } from "@/lib/ai/match-summary/match-summary-verified-facts";
 import { createServerDataClient } from "@/lib/supabase/server-data";
 import type {
   BuildMatchSummaryInputOptions,
@@ -306,7 +307,7 @@ export async function buildMatchSummaryInput(
     dataGaps.push("quiniela_picks_unavailable");
   }
 
-  const input: MatchSummaryInput = {
+  const input = enrichMatchSummaryInput({
     version: "match-summary-v1",
     partido_id: partidoId,
     fixture_id: row.api_football_fixture_id,
@@ -333,7 +334,7 @@ export async function buildMatchSummaryInput(
     standings_context,
     quiniela_impact,
     data_gaps: dataGaps,
-  };
+  });
 
   return { ok: true, input };
 }
