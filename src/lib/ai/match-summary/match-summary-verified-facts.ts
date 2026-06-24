@@ -1,3 +1,4 @@
+import { buildEventFactsLocked } from "@/lib/ai/match-summary/match-summary-event-facts";
 import {
   buildTimelineEventText,
   formatTimelineMinute,
@@ -126,6 +127,7 @@ export function enrichMatchSummaryInput(input: MatchSummaryInput): MatchSummaryI
     ...withTimeline,
     verified_facts: buildVerifiedFacts(withTimeline),
     facts_locked: buildFactsLocked(withTimeline),
+    event_facts_locked: buildEventFactsLocked(withTimeline),
     narrative_evidence: buildNarrativeEvidence(withTimeline),
   };
 }

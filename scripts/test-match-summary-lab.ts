@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke test: builder + Ollama para resumen post-partido (MATCH-SUMMARY-LAB-1).
  *
  * Uso:
@@ -10,9 +10,11 @@ import { createClient } from "@supabase/supabase-js";
 import { buildMatchSummaryInput } from "../src/lib/ai/match-summary/build-match-summary-input";
 import {
   buildMatchSummaryPrompt,
-  isMatchSummaryOutput,
+  isMatchSummaryLlmOutput,
+  normalizeMatchSummaryLlmOutput,
   normalizeMatchSummaryOutput,
 } from "../src/lib/ai/match-summary/match-summary-prompt";
+import { assembleMatchSummaryOutput } from "../src/lib/ai/match-summary/match-summary-output-utils";
 import { getAiConfig } from "../src/lib/ai/ai-config";
 import { ollamaJson } from "../src/lib/ai/ollama-client";
 import { DEFAULT_NARRATOR_PERSONA_ID } from "../src/lib/ai/sports-narrator-personas";
@@ -23,28 +25,28 @@ const personaId = DEFAULT_NARRATOR_PERSONA_ID;
 const partidoIdArg = process.env.PARTIDO_ID?.trim();
 
 const REAL_COMMENTATOR_PATTERNS = [
-  /\bcl[eé]ber\s+machado\b/i,
-  /\bchristian\s+mart[ií]noli\b/i,
-  /\bjos[eé]\s+ram[oó]n\s+fern[aá]ndez\b/i,
+  /\bcl[e├®]ber\s+machado\b/i,
+  /\bchristian\s+mart[i├¡]noli\b/i,
+  /\bjos[e├®]\s+ram[o├│]n\s+fern[a├í]ndez\b/i,
   /\bfernando\s+colombo\b/i,
   /\bmariano\s+closs\b/i,
 ];
 
 const STATS_PATTERNS = [
-  /\bposesi[oó]n\b/i,
+  /\bposesi[o├│]n\b/i,
   /\bxg\b/i,
   /\btiros\s+a\s+puerta\b/i,
   /\bcorners?\b/i,
-  /\bdomin[oó]\b/i,
+  /\bdomin[o├│]\b/i,
 ];
 
 function fail(msg: string): never {
-  console.error(`✗ ${msg}`);
+  console.error(`Ô£ù ${msg}`);
   process.exit(1);
 }
 
 function pass(msg: string) {
-  console.log(`✓ ${msg}`);
+  console.log(`Ô£ô ${msg}`);
 }
 
 async function pickFinalizadoPartidoId(): Promise<string> {
@@ -85,23 +87,23 @@ function assertOutputGuards(
 ) {
   const blob = JSON.stringify(output);
 
-  if (!output.facts?.length) fail("facts[] vacío");
+  if (!output.facts?.length) fail("facts[] vac├¡o");
   pass("facts[] presente");
 
   if (!hasVarInTimeline) {
     if (/\bvar\b/i.test(blob) || /videoarbitraje/i.test(blob)) {
       fail("menciona VAR sin evento VAR en input");
     }
-    pass("sin mención VAR (input sin VAR)");
+    pass("sin menci├│n VAR (input sin VAR)");
   }
 
   if (statisticsNull) {
     for (const pattern of STATS_PATTERNS) {
       if (pattern.test(blob)) {
-        fail(`menciona estadísticas con statistics=null: ${pattern}`);
+        fail(`menciona estad├¡sticas con statistics=null: ${pattern}`);
       }
     }
-    pass("sin mención de estadísticas (statistics=null)");
+    pass("sin menci├│n de estad├¡sticas (statistics=null)");
   }
 
   for (const pattern of REAL_COMMENTATOR_PATTERNS) {
@@ -121,7 +123,7 @@ async function main() {
   if (!built.ok) fail(`builder: ${built.error}`);
 
   const input = built.input;
-  pass(`builder OK — ${input.data_gaps.length} data_gaps`);
+  pass(`builder OK ÔÇö ${input.data_gaps.length} data_gaps`);
   console.log(`data_gaps: ${input.data_gaps.join(", ") || "(ninguno)"}`);
 
   const cfg = getAiConfig();
@@ -131,12 +133,12 @@ async function main() {
       {
         role: "system",
         content:
-          "Solo JSON válido. No inventes datos. No imites comentaristas reales.",
+          "Solo JSON v├ílido. No inventes datos. No imites comentaristas reales.",
       },
       { role: "user", content: buildMatchSummaryPrompt(input) },
     ],
     validate: (value) =>
-      isMatchSummaryOutput(value, {
+      isMatchSummaryLlmOutput(value, {
         partido_id: input.partido_id,
         persona_id: input.persona_id,
       }),
@@ -146,7 +148,10 @@ async function main() {
     fail(`Ollama: ${result.error}${result.rawPreview ? ` — ${result.rawPreview.slice(0, 200)}` : ""}`);
   }
 
-  const output = normalizeMatchSummaryOutput(result.data);
+  const llm = normalizeMatchSummaryLlmOutput(result.data);
+  const output = normalizeMatchSummaryOutput(
+    assembleMatchSummaryOutput(llm, input),
+  );
   pass(`Ollama JSON válido (modelo ${result.model})`);
 
   const hasVar = input.timeline.some((e) =>
@@ -159,7 +164,7 @@ async function main() {
   console.log("\n--- lede ---");
   console.log(output.lede);
   console.log("\n--- facts ---");
-  for (const f of output.facts) console.log(`• ${f}`);
+  for (const f of output.facts) console.log(`ÔÇó ${f}`);
 
   console.log("\nListo.");
 }

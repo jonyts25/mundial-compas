@@ -10,6 +10,7 @@ import type {
   MatchSummaryInput,
   MatchSummaryOutput,
 } from "@/lib/ai/match-summary/match-summary-types";
+import { getSummaryDisplayParagraphs } from "@/lib/ai/match-summary/match-summary-output-utils";
 import {
   DEFAULT_NARRATOR_PERSONA_ID,
   type SportsNarratorPersonaId,
@@ -108,7 +109,7 @@ export function PartidoMatchSummaryPanel({
             {summary.headline}
           </h3>
           <p className="text-sm leading-relaxed text-zinc-300">{summary.lede}</p>
-          {summary.body_paragraphs.map((p) => (
+          {getSummaryDisplayParagraphs(summary).map((p) => (
             <p key={p.slice(0, 32)} className="text-sm leading-relaxed text-zinc-400">
               {p}
             </p>
