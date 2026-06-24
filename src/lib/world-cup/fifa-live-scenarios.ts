@@ -36,6 +36,21 @@ export interface GroupProvisionalSummary {
   third: { teamId: string; teamName: string } | null;
 }
 
+export interface GroupContextScenarioView {
+  groupKey: WorldCupGroupLetter;
+  lines: string[];
+  groupChanges: FifaScenarioChangeEvent[];
+  hasActivity: boolean;
+}
+
+export interface GlobalScenarioSummary {
+  qualifyingThirds: BestThirdPlaceRow[];
+  scenarioKey: string | null;
+  isProvisional: boolean;
+  r32Label: string;
+  globalChanges: FifaScenarioChangeEvent[];
+}
+
 export interface LiveScenarioCardModel {
   fingerprint: string;
   isProvisional: boolean;
@@ -43,9 +58,13 @@ export interface LiveScenarioCardModel {
   groupStageComplete: boolean;
   groupSummaries: GroupProvisionalSummary[];
   qualifyingThirds: BestThirdPlaceRow[];
+  /** @deprecated Prefer groupContexts + globalSummary in UI */
   statements: string[];
   changes: FifaScenarioChangeEvent[];
   snapshotState: LiveSnapshotState;
+  groupContexts: Partial<Record<WorldCupGroupLetter, GroupContextScenarioView>>;
+  globalSummary: GlobalScenarioSummary;
+  availableGroups: WorldCupGroupLetter[];
 }
 
 export interface LiveSnapshotState {
@@ -249,6 +268,134 @@ export function detectFifaScenarioChanges(
   return events;
 }
 
+function isGroupScenarioChange(
+  change: FifaScenarioChangeEvent,
+  groupKey: WorldCupGroupLetter,
+  teamIds: Set<string>,
+): boolean {
+  if (change.type === "bracket_scenario_changed") return true;
+  if (change.text.includes(`Grupo ${groupKey}`)) return true;
+  return teamIds.has(change.teamId);
+}
+
+export function buildGroupContextScenarioView(
+  snapshot: LiveWorldCupSnapshot,
+  groupKey: WorldCupGroupLetter,
+  changes: FifaScenarioChangeEvent[] = [],
+): GroupContextScenarioView {
+  const group = snapshot.groups.find((g) => g.groupKey === groupKey);
+  if (!group || !group.teams.some((t) => t.played > 0)) {
+    return { groupKey, lines: [], groupChanges: [], hasActivity: false };
+  }
+
+  const summary = buildGroupProvisionalSummaries([group])[0];
+  const qualifyingIds = new Set(
+    snapshot.bestThirds.filter((t) => t.qualifies).map((t) => t.teamId),
+  );
+  const teamIds = new Set(group.teams.map((t) => t.teamId));
+  const lines: string[] = [];
+
+  if (summary.leader) {
+    lines.push(`${summary.leader.teamName} sería 1.º`);
+    const opp = getProvisionalOpponent(summary.leader.teamId, snapshot.r32);
+    if (opp) {
+      lines.push(
+        `Rival provisional de ${summary.leader.teamName}: ${opponentLabel(opp.opponent)}`,
+      );
+    }
+  }
+  if (summary.second) {
+    lines.push(`${summary.second.teamName} sería 2.º`);
+    const opp = getProvisionalOpponent(summary.second.teamId, snapshot.r32);
+    if (opp) {
+      lines.push(
+        `Rival provisional de ${summary.second.teamName}: ${opponentLabel(opp.opponent)}`,
+      );
+    }
+  }
+  if (summary.third) {
+    const qualifies = qualifyingIds.has(summary.third.teamId);
+    lines.push(
+      `${summary.third.teamName} sería 3.º — ${qualifies ? "dentro" : "fuera"} de mejores terceros`,
+    );
+    if (qualifies) {
+      const opp = getProvisionalOpponent(summary.third.teamId, snapshot.r32);
+      if (opp) {
+        lines.push(
+          `Rival provisional de ${summary.third.teamName}: ${opponentLabel(opp.opponent)}`,
+        );
+      }
+    }
+  }
+
+  lines.push("Provisional hasta que cierren los grupos relacionados.");
+
+  for (const line of lines) {
+    assertFifaScenarioMessage(line);
+  }
+
+  const groupChanges = changes.filter((c) =>
+    isGroupScenarioChange(c, groupKey, teamIds),
+  );
+
+  return { groupKey, lines, groupChanges, hasActivity: true };
+}
+
+export function buildAllGroupContextViews(
+  snapshot: LiveWorldCupSnapshot,
+  changes: FifaScenarioChangeEvent[] = [],
+): Partial<Record<WorldCupGroupLetter, GroupContextScenarioView>> {
+  const contexts: Partial<Record<WorldCupGroupLetter, GroupContextScenarioView>> =
+    {};
+  for (const group of snapshot.groups) {
+    const key = group.groupKey as WorldCupGroupLetter;
+    const view = buildGroupContextScenarioView(snapshot, key, changes);
+    if (view.hasActivity) contexts[key] = view;
+  }
+  return contexts;
+}
+
+export function buildGlobalScenarioSummary(
+  snapshot: LiveWorldCupSnapshot,
+  changes: FifaScenarioChangeEvent[] = [],
+): GlobalScenarioSummary {
+  const globalChanges = changes.filter(
+    (c) =>
+      c.type === "bracket_scenario_changed" ||
+      c.type === "third_qualifier_changed" ||
+      c.type === "provisional_opponent_changed",
+  );
+
+  return {
+    qualifyingThirds: snapshot.bestThirds.filter((t) => t.qualifies),
+    scenarioKey: snapshot.scenarioKey,
+    isProvisional: snapshot.r32.isProvisional,
+    r32Label: snapshot.r32.isProvisional
+      ? "Ronda de 32 provisional"
+      : "Ronda de 32 confirmada",
+    globalChanges,
+  };
+}
+
+export function filterChangesForGroup(
+  changes: FifaScenarioChangeEvent[],
+  groupKey: WorldCupGroupLetter,
+  summary: GroupProvisionalSummary | undefined,
+): FifaScenarioChangeEvent[] {
+  const teamIds = new Set<string>();
+  if (summary?.leader) teamIds.add(summary.leader.teamId);
+  if (summary?.second) teamIds.add(summary.second.teamId);
+  if (summary?.third) teamIds.add(summary.third.teamId);
+  return changes.filter((c) => isGroupScenarioChange(c, groupKey, teamIds));
+}
+
+export function getGroupContextForLetter(
+  model: LiveScenarioCardModel,
+  groupKey: WorldCupGroupLetter,
+): GroupContextScenarioView | null {
+  return model.groupContexts[groupKey] ?? null;
+}
+
 export function buildFifaScenarioStatements(
   snapshot: LiveWorldCupSnapshot,
   focusTeamIds: string[] = ["MEX"],
@@ -343,6 +490,9 @@ export function buildLiveScenarioCardModel(
     assertFifaScenarioMessage(statement);
   }
 
+  const groupContexts = buildAllGroupContextViews(snapshot, changes);
+  const availableGroups = Object.keys(groupContexts).sort() as WorldCupGroupLetter[];
+
   return {
     fingerprint: current.fingerprint,
     isProvisional: snapshot.r32.isProvisional,
@@ -353,6 +503,9 @@ export function buildLiveScenarioCardModel(
     statements: [...changes.map((c) => c.text), ...statements],
     changes,
     snapshotState: current,
+    groupContexts,
+    globalSummary: buildGlobalScenarioSummary(snapshot, changes),
+    availableGroups,
   };
 }
 

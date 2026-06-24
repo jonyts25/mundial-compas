@@ -87,6 +87,18 @@ export function buildSouthAfricaThirdDropBefore(): PartidoGrupoRow[] {
   ];
 }
 
+/** Grupo K — Portugal, Colombia, RD Congo, Uzbekistán. */
+export function buildGroupKFixtures(): PartidoGrupoRow[] {
+  return [
+    p("k1", "POR", "Portugal", "COL", "Colombia", 2, 1, "K"),
+    p("k2", "POR", "Portugal", "COD", "RD Congo", 1, 0, "K"),
+    p("k3", "COL", "Colombia", "UZB", "Uzbekistán", 3, 0, "K"),
+    p("k4", "COD", "RD Congo", "UZB", "Uzbekistán", 1, 1, "K", "en_vivo"),
+    p("k5", "COL", "Colombia", "COD", "RD Congo", 0, 0, "K", "programado"),
+    p("k6", "UZB", "Uzbekistán", "POR", "Portugal", 0, 0, "K", "programado"),
+  ];
+}
+
 export function buildSouthAfricaThirdDropAfter(): PartidoGrupoRow[] {
   return [
     ...buildMexicoKoreaHeadToHeadFixtures(),

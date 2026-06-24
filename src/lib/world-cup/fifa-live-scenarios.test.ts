@@ -8,11 +8,13 @@ import {
   assertFifaScenarioMessage,
   buildLiveScenarioCardModel,
   detectFifaScenarioChanges,
+  getGroupContextForLetter,
   serializeLiveSnapshotState,
 } from "@/lib/world-cup/fifa-live-scenarios";
 import { buildLiveWorldCupSnapshot } from "@/lib/world-cup/live-group-scenarios";
 import { getProvisionalOpponent } from "@/lib/world-cup/knockout-slots";
 import {
+  buildGroupKFixtures,
   buildMexicoKoreaBeforeLiveGoal,
   buildMexicoKoreaHeadToHeadFixtures,
   buildSouthAfricaThirdDropAfter,
@@ -122,6 +124,54 @@ describe("FIFA live scenario card", () => {
         changes.some((c) => c.type === "provisional_opponent_changed"),
       ).toBe(true);
     }
+  });
+});
+
+describe("FIFA escenario contextual por grupo", () => {
+  it("Grupo A muestra México, Corea, Sudáfrica y Chequia en posiciones provisionales", () => {
+    const snapshot = buildLiveWorldCupSnapshot(buildMexicoKoreaHeadToHeadFixtures());
+    const card = buildLiveScenarioCardModel(buildMexicoKoreaHeadToHeadFixtures());
+    const view = getGroupContextForLetter(card, "A")!;
+
+    expect(view.hasActivity).toBe(true);
+    expect(view.lines.some((l) => l.includes("México sería 1.º"))).toBe(true);
+    expect(view.lines.some((l) => l.includes("Corea del Sur sería 2.º"))).toBe(true);
+    expect(view.lines.some((l) => l.includes("Sudáfrica sería 3.º"))).toBe(true);
+
+    const groupA = snapshot.groups.find((g) => g.groupKey === "A")!;
+    expect(groupA.teams.find((t) => t.teamId === "CZE")?.position).toBe(4);
+  });
+
+  it("Grupo K muestra Portugal, Colombia, RD Congo y Uzbekistán", () => {
+    const card = buildLiveScenarioCardModel(buildGroupKFixtures());
+    const view = getGroupContextForLetter(card, "K")!;
+
+    expect(view.hasActivity).toBe(true);
+    expect(view.lines.some((l) => l.includes("Portugal sería 1.º"))).toBe(true);
+    expect(view.lines.some((l) => l.includes("Colombia sería 2.º"))).toBe(true);
+    expect(view.lines.some((l) => l.includes("RD Congo sería 3.º"))).toBe(true);
+  });
+
+  it("cambiar grupo cambia el modelo contextual renderizado", () => {
+    const fixtures = [
+      ...buildMexicoKoreaHeadToHeadFixtures(),
+      ...buildGroupKFixtures(),
+    ];
+    const card = buildLiveScenarioCardModel(fixtures);
+    const viewA = getGroupContextForLetter(card, "A")!;
+    const viewK = getGroupContextForLetter(card, "K")!;
+
+    expect(viewA.lines.some((l) => l.includes("México"))).toBe(true);
+    expect(viewK.lines.some((l) => l.includes("Portugal"))).toBe(true);
+    expect(viewA.lines.some((l) => l.includes("Portugal"))).toBe(false);
+  });
+
+  it("mejores terceros y Anexo C siguen siendo globales", () => {
+    const card = buildLiveScenarioCardModel(buildMexicoKoreaHeadToHeadFixtures());
+
+    expect(card.globalSummary.qualifyingThirds.length).toBeGreaterThan(0);
+    expect(card.globalSummary.r32Label).toContain("Ronda de 32");
+    expect(card.availableGroups).toContain("A");
   });
 });
 

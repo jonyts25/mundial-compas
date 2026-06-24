@@ -24,6 +24,8 @@ interface GroupTabsProps {
   knockoutBracket: KnockoutBracket;
   fullKnockoutTree: FullKnockoutTree;
   dataSourceLabel: string;
+  active?: PosicionesTabId;
+  onActiveChange?: (tab: PosicionesTabId) => void;
 }
 
 const TAB_MEJORES: PosicionesTabId = "mejores_terceros";
@@ -39,9 +41,17 @@ export function GroupTabs({
   knockoutBracket,
   fullKnockoutTree,
   dataSourceLabel,
+  active: activeProp,
+  onActiveChange,
 }: GroupTabsProps) {
   const [viewMode, setViewMode] = useState<PosicionesViewMode>("grupos");
-  const [active, setActive] = useState<PosicionesTabId>("A");
+  const [internalActive, setInternalActive] = useState<PosicionesTabId>("A");
+  const active = activeProp ?? internalActive;
+
+  const setActive = (tab: PosicionesTabId) => {
+    if (onActiveChange) onActiveChange(tab);
+    else setInternalActive(tab);
+  };
 
   const groupMap = useMemo(() => {
     const m = new Map<string, StandingGroup>();

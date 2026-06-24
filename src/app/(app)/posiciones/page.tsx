@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
-import { GroupTabs } from "@/components/posiciones/GroupTabs";
-import { LiveScenarioCard } from "@/components/posiciones/LiveScenarioCard";
+import { PosicionesContent } from "@/components/posiciones/PosicionesContent";
 import { PosicionesLiveRefresh } from "@/components/posiciones/PosicionesLiveRefresh";
 import { fetchPosicionesMundialData } from "@/lib/standings/posiciones-queries";
 import { createClient } from "@/lib/supabase/server";
@@ -80,26 +79,9 @@ export default async function PosicionesPage() {
       </header>
 
       <main className="px-4 py-4 pb-28">
-        <LiveScenarioCard
-          initial={data.liveScenarioCard}
-          enabled={!data.groupStageComplete}
-        />
-
-        <div className="mb-4 mt-4 rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2.5 text-[11px] leading-relaxed text-zinc-400">
-          Consulta tablas y calendario por grupo. Independiente de quinielas
-          globales o privadas. Criterios de desempate según{" "}
-          <a
-            href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/groups-how-teams-qualify-tie-breakers"
-            className="text-emerald-500 hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            FIFA 2026
-          </a>
-          .
-        </div>
-
-        <GroupTabs
+        <PosicionesContent
+          liveScenarioCard={data.liveScenarioCard}
+          groupStageComplete={data.groupStageComplete}
           groups={data.snapshot.groups}
           partidosPorGrupo={data.partidosPorGrupo}
           bestThirdPlaces={data.bestThirdPlaces}
