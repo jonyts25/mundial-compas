@@ -8,6 +8,8 @@ import { buildBestThirdPlacesRanking } from "@/lib/standings/best-third-places";
 import { buildFullKnockoutTree } from "@/lib/standings/build-knockout-bracket";
 import type { FullKnockoutTree, KnockoutBracket } from "@/lib/standings/knockout-bracket-types";
 import type { GroupStandingsSnapshot } from "@/lib/standings/types";
+import type { LiveScenarioCardModel } from "@/lib/world-cup/fifa-live-scenarios";
+import { buildLiveScenarioCardModel } from "@/lib/world-cup/fifa-live-scenarios";
 import type { Partido } from "@/types/database";
 import {
   isWorldCupGroupLetter,
@@ -27,6 +29,7 @@ export interface PosicionesMundialData {
   fullKnockoutTree: FullKnockoutTree;
   groupStageComplete: boolean;
   hasLiveGroupMatches: boolean;
+  liveScenarioCard: LiveScenarioCardModel;
   source: "partidos" | "api" | "partidos+api";
   calculatedAt: string;
 }
@@ -146,6 +149,8 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
     (p) => p.estatus === "en_vivo" || p.estatus === "medio_tiempo",
   );
 
+  const liveScenarioCard = buildLiveScenarioCardModel(partidosGrupoRows);
+
   return {
     snapshot,
     partidosPorGrupo,
@@ -154,6 +159,7 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
     fullKnockoutTree,
     groupStageComplete: knockoutBracket.groupStageComplete,
     hasLiveGroupMatches,
+    liveScenarioCard,
     source,
     calculatedAt: new Date().toISOString(),
   };
