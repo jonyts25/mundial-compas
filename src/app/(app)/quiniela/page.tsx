@@ -10,7 +10,6 @@ import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchQuinielaSelectorOptions } from "@/lib/quiniela/selector-options";
 import { fetchPronosticoFusionPendientes } from "@/lib/quiniela/fusion-queries";
 import { fetchPilotUiState } from "@/lib/api-football/pilot-queries";
-import { fetchCompetenciaLiga } from "@/lib/liga/competencia-queries";
 import { fetchQuinielaData } from "@/lib/quiniela/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,17 +25,8 @@ export default async function QuinielaPage() {
     redirect("/login?next=/quiniela");
   }
 
-  const [data, competencia, pilot, selectorOptions, fusionPendientes] = await Promise.all([
+  const [data, pilot, selectorOptions, fusionPendientes] = await Promise.all([
     fetchQuinielaData(user.id),
-    fetchCompetenciaLiga().catch(() => ({
-      estado: "activa" as const,
-      ganadorId: null,
-      ganadorNombre: null,
-      ganadorMoralId: null,
-      ganadorMoralNombre: null,
-      finalizadaAt: null,
-      ganadorDeposito: null,
-    })),
     fetchPilotUiState(),
     fetchQuinielaSelectorOptions(user.id),
     fetchPronosticoFusionPendientes(user.id),
@@ -65,7 +55,6 @@ export default async function QuinielaPage() {
         <QuinielaList
           partidos={data.partidos}
           pronosticosPorPartido={data.pronosticosPorPartido}
-          competenciaFinalizada={competencia.estado !== "activa"}
         />
 
         <p className="mt-6 text-center text-[10px] text-zinc-600">

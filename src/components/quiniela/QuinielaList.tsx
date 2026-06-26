@@ -20,7 +20,6 @@ type Filtro =
 interface QuinielaListProps {
   partidos: Partido[];
   pronosticosPorPartido: Record<string, PronosticoUsuario>;
-  competenciaFinalizada?: boolean;
   ligaId?: string;
   tipoQuiniela?: TipoQuiniela;
   emptyHint?: string;
@@ -31,7 +30,6 @@ const CIERRE_PROXIMO_MS = 2 * 60 * 60 * 1000;
 export function QuinielaList({
   partidos,
   pronosticosPorPartido,
-  competenciaFinalizada = false,
   ligaId,
   tipoQuiniela,
   emptyHint,
@@ -183,7 +181,6 @@ export function QuinielaList({
               <PronosticoRow
                 partido={partido}
                 pronostico={pronosticosPorPartido[partido.id]}
-                soloLectura={competenciaFinalizada}
                 ligaId={ligaId}
               />
             </li>

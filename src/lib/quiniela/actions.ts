@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { assertUsuarioEsMiembro } from "@/lib/liga/grupos-queries";
-import { fetchCompetenciaLiga } from "@/lib/liga/competencia-queries";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,14 +26,7 @@ export async function savePronostico(
   }
 
   const esGlobal = ligaId === LIGA_GLOBAL_ID;
-  if (esGlobal) {
-    const competencia = await fetchCompetenciaLiga().catch(() => ({
-      estado: "activa" as const,
-    }));
-    if (competencia.estado !== "activa") {
-      return { ok: false, error: "La competencia ya finalizó" };
-    }
-  } else {
+  if (!esGlobal) {
     const esMiembro = await assertUsuarioEsMiembro(user.id, ligaId);
     if (!esMiembro) {
       return { ok: false, error: "No eres miembro de este grupo" };
