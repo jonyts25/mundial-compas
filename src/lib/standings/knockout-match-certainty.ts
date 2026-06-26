@@ -1,9 +1,6 @@
 import type { PartidoGrupoRow } from "@/lib/standings/calculate-group-standings";
-import {
-  calculateGroupStandingsFromPartidos,
-} from "@/lib/standings/calculate-group-standings";
+import { calculateGroupStandingsFromPartidos } from "@/lib/standings/calculate-group-standings";
 import type { R32Slot } from "@/lib/standings/knockout-bracket-types";
-import type { StandingGroup } from "@/lib/standings/types";
 import {
   WORLD_CUP_GROUP_LETTERS,
   type WorldCupGroupLetter,
@@ -13,6 +10,8 @@ import type { ThirdPlaceScenarioAssignments } from "@/lib/standings/world-cup-th
 import type { KnockoutFeedSlot } from "@/lib/standings/world-cup-knockout-schedule";
 
 const MATCHES_PER_GROUP = 6;
+
+/** Resultados representativos por partido (victoria local / empate / victoria visitante). */
 const SCORE_OUTCOMES: [number, number][] = [
   [1, 0],
   [0, 0],
@@ -36,7 +35,7 @@ function isFinishedGroupMatch(p: PartidoGrupoRow): boolean {
   );
 }
 
-function isGroupFinished(
+export function isGroupFinished(
   partidos: PartidoGrupoRow[],
   group: WorldCupGroupLetter,
 ): boolean {
@@ -62,9 +61,7 @@ function unplayedGroupMatches(
   );
 }
 
-function enumerateScoreOutcomes(
-  count: number,
-): [number, number][][] {
+function enumerateScoreOutcomes(count: number): [number, number][][] {
   if (count === 0) return [[]];
   const tail = enumerateScoreOutcomes(count - 1);
   const combos: [number, number][][] = [];
@@ -76,7 +73,10 @@ function enumerateScoreOutcomes(
   return combos;
 }
 
-/** Posiciones de grupo que ya no pueden cambiar con los partidos restantes. */
+/**
+ * Posiciones cuyo ocupante es el mismo en todos los escenarios restantes del grupo.
+ * Se usa solo para 1.º lugar con grupo aún abierto (ver isGroupPositionSlotLocked).
+ */
 export function computeLockedGroupPositions(
   partidos: PartidoGrupoRow[],
 ): Set<GroupPositionKey> {
@@ -100,7 +100,7 @@ export function computeLockedGroupPositions(
         isFinishedGroupMatch(p),
     );
 
-    const positionsByTeam = new Map<string, Set<number>>();
+    const occupantsByPosition = new Map<GroupPositionKey, Set<string>>();
 
     for (const outcomes of enumerateScoreOutcomes(remaining.length)) {
       const hypothetical = remaining.map((match, index) => {
@@ -109,7 +109,7 @@ export function computeLockedGroupPositions(
           ...match,
           marcador_local: homeGoals,
           marcador_visitante: awayGoals,
-          estatus: "finalizado",
+          estatus: "finalizado" as const,
         };
       });
 
@@ -121,21 +121,19 @@ export function computeLockedGroupPositions(
       if (!standing) continue;
 
       for (const team of standing.teams) {
-        const set = positionsByTeam.get(team.teamId) ?? new Set<number>();
-        set.add(team.position);
-        positionsByTeam.set(team.teamId, set);
+        const key = groupPositionKey(
+          group,
+          team.position as 1 | 2 | 3,
+        );
+        const set = occupantsByPosition.get(key) ?? new Set<string>();
+        set.add(team.teamId);
+        occupantsByPosition.set(key, set);
       }
     }
 
-    const { groups } = calculateGroupStandingsFromPartidos(partidos);
-    const current = groups.find((g) => g.groupKey === group);
-    if (!current) continue;
-
-    for (const team of current.teams) {
-      const possible = positionsByTeam.get(team.teamId);
-      if (possible?.size === 1) {
-        const position = [...possible][0] as 1 | 2 | 3;
-        locked.add(groupPositionKey(group, position));
+    for (const [key, occupants] of occupantsByPosition) {
+      if (occupants.size === 1) {
+        locked.add(key);
       }
     }
   }
@@ -143,27 +141,33 @@ export function computeLockedGroupPositions(
   return locked;
 }
 
+/**
+ * FIFA R32 — criterios conservadores para no marcar verde de más:
+ * - 1.º: grupo cerrado, o mismo equipo siempre en 1.º con partidos restantes.
+ * - 2.º: solo cuando el grupo cerró (el acomodo 2X vs 2Y es fijo, el ocupante no).
+ * - 3.º (Anexo C): solo cuando terminó la fase de grupos completa.
+ */
 export function isGroupPositionSlotLocked(
   slot: Extract<R32Slot, { kind: "group_position" }>,
   lockedPositions: Set<GroupPositionKey>,
+  partidos: PartidoGrupoRow[],
 ): boolean {
+  if (isGroupFinished(partidos, slot.group)) {
+    return true;
+  }
+
+  if (slot.position === 2) {
+    return false;
+  }
+
   return lockedPositions.has(groupPositionKey(slot.group, slot.position));
 }
 
 export function isThirdPlaceSlotLocked(input: {
-  winnerGroup: ThirdPlaceHostGroup;
-  assignments: ThirdPlaceScenarioAssignments | null;
-  lockedPositions: Set<GroupPositionKey>;
-  partidos: PartidoGrupoRow[];
   groupStageComplete: boolean;
+  assignments: ThirdPlaceScenarioAssignments | null;
 }): boolean {
-  if (input.groupStageComplete && input.assignments) return true;
-  if (!input.assignments) return false;
-
-  const thirdGroup = input.assignments[input.winnerGroup];
-  if (!isGroupFinished(input.partidos, thirdGroup)) return false;
-
-  return input.lockedPositions.has(groupPositionKey(thirdGroup, 3));
+  return input.groupStageComplete && input.assignments != null;
 }
 
 export function isFeedSlotLocked(
@@ -185,15 +189,12 @@ export function isR32SlotLocked(
   },
 ): boolean {
   if (slot.kind === "group_position") {
-    return isGroupPositionSlotLocked(slot, ctx.lockedPositions);
+    return isGroupPositionSlotLocked(slot, ctx.lockedPositions, ctx.partidos);
   }
 
   return isThirdPlaceSlotLocked({
-    winnerGroup: slot.winnerGroup,
-    assignments: ctx.assignments,
-    lockedPositions: ctx.lockedPositions,
-    partidos: ctx.partidos,
     groupStageComplete: ctx.groupStageComplete,
+    assignments: ctx.assignments,
   });
 }
 
@@ -212,11 +213,4 @@ export function isKnockoutMatchDefined(
   away: { isLocked: boolean },
 ): boolean {
   return home.isLocked && away.isLocked;
-}
-
-/** Grupos con al menos un partido jugado — útil para leyenda del cuadro. */
-export function groupsWithActivity(groups: StandingGroup[]): WorldCupGroupLetter[] {
-  return groups
-    .filter((g) => g.teams.some((t) => t.played > 0))
-    .map((g) => g.groupKey as WorldCupGroupLetter);
 }

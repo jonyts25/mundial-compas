@@ -152,10 +152,11 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
 
       {showLegend && (
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          <span className="text-emerald-500/90">Verde</span> — cruce definido
-          (ya no cambia con otros grupos).{" "}
-          <span className="text-rose-400/80">Rojo tenue</span> — aún puede
-          cambiar según resultados pendientes.
+          <span className="text-emerald-500/90">Verde</span> — ambos equipos
+          confirmados (grupo cerrado, 1.º asegurado o fase de grupos terminada
+          para cruces con 3.º).{" "}
+          <span className="text-rose-400/80">Rojo tenue</span> — el rival o la
+          plaza aún puede cambiar.
         </p>
       )}
 
