@@ -70,9 +70,13 @@ export default async function PosicionesPage() {
             ←
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold text-white">Grupos del Mundial</h1>
+            <h1 className="text-lg font-bold text-white">
+              {data.groupStageComplete ? "Eliminatorias" : "Grupos del Mundial"}
+            </h1>
             <p className="text-xs text-zinc-500">
-              12 grupos · 2 primeros + 8 mejores terceros a ronda de 32
+              {data.groupStageComplete
+                ? "Cuadro general · ronda de 32 a la final"
+                : "12 grupos · 2 primeros + 8 mejores terceros a ronda de 32"}
             </p>
           </div>
         </div>

@@ -24,6 +24,7 @@ interface GroupTabsProps {
   knockoutBracket: KnockoutBracket;
   fullKnockoutTree: FullKnockoutTree;
   dataSourceLabel: string;
+  groupStageComplete?: boolean;
   active?: PosicionesTabId;
   onActiveChange?: (tab: PosicionesTabId) => void;
 }
@@ -41,10 +42,13 @@ export function GroupTabs({
   knockoutBracket,
   fullKnockoutTree,
   dataSourceLabel,
+  groupStageComplete = false,
   active: activeProp,
   onActiveChange,
 }: GroupTabsProps) {
-  const [viewMode, setViewMode] = useState<PosicionesViewMode>("grupos");
+  const [viewMode, setViewMode] = useState<PosicionesViewMode>(
+    groupStageComplete ? "r32" : "grupos",
+  );
   const [internalActive, setInternalActive] = useState<PosicionesTabId>("A");
   const active = activeProp ?? internalActive;
 
@@ -94,7 +98,7 @@ export function GroupTabs({
               : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
           }`}
         >
-          Ronda de 32
+          {groupStageComplete ? "Eliminatoria" : "Ronda de 32"}
         </button>
       </div>
 
@@ -102,6 +106,7 @@ export function GroupTabs({
         <KnockoutBracketView
           bracket={knockoutBracket}
           fullTree={fullKnockoutTree}
+          bracketOnly={groupStageComplete}
         />
       ) : (
         <>

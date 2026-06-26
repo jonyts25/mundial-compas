@@ -75,17 +75,22 @@ export function PosicionesContent({
       />
 
       <div className="mb-4 mt-4 rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2.5 text-[11px] leading-relaxed text-zinc-400">
-        Consulta tablas y calendario por grupo. Independiente de quinielas
-        globales o privadas. Criterios de desempate según{" "}
-        <a
-          href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/groups-how-teams-qualify-tie-breakers"
-          className="text-emerald-500 hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          FIFA 2026
-        </a>
-        .
+        {groupStageComplete
+          ? "Cuadro de eliminatorias FIFA 2026. Toca un partido del cuadro para ver detalle y pronósticos."
+          : "Consulta tablas y calendario por grupo. Independiente de quinielas globales o privadas. Criterios de desempate según "}
+        {!groupStageComplete && (
+          <>
+            <a
+              href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/groups-how-teams-qualify-tie-breakers"
+              className="text-emerald-500 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              FIFA 2026
+            </a>
+            .
+          </>
+        )}
       </div>
 
       <GroupTabs
@@ -95,6 +100,7 @@ export function PosicionesContent({
         knockoutBracket={knockoutBracket}
         fullKnockoutTree={fullKnockoutTree}
         dataSourceLabel={dataSourceLabel}
+        groupStageComplete={groupStageComplete}
         active={activeTab}
         onActiveChange={handleTabChange}
       />

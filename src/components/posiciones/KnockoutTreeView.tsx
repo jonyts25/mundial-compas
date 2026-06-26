@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type {
   FullKnockoutTree,
   KnockoutMatch,
@@ -43,9 +44,10 @@ function MiniTeam({ slot }: { slot: KnockoutTeamSlot }) {
 
 function TreeMatchNode({ match }: { match: KnockoutMatch }) {
   const { schedule } = match;
+  const partidoId = schedule.partidoId;
 
-  return (
-    <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/70 p-2 shadow-sm">
+  const content = (
+    <>
       <div className="mb-1.5 flex items-center justify-between gap-1">
         <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
           P{match.matchNumber}
@@ -61,6 +63,23 @@ function TreeMatchNode({ match }: { match: KnockoutMatch }) {
       <p className="mt-1.5 truncate text-[8px] text-zinc-600">
         {schedule.sede.split(",")[0]}
       </p>
+    </>
+  );
+
+  if (partidoId) {
+    return (
+      <Link
+        href={`/partidos/${partidoId}`}
+        className="relative block rounded-xl border border-zinc-800/90 bg-zinc-900/70 p-2 shadow-sm transition hover:border-zinc-600 active:scale-[0.98]"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/70 p-2 shadow-sm">
+      {content}
     </div>
   );
 }
@@ -69,9 +88,9 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
   return (
     <div className="space-y-3">
       <p className="text-[10px] leading-relaxed text-zinc-500">
-        Vista provisional del camino a la final. Desliza horizontalmente para
-        ver cada ronda. Los cruces posteriores a ronda de 32 muestran ganadores
-        conforme se definan resultados.
+        {tree.groupStageComplete
+          ? "Toca un partido para ver detalle, pronósticos y marcador en vivo."
+          : "Vista provisional del camino a la final. Desliza horizontalmente para ver cada ronda."}
       </p>
 
       <div className="-mx-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

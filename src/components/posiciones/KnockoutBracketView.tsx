@@ -18,6 +18,8 @@ type KnockoutSubView = "partidos" | "cuadro";
 interface KnockoutBracketViewProps {
   bracket: KnockoutBracket;
   fullTree: FullKnockoutTree;
+  /** Tras cerrar fase de grupos: solo cuadro, sin sub-tab Partidos. */
+  bracketOnly?: boolean;
 }
 
 function MatchScheduleMeta({ match }: { match: KnockoutMatch }) {
@@ -130,8 +132,11 @@ function MatchCard({ match }: { match: KnockoutMatch }) {
 export function KnockoutBracketView({
   bracket,
   fullTree,
+  bracketOnly = false,
 }: KnockoutBracketViewProps) {
-  const [subView, setSubView] = useState<KnockoutSubView>("partidos");
+  const [subView, setSubView] = useState<KnockoutSubView>(
+    bracketOnly ? "cuadro" : "partidos",
+  );
 
   return (
     <div className="space-y-4">
@@ -159,32 +164,34 @@ export function KnockoutBracketView({
         )}
       </section>
 
-      <div className="flex rounded-lg border border-zinc-800 bg-zinc-950/60 p-0.5">
-        <button
-          type="button"
-          onClick={() => setSubView("partidos")}
-          className={`flex-1 rounded-md px-3 py-2 text-[11px] font-bold transition ${
-            subView === "partidos"
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Partidos
-        </button>
-        <button
-          type="button"
-          onClick={() => setSubView("cuadro")}
-          className={`flex-1 rounded-md px-3 py-2 text-[11px] font-bold transition ${
-            subView === "cuadro"
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Cuadro general
-        </button>
-      </div>
+      {!bracketOnly && (
+        <div className="flex rounded-lg border border-zinc-800 bg-zinc-950/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setSubView("partidos")}
+            className={`flex-1 rounded-md px-3 py-2 text-[11px] font-bold transition ${
+              subView === "partidos"
+                ? "bg-zinc-800 text-white"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Partidos
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubView("cuadro")}
+            className={`flex-1 rounded-md px-3 py-2 text-[11px] font-bold transition ${
+              subView === "cuadro"
+                ? "bg-zinc-800 text-white"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Cuadro general
+          </button>
+        </div>
+      )}
 
-      {subView === "cuadro" ? (
+      {subView === "cuadro" || bracketOnly ? (
         <KnockoutTreeView tree={fullTree} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

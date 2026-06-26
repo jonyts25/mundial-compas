@@ -5,6 +5,7 @@ import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
 import { getPilotConfig } from "@/lib/api-football/pilot-config";
 import { getAdminEnv } from "@/lib/env";
 import { upsertPartidoRows } from "@/lib/partidos/upsert-partido-rows";
+import { buildKnockoutPlaceholderRows } from "@/lib/partidos/knockout-placeholder-rows";
 import { withSeasonIdRows } from "@/lib/partidos/with-season-id";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -130,6 +131,31 @@ async function cargarPartidosApiSports(url: URL, modoPilot: boolean) {
     withSeasonIdRows(rows),
   );
 
+  let placeholdersUpserted = 0;
+  if (batchErrors.length === 0 && !isPilotLoad) {
+    const { data: knockoutExisting } = await supabase
+      .from("partidos")
+      .select(
+        "id, fase, grupo, jornada, sede, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, metadata",
+      )
+      .neq("fase", "grupos");
+
+    const placeholderRows = buildKnockoutPlaceholderRows(
+      (knockoutExisting ?? []) as Parameters<typeof buildKnockoutPlaceholderRows>[0],
+    );
+
+    if (placeholderRows.length > 0) {
+      const placeholderResult = await upsertPartidoRows(
+        supabase,
+        withSeasonIdRows(placeholderRows),
+      );
+      placeholdersUpserted = placeholderResult.upserted;
+      if (placeholderResult.batchErrors.length > 0) {
+        batchErrors.push(...placeholderResult.batchErrors);
+      }
+    }
+  }
+
   if (batchErrors.length > 0) {
     return NextResponse.json(
       {
@@ -144,7 +170,9 @@ async function cargarPartidosApiSports(url: URL, modoPilot: boolean) {
     );
   }
 
-  console.log(`[cargar-partidos] ✅ ${upserted} partidos (api-sports) en Supabase`);
+  console.log(
+    `[cargar-partidos] ✅ ${upserted} partidos (api-sports) + ${placeholdersUpserted} placeholders eliminatoria`,
+  );
 
   return NextResponse.json({
     ok: true,
@@ -152,6 +180,7 @@ async function cargarPartidosApiSports(url: URL, modoPilot: boolean) {
     modo: isPilotLoad ? "pilot" : "mundial",
     fetched: items.length,
     upserted,
+    placeholdersUpserted,
     query,
     fixtures: items.map((f) => ({
       id: f.fixture.id,

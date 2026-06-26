@@ -1,4 +1,9 @@
 import { buildRelojFromApiSportsFixture } from "@/lib/api-football/match-clock";
+import { toMexicoDateKey } from "@/lib/datetime/mexico";
+import {
+  KNOCKOUT_SCHEDULE_BY_MATCH,
+  WORLD_CUP_KNOCKOUT_SCHEDULE,
+} from "@/lib/standings/world-cup-knockout-schedule";
 import { mapApiStatus } from "@/lib/api-football/status-map";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
 import { getTeamStorageCode } from "@/lib/utils";
@@ -72,6 +77,45 @@ function parseFaseAndGrupo(round: string | null | undefined): {
   return { fase: "grupos", grupo: null, jornada: null };
 }
 
+function resolveFifaMatchNumber(item: ApiFootballFixtureItem): number | null {
+  const round = item.league.round ?? "";
+  const patterns = [
+    /\bmatch\s*#?\s*(\d{2,3})\b/i,
+    /\bpartido\s*#?\s*(\d{2,3})\b/i,
+    /\bM\s*(\d{2,3})\b/i,
+  ];
+  for (const pattern of patterns) {
+    const match = round.match(pattern);
+    if (match) {
+      const n = Number(match[1]);
+      if (n >= 73 && n <= 104) return n;
+    }
+  }
+
+  const dateKey = toMexicoDateKey(item.fixture.date);
+  const venue = [
+    item.fixture.venue?.name,
+    item.fixture.venue?.city,
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .toLowerCase();
+
+  for (const entry of WORLD_CUP_KNOCKOUT_SCHEDULE) {
+    if (entry.date !== dateKey) continue;
+    const entryVenue = entry.venue.toLowerCase();
+    if (
+      venue &&
+      (venue.includes(entryVenue.slice(0, 12)) ||
+        entryVenue.includes(venue.slice(0, 12)))
+    ) {
+      return entry.matchNumber;
+    }
+  }
+
+  return null;
+}
+
 export interface MapFixtureOptions {
   pilot?: { label: string };
 }
@@ -94,6 +138,7 @@ export function mapFixtureToPartidoRow(
   ].filter(Boolean);
 
   const { reloj, minuto_actual: minutoReloj } = buildRelojFromApiSportsFixture(item);
+  const fifaMatchNumber = resolveFifaMatchNumber(item);
 
   return {
     api_football_fixture_id: item.fixture.id,
@@ -122,6 +167,10 @@ export function mapFixtureToPartidoRow(
       ...(item.teams.home.logo ? { escudo_local: item.teams.home.logo } : {}),
       ...(item.teams.away.logo ? { escudo_visitante: item.teams.away.logo } : {}),
       reloj,
+      ...(fifaMatchNumber != null ? { fifa_match_number: fifaMatchNumber } : {}),
+      ...(fifaMatchNumber != null
+        ? { knockout_phase: KNOCKOUT_SCHEDULE_BY_MATCH[fifaMatchNumber]?.phase }
+        : {}),
       api_football: {
         provider: "api-sports",
         league_id: item.league.id,
