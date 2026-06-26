@@ -6,7 +6,7 @@
 export const WHATS_NEW_STORAGE_KEY = "mundial-compas:whats-new-seen";
 
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = "2026-06-engagement-v1";
+export const WHATS_NEW_VERSION = "2026-06-quiniela-fix-v1";
 
 export interface WhatsNewItem {
   emoji: string;
@@ -15,6 +15,12 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
+  {
+    emoji: "✅",
+    title: "Quinielas abiertas de nuevo",
+    description:
+      "Las quinielas global y privadas se bloquearon por error: al marcar un líder inalcanzable no se contaban los partidos de eliminatoria. Ya está corregido.",
+  },
   {
     emoji: "🔮",
     title: "El Pitoniso llegó",
