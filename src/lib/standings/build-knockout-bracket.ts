@@ -30,6 +30,14 @@ import {
   type ThirdPlaceHostGroup,
   type ThirdPlaceScenarioAssignments,
 } from "@/lib/standings/world-cup-third-place-scenarios";
+import {
+  applySlotLockState,
+  computeLockedGroupPositions,
+  isFeedSlotLocked,
+  isKnockoutMatchDefined,
+  isR32SlotLocked,
+  type GroupPositionKey,
+} from "@/lib/standings/knockout-match-certainty";
 import type { Partido } from "@/types/database";
 
 const MATCHES_PER_GROUP = 6;
@@ -54,7 +62,7 @@ function resolveGroupPositionSlot(
   groups: StandingGroup[],
   group: WorldCupGroupLetter,
   position: 1 | 2,
-  isProvisional: boolean,
+  isLocked: boolean,
 ): KnockoutTeamSlot {
   const team = getTeamAtPosition(groups, group, position);
   if (team) {
@@ -64,7 +72,7 @@ function resolveGroupPositionSlot(
       teamName: team.teamName,
       groupLetter: group,
       position,
-      isProvisional,
+      ...applySlotLockState({ isProvisional: !isLocked }, isLocked),
     };
   }
 
@@ -75,6 +83,7 @@ function resolveGroupPositionSlot(
     groupLetter: group,
     position,
     isProvisional: true,
+    isLocked: false,
   };
 }
 
@@ -83,7 +92,7 @@ function resolveThirdPlaceSlot(
   winnerGroup: ThirdPlaceHostGroup,
   assignments: ThirdPlaceScenarioAssignments | null,
   qualifyingThirdGroups: WorldCupGroupLetter[],
-  isProvisional: boolean,
+  isLocked: boolean,
 ): KnockoutTeamSlot {
   if (!assignments) {
     return {
@@ -91,11 +100,16 @@ function resolveThirdPlaceSlot(
       teamId: null,
       teamName: null,
       isProvisional: true,
+      isLocked: false,
     };
   }
 
   const thirdGroup = assignments[winnerGroup];
   const team = getTeamAtPosition(groups, thirdGroup, 3);
+  const slotLocked =
+    isLocked &&
+    qualifyingThirdGroups.includes(thirdGroup) &&
+    Boolean(team);
 
   return {
     label: team?.teamName ?? positionLabel(thirdGroup, 3),
@@ -103,8 +117,13 @@ function resolveThirdPlaceSlot(
     teamName: team?.teamName ?? null,
     groupLetter: thirdGroup,
     position: 3,
-    isProvisional:
-      isProvisional || !qualifyingThirdGroups.includes(thirdGroup),
+    ...applySlotLockState(
+      {
+        isProvisional:
+          !slotLocked || !qualifyingThirdGroups.includes(thirdGroup),
+      },
+      slotLocked,
+    ),
   };
 }
 
@@ -113,14 +132,14 @@ function resolveR32Slot(
   groups: StandingGroup[],
   assignments: ThirdPlaceScenarioAssignments | null,
   qualifyingThirdGroups: WorldCupGroupLetter[],
-  isProvisional: boolean,
+  isLocked: boolean,
 ): KnockoutTeamSlot {
   if (slot.kind === "group_position") {
     return resolveGroupPositionSlot(
       groups,
       slot.group,
       slot.position,
-      isProvisional,
+      isLocked,
     );
   }
 
@@ -129,7 +148,7 @@ function resolveR32Slot(
     slot.winnerGroup,
     assignments,
     qualifyingThirdGroups,
-    isProvisional,
+    isLocked,
   );
 }
 
@@ -142,6 +161,7 @@ function resolveFeedSlotLabel(
       teamId: null,
       teamName: null,
       isProvisional: true,
+      isLocked: false,
     };
   }
 
@@ -150,6 +170,7 @@ function resolveFeedSlotLabel(
     teamId: null,
     teamName: null,
     isProvisional: true,
+    isLocked: false,
   };
 }
 
@@ -190,6 +211,7 @@ function teamSlotFromResult(
     teamId: team.teamId,
     teamName: team.teamName,
     isProvisional: false,
+    isLocked: true,
   };
 }
 
@@ -214,6 +236,8 @@ interface BracketBuildContext {
   qualifyingThirdGroups: WorldCupGroupLetter[];
   groupStageComplete: boolean;
   isProvisional: boolean;
+  lockedPositions: Set<GroupPositionKey>;
+  partidosGrupo: PartidoGrupoRow[];
   dbByMatch: Map<number, Partido>;
   winners: Map<number, KnockoutTeamSlot>;
   losers: Map<number, KnockoutTeamSlot>;
@@ -224,20 +248,40 @@ function resolveSlotForEntry(
   ctx: BracketBuildContext,
 ): KnockoutTeamSlot {
   if (slot.kind === "group_position" || slot.kind === "third_vs_winner") {
+    const isLocked = isR32SlotLocked(slot, {
+      lockedPositions: ctx.lockedPositions,
+      assignments: ctx.assignments,
+      partidos: ctx.partidosGrupo,
+      groupStageComplete: ctx.groupStageComplete,
+    });
     return resolveR32Slot(
       slot,
       ctx.groups,
       ctx.assignments,
       ctx.qualifyingThirdGroups,
-      ctx.isProvisional,
+      isLocked,
     );
   }
 
   if (slot.kind === "winner") {
-    return ctx.winners.get(slot.matchNumber) ?? resolveFeedSlotLabel(slot);
+    const resolved = ctx.winners.get(slot.matchNumber);
+    if (resolved) return resolved;
+    const locked = isFeedSlotLocked(slot, ctx.winners, ctx.losers);
+    return {
+      ...resolveFeedSlotLabel(slot),
+      isProvisional: !locked,
+      isLocked: locked,
+    };
   }
 
-  return ctx.losers.get(slot.matchNumber) ?? resolveFeedSlotLabel(slot);
+  const resolved = ctx.losers.get(slot.matchNumber);
+  if (resolved) return resolved;
+  const locked = isFeedSlotLocked(slot, ctx.winners, ctx.losers);
+  return {
+    ...resolveFeedSlotLabel(slot),
+    isProvisional: !locked,
+    isLocked: locked,
+  };
 }
 
 function buildMatchFromEntry(
@@ -248,13 +292,16 @@ function buildMatchFromEntry(
     entry,
     ctx.dbByMatch,
   );
+  const home = resolveSlotForEntry(entry.home, ctx);
+  const away = resolveSlotForEntry(entry.away, ctx);
 
   return {
     matchNumber: entry.matchNumber,
     phase: entry.phase,
-    home: resolveSlotForEntry(entry.home, ctx),
-    away: resolveSlotForEntry(entry.away, ctx),
+    home,
+    away,
     schedule,
+    isDefined: isKnockoutMatchDefined(home, away),
   };
 }
 
@@ -317,6 +364,8 @@ function buildContext(input: {
     qualifyingThirdGroups,
     groupStageComplete,
     isProvisional: !groupStageComplete,
+    lockedPositions: computeLockedGroupPositions(input.partidosGrupo),
+    partidosGrupo: input.partidosGrupo,
     dbByMatch: indexKnockoutPartidosByMatchNumber(input.knockoutPartidos),
     winners: new Map(),
     losers: new Map(),

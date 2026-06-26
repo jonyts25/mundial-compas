@@ -78,7 +78,7 @@ export function getProvisionalOpponent(
         teamSlot: match.home,
         opponent: match.away,
         isProvisional:
-          match.home.isProvisional || match.away.isProvisional || bracket.isProvisional,
+          !match.isDefined || match.home.isProvisional || match.away.isProvisional,
       };
     }
     if (match.away.teamId === teamId) {
@@ -88,7 +88,7 @@ export function getProvisionalOpponent(
         teamSlot: match.away,
         opponent: match.home,
         isProvisional:
-          match.home.isProvisional || match.away.isProvisional || bracket.isProvisional,
+          !match.isDefined || match.home.isProvisional || match.away.isProvisional,
       };
     }
   }

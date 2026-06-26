@@ -84,6 +84,10 @@ function TeamRow({ slot }: { slot: KnockoutTeamSlot }) {
 
 function MatchCard({ match }: { match: KnockoutMatch }) {
   const phaseLabel = KNOCKOUT_PHASE_LABELS[match.phase];
+  const borderClass = match.isDefined
+    ? "border-emerald-800/45 bg-emerald-950/15 hover:border-emerald-700/60"
+    : "border-rose-900/25 bg-rose-950/10 hover:border-rose-800/35";
+
   const content = (
     <>
       <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-3 py-2">
@@ -115,7 +119,7 @@ function MatchCard({ match }: { match: KnockoutMatch }) {
     return (
       <Link
         href={`/partidos/${match.schedule.partidoId}`}
-        className="block overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-lg transition hover:border-zinc-600 active:scale-[0.99]"
+        className={`block overflow-hidden rounded-2xl border shadow-lg transition active:scale-[0.99] ${borderClass}`}
       >
         {content}
       </Link>
@@ -123,7 +127,9 @@ function MatchCard({ match }: { match: KnockoutMatch }) {
   }
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-lg">
+    <article
+      className={`overflow-hidden rounded-2xl border shadow-lg ${borderClass}`}
+    >
       {content}
     </article>
   );

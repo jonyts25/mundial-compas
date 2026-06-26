@@ -11,6 +11,15 @@ interface KnockoutTreeViewProps {
   tree: FullKnockoutTree;
 }
 
+function matchNodeClassName(isDefined: boolean): string {
+  const base =
+    "relative block rounded-xl border p-2 shadow-sm transition active:scale-[0.98]";
+  if (isDefined) {
+    return `${base} border-emerald-800/45 bg-emerald-950/20 hover:border-emerald-700/60`;
+  }
+  return `${base} border-rose-900/25 bg-rose-950/10 hover:border-rose-800/35`;
+}
+
 function MiniTeam({ slot }: { slot: KnockoutTeamSlot }) {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
@@ -30,7 +39,9 @@ function MiniTeam({ slot }: { slot: KnockoutTeamSlot }) {
       <span
         className={`truncate text-[10px] leading-tight ${
           slot.teamName
-            ? "font-medium text-zinc-200"
+            ? slot.isLocked
+              ? "font-medium text-emerald-100/90"
+              : "font-medium text-zinc-200"
             : slot.isProvisional
               ? "text-zinc-500"
               : "text-zinc-400"
@@ -66,31 +77,28 @@ function TreeMatchNode({ match }: { match: KnockoutMatch }) {
     </>
   );
 
+  const className = matchNodeClassName(match.isDefined);
+
   if (partidoId) {
     return (
-      <Link
-        href={`/partidos/${partidoId}`}
-        className="relative block rounded-xl border border-zinc-800/90 bg-zinc-900/70 p-2 shadow-sm transition hover:border-zinc-600 active:scale-[0.98]"
-      >
+      <Link href={`/partidos/${partidoId}`} className={className}>
         {content}
       </Link>
     );
   }
 
-  return (
-    <div className="relative rounded-xl border border-zinc-800/90 bg-zinc-900/70 p-2 shadow-sm">
-      {content}
-    </div>
-  );
+  return <div className={className}>{content}</div>;
 }
 
 export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
+  const showLegend = !tree.groupStageComplete;
+
   return (
     <div className="space-y-3">
       <p className="text-[10px] leading-relaxed text-zinc-500">
         {tree.groupStageComplete
           ? "Toca un partido para ver detalle, pronósticos y marcador en vivo."
-          : "Vista provisional del camino a la final. Desliza horizontalmente para ver cada ronda."}
+          : "Cuadro en vivo según resultados de grupo. Desliza horizontalmente para ver cada ronda."}
       </p>
 
       <div className="-mx-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -141,6 +149,15 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
           ))}
         </div>
       </div>
+
+      {showLegend && (
+        <p className="text-[10px] leading-relaxed text-zinc-500">
+          <span className="text-emerald-500/90">Verde</span> — cruce definido
+          (ya no cambia con otros grupos).{" "}
+          <span className="text-rose-400/80">Rojo tenue</span> — aún puede
+          cambiar según resultados pendientes.
+        </p>
+      )}
 
       {tree.isProvisional && (
         <p className="rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-[10px] text-amber-400/90">

@@ -20,7 +20,10 @@ export interface KnockoutTeamSlot {
   teamName: string | null;
   groupLetter?: WorldCupGroupLetter;
   position?: GroupPosition;
+  /** true si el ocupante del slot aún puede cambiar */
   isProvisional: boolean;
+  /** true si el cruce ya no depende de otros resultados */
+  isLocked: boolean;
 }
 
 export interface KnockoutMatchSchedule {
@@ -37,6 +40,8 @@ export interface KnockoutMatch {
   home: KnockoutTeamSlot;
   away: KnockoutTeamSlot;
   schedule: KnockoutMatchSchedule;
+  /** Ambos equipos del cruce ya están definidos */
+  isDefined: boolean;
 }
 
 export interface KnockoutBracket {
