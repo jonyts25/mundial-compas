@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   formatCalendarioTab,
   formatMexicoTime,
@@ -40,6 +40,25 @@ export function CalendarioPartidos({
   const [selectedDay, setSelectedDay] = useState(() =>
     pickInitialDay(diasConPartidos),
   );
+  const daysScrollRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToDay = useRef(false);
+
+  useLayoutEffect(() => {
+    const container = daysScrollRef.current;
+    if (!container) return;
+
+    const selectedButton = container.querySelector<HTMLElement>(
+      `[data-date-key="${selectedDay}"]`,
+    );
+    if (!selectedButton) return;
+
+    selectedButton.scrollIntoView({
+      inline: "center",
+      block: "nearest",
+      behavior: hasScrolledToDay.current ? "smooth" : "auto",
+    });
+    hasScrolledToDay.current = true;
+  }, [selectedDay, diasConPartidos]);
 
   const partidosPorDia = useMemo(() => {
     const map = new Map<string, Partido[]>();
@@ -101,7 +120,10 @@ export function CalendarioPartidos({
       </div>
 
       {/* Barra de fechas */}
-      <div className="mb-4 -mx-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        ref={daysScrollRef}
+        className="mb-4 -mx-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div className="flex gap-2">
           {diasConPartidos.map((dateKey) => {
             const { weekdayShort, dayNumber } = formatCalendarioTab(dateKey);
@@ -113,6 +135,7 @@ export function CalendarioPartidos({
               <button
                 key={dateKey}
                 type="button"
+                data-date-key={dateKey}
                 onClick={() => setSelectedDay(dateKey)}
                 className={`flex min-w-[3.25rem] shrink-0 flex-col items-center rounded-xl border px-2 py-2 transition ${
                   isSelected
