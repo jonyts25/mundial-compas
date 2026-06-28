@@ -34,7 +34,7 @@ import {
   cancelledGoalNotifyKey,
   isCancelledGoalAlreadyNotified,
 } from "@/lib/api-football/goal-cancel-notify-state";
-import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
+import { mapFixtureToPartidoRow, resolveFifaMatchNumber } from "@/lib/api-football/map-fixture-row";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
 import {
   buildMomentosMetadata,
@@ -61,11 +61,13 @@ import {
 import { getPilotConfig } from "@/lib/api-football/pilot-config";
 import { getTeamDisplayNameEs } from "@/lib/teams/display-names";
 import { getApiSportsEnv } from "@/lib/env";
+import { normalizeTeamNameForMatch } from "@/lib/partidos/partido-match-key";
 import {
   getLiveSyncWindowConfig,
   type LiveSyncWindowConfig,
 } from "@/lib/partidos/live-sync-window";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
+import { PLACEHOLDER_FIXTURE_BASE, placeholderFixtureId } from "@/lib/world-cup/knockout-match-ids";
 import {
   logSyncLiveComplete,
   logSyncLiveFixture,
@@ -93,10 +95,10 @@ async function syncOneApiSportsFixture(
     pilot: pilotEnabled ? { label: pilotLabel } : undefined,
   });
 
-  const { data: existing, error: findError } = await supabase
+  const { data: existingRow, error: findError } = await supabase
     .from("partidos")
     .select(
-      "id, estatus, fase, equipo_local_nombre, equipo_visitante_nombre, marcador_local, marcador_visitante, metadata",
+      "id, estatus, fase, equipo_local_nombre, equipo_visitante_nombre, marcador_local, marcador_visitante, metadata, api_football_fixture_id, fecha_kickoff",
     )
     .eq("api_football_fixture_id", fixtureId)
     .maybeSingle();
@@ -106,10 +108,67 @@ async function syncOneApiSportsFixture(
     result.errors.push(findError.message);
     return;
   }
+
+  let existing = existingRow;
+
+  if (!existing) {
+    const fifaMatchNumber = resolveFifaMatchNumber(item);
+    if (fifaMatchNumber != null) {
+      const { data: byPlaceholder, error: phErr } = await supabase
+        .from("partidos")
+        .select(
+          "id, estatus, fase, equipo_local_nombre, equipo_visitante_nombre, marcador_local, marcador_visitante, metadata, api_football_fixture_id, fecha_kickoff",
+        )
+        .eq("api_football_fixture_id", placeholderFixtureId(fifaMatchNumber))
+        .maybeSingle();
+      if (phErr) {
+        outcome = "db_error";
+        result.errors.push(phErr.message);
+        return;
+      }
+      if (byPlaceholder) {
+        existing = byPlaceholder;
+      }
+    }
+  }
+
+  if (!existing) {
+    const teamKey = `${normalizeTeamNameForMatch(row.equipo_local_nombre)}|${normalizeTeamNameForMatch(row.equipo_visitante_nombre)}`;
+    const kickoffMs = new Date(row.fecha_kickoff).getTime();
+    const fromIso = new Date(kickoffMs - 3 * 60 * 60 * 1000).toISOString();
+    const toIso = new Date(kickoffMs + 3 * 60 * 60 * 1000).toISOString();
+    const { data: knockoutRows, error: koErr } = await supabase
+      .from("partidos")
+      .select(
+        "id, estatus, fase, equipo_local_nombre, equipo_visitante_nombre, marcador_local, marcador_visitante, metadata, api_football_fixture_id, fecha_kickoff",
+      )
+      .gte("api_football_fixture_id", PLACEHOLDER_FIXTURE_BASE)
+      .gte("fecha_kickoff", fromIso)
+      .lte("fecha_kickoff", toIso);
+
+    if (koErr) {
+      outcome = "db_error";
+      result.errors.push(koErr.message);
+      return;
+    }
+
+    for (const candidate of knockoutRows ?? []) {
+      const candidateKey = `${normalizeTeamNameForMatch(String(candidate.equipo_local_nombre))}|${normalizeTeamNameForMatch(String(candidate.equipo_visitante_nombre))}`;
+      if (candidateKey === teamKey) {
+        existing = candidate;
+        break;
+      }
+    }
+  }
+
   if (!existing) {
     outcome = "not_in_db";
     return;
   }
+
+  const linkedFromPlaceholder =
+    existing.api_football_fixture_id >= PLACEHOLDER_FIXTURE_BASE &&
+    existing.api_football_fixture_id !== fixtureId;
 
   partidoId = existing.id;
 
@@ -170,6 +229,7 @@ async function syncOneApiSportsFixture(
       minuto_actual: minutoReloj ?? row.minuto_actual,
       metadata,
       updated_at: new Date().toISOString(),
+      ...(linkedFromPlaceholder ? { api_football_fixture_id: fixtureId } : {}),
     })
     .eq("id", existing.id);
 

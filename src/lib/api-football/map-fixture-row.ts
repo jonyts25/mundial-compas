@@ -77,7 +77,7 @@ function parseFaseAndGrupo(round: string | null | undefined): {
   return { fase: "grupos", grupo: null, jornada: null };
 }
 
-function resolveFifaMatchNumber(item: ApiFootballFixtureItem): number | null {
+export function resolveFifaMatchNumber(item: ApiFootballFixtureItem): number | null {
   const round = item.league.round ?? "";
   const patterns = [
     /\bmatch\s*#?\s*(\d{2,3})\b/i,
