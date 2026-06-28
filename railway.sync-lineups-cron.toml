@@ -1,0 +1,8 @@
+# Cron alineaciones: cada 15 min, ventana 4 h pre-kickoff.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.sync-lineups-cron"
+
+[deploy]
+cronSchedule = "*/15 * * * *"
+restartPolicyType = "NEVER"

@@ -61,6 +61,10 @@ import {
 import { getPilotConfig } from "@/lib/api-football/pilot-config";
 import { getTeamDisplayNameEs } from "@/lib/teams/display-names";
 import { getApiSportsEnv } from "@/lib/env";
+import {
+  getLiveSyncWindowConfig,
+  type LiveSyncWindowConfig,
+} from "@/lib/partidos/live-sync-window";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
 import {
   logSyncLiveComplete,
@@ -564,6 +568,32 @@ async function fetchOverdueLiveFixtureIds(
     .filter((id): id is number => id != null);
 }
 
+/** Partidos en ventana de sync-live aún no en live=all (p. ej. recién arrancó). */
+async function fetchInWindowFixtureIds(
+  supabase: SupabaseClient,
+  config: LiveSyncWindowConfig = getLiveSyncWindowConfig(),
+): Promise<number[]> {
+  const now = Date.now();
+  const soonIso = new Date(now + config.beforeMinutes * 60_000).toISOString();
+  const lookbackIso = new Date(
+    now - config.maxHoursAfterKickoff * 60 * 60_000,
+  ).toISOString();
+
+  const { data: rows, error } = await supabase
+    .from("partidos")
+    .select("api_football_fixture_id")
+    .in("estatus", ["programado", "en_vivo", "medio_tiempo"])
+    .gte("fecha_kickoff", lookbackIso)
+    .lte("fecha_kickoff", soonIso)
+    .not("api_football_fixture_id", "is", null);
+
+  if (error) throw new Error(error.message);
+
+  return (rows ?? [])
+    .map((r) => r.api_football_fixture_id as number | null)
+    .filter((id): id is number => id != null && id < 9_000_000);
+}
+
 async function syncFixtureIdsByLookup(
   supabase: SupabaseClient,
   fixtureIds: number[],
@@ -638,11 +668,12 @@ export async function syncLiveScoresFromApiSports(
   }
 
   try {
-    const [staleIds, overdueIds] = await Promise.all([
+    const [staleIds, overdueIds, windowIds] = await Promise.all([
       fetchStaleLiveFixtureIds(supabase, liveIds),
       fetchOverdueLiveFixtureIds(supabase),
+      fetchInWindowFixtureIds(supabase),
     ]);
-    const refetchIds = [...new Set([...staleIds, ...overdueIds])].filter(
+    const refetchIds = [...new Set([...staleIds, ...overdueIds, ...windowIds])].filter(
       (id) => !liveIds.has(id),
     );
 

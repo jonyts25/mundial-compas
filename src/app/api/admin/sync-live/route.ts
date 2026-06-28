@@ -4,6 +4,8 @@ import { warnSyncLiveLockSkipped } from "@/lib/partidos/sync-live-telemetry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminEnv, getFootballDataProvider } from "@/lib/env";
 import { syncLiveScoresFromApi } from "@/lib/partidos/sync-live-scores";
+import { reconcileKnockoutPlaceholderFixtureIds } from "@/lib/world-cup/reconcile-knockout-fixture-ids";
+import { syncPartidosLineupsInWindow } from "@/lib/partidos/sync-lineups-batch";
 
 /** Actualiza marcador/estatus vía polling api-sports (sync-live-cron). */
 export async function POST(request: Request) {
@@ -18,6 +20,9 @@ export async function POST(request: Request) {
   const force = url.searchParams.get("force") === "1";
   const supabase = createAdminClient();
 
+  const reconcile = await reconcileKnockoutPlaceholderFixtureIds(supabase);
+  const lineups = await syncPartidosLineupsInWindow(supabase);
+
   if (!(await tryClaimSyncLiveRun(supabase))) {
     warnSyncLiveLockSkipped();
     return NextResponse.json({
@@ -25,6 +30,8 @@ export async function POST(request: Request) {
       skipped: true,
       reason: "sync-live ya en curso (lock)",
       provider: getFootballDataProvider(),
+      reconcile,
+      lineups,
     });
   }
 
@@ -33,6 +40,8 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     provider: getFootballDataProvider(),
+    reconcile,
+    lineups,
     ...result,
   });
 }

@@ -51,6 +51,44 @@ export type SyncLineupsResult = {
   skipped?: string;
 };
 
+async function notifyLineupsIfPending(
+  supabase: SupabaseClient,
+  partido: PartidoRow,
+  lineups: PartidoLineups,
+  metadata: Record<string, unknown>,
+): Promise<PartidoLineups> {
+  if (lineups.notifiedAt) return lineups;
+
+  const teams = displayTeamPair(
+    partido.equipo_local_nombre,
+    partido.equipo_visitante_nombre,
+  );
+  const fixtureId = partido.api_football_fixture_id;
+  const eventKey = `alineaciones-${fixtureId ?? partido.id}`;
+
+  await queuePartidoPushNotifications(
+    supabase,
+    partido.id,
+    "alineaciones",
+    `📋 Alineaciones: ${teams.local} vs ${teams.visitante}`,
+    "Ya puedes ver titulares y banca en la app.",
+    { event_key: eventKey, fuente: "fixtures/lineups" },
+  );
+
+  const notifiedAt = new Date().toISOString();
+  const nextLineups = { ...lineups, notifiedAt };
+
+  await supabase
+    .from("partidos")
+    .update({
+      metadata: { ...metadata, alineaciones: nextLineups },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", partido.id);
+
+  return nextLineups;
+}
+
 export async function syncPartidoLineups(
   supabase: SupabaseClient,
   partido: PartidoRow,
@@ -59,6 +97,19 @@ export async function syncPartidoLineups(
   const cached = readLineupsFromMetadata(partido.metadata);
 
   if (cached && !options.force) {
+    if (!cached.notifiedAt) {
+      const metadata = {
+        ...(partido.metadata ?? {}),
+        alineaciones: cached,
+      };
+      const lineups = await notifyLineupsIfPending(
+        supabase,
+        partido,
+        cached,
+        metadata,
+      );
+      return { available: true, lineups, fromCache: true };
+    }
     return { available: true, lineups: cached, fromCache: true };
   }
 
@@ -103,7 +154,7 @@ export async function syncPartidoLineups(
   }
 
   const wasAvailable = Boolean(cached);
-  const lineups: PartidoLineups = {
+  let lineups: PartidoLineups = {
     ...fresh,
     notifiedAt: cached?.notifiedAt ?? null,
   };
@@ -119,28 +170,12 @@ export async function syncPartidoLineups(
     .eq("id", partido.id);
 
   if (!wasAvailable && !lineups.notifiedAt) {
-    const teams = displayTeamPair(
-      partido.equipo_local_nombre,
-      partido.equipo_visitante_nombre,
-    );
-    const eventKey = `alineaciones-${fixtureId}`;
-    await queuePartidoPushNotifications(
+    lineups = await notifyLineupsIfPending(
       supabase,
-      partido.id,
-      "alineaciones",
-      `📋 Alineaciones: ${teams.local} vs ${teams.visitante}`,
-      "Ya puedes ver titulares y banca en la app.",
-      { event_key: eventKey, fuente: "fixtures/lineups" },
+      partido,
+      lineups,
+      metadata,
     );
-
-    lineups.notifiedAt = new Date().toISOString();
-    await supabase
-      .from("partidos")
-      .update({
-        metadata: { ...metadata, alineaciones: lineups },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", partido.id);
   }
 
   return { available: true, lineups, fromCache: false };

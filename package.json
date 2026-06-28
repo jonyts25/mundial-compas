@@ -23,6 +23,7 @@
     "setup-railway-live": "node scripts/setup-railway-live-relay.mjs",
     "setup-railway-api-sports": "node scripts/setup-railway-api-sports.mjs",
     "deploy:sync-live-cron": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-sync-live-cron.ps1",
+    "deploy:sync-lineups-cron": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-sync-lineups-cron.ps1",
     "deploy:sync-calendar-cron": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy-sync-calendar-cron.ps1",
     "discover-api-plan": "node scripts/discover-api-plan.mjs",
     "discover-api-sports": "node scripts/discover-api-sports.mjs",
