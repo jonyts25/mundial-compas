@@ -57,6 +57,10 @@ export function placeholderFixtureId(matchNumber: number): number {
   return PLACEHOLDER_FIXTURE_BASE + matchNumber;
 }
 
+export function isPlaceholderFixtureId(fixtureId: number | null | undefined): boolean {
+  return fixtureId != null && fixtureId >= PLACEHOLDER_FIXTURE_BASE;
+}
+
 /** Serialize feed slot for metadata.home_slot / away_slot */
 export function serializeKnockoutFeedSlot(slot: KnockoutFeedSlot): string {
   if (slot.kind === "group_position") {

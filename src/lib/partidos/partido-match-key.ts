@@ -1,3 +1,5 @@
+import { isPlaceholderFixtureId } from "@/lib/world-cup/knockout-match-ids";
+
 /** Normaliza nombres de selección para emparejar el mismo partido entre proveedores. */
 export function normalizeTeamNameForMatch(name: string): string {
   const normalized = name
@@ -32,6 +34,15 @@ function normalizeDrCongoAlias(name: string): string {
   return name;
 }
 
+export function buildTeamPairKey(input: {
+  equipo_local_nombre: string;
+  equipo_visitante_nombre: string;
+}): string {
+  const local = normalizeTeamNameForMatch(input.equipo_local_nombre);
+  const away = normalizeTeamNameForMatch(input.equipo_visitante_nombre);
+  return `${local}|${away}`;
+}
+
 export function buildPartidoMatchKey(input: {
   fecha_kickoff: string;
   equipo_local_nombre: string;
@@ -48,9 +59,23 @@ export type PartidoMatchKeyFields = {
   equipo_local_nombre: string;
   equipo_visitante_nombre: string;
   api_football_fixture_id?: number | null;
+  estatus?: string;
 };
 
-/** Dedupe partidos del mismo encuentro; conserva fila con pronóstico del usuario o id de fixture más reciente. */
+function partidoDedupeScore(
+  partido: PartidoMatchKeyFields,
+  pronosticosPorPartido: Record<string, unknown>,
+): number {
+  let score = 0;
+  if (pronosticosPorPartido[partido.id]) score += 4;
+  if (!isPlaceholderFixtureId(partido.api_football_fixture_id)) score += 8;
+  if (partido.estatus === "en_vivo" || partido.estatus === "medio_tiempo") {
+    score += 1;
+  }
+  return score + (partido.api_football_fixture_id ?? 0) / 1_000_000_000_000;
+}
+
+/** Dedupe partidos del mismo encuentro; prioriza fixture real api-sports y pronósticos. */
 export function dedupePartidosByMatchKey<T extends PartidoMatchKeyFields>(
   partidos: T[],
   pronosticosPorPartido: Record<string, unknown> = {},
@@ -65,14 +90,10 @@ export function dedupePartidosByMatchKey<T extends PartidoMatchKeyFields>(
       continue;
     }
 
-    const existingScore =
-      (pronosticosPorPartido[existing.id] ? 2 : 0) +
-      (existing.api_football_fixture_id ?? 0) / 1_000_000_000;
-    const candidateScore =
-      (pronosticosPorPartido[partido.id] ? 2 : 0) +
-      (partido.api_football_fixture_id ?? 0) / 1_000_000_000;
-
-    if (candidateScore > existingScore) {
+    if (
+      partidoDedupeScore(partido, pronosticosPorPartido) >
+      partidoDedupeScore(existing, pronosticosPorPartido)
+    ) {
       byKey.set(key, partido);
     }
   }

@@ -1,5 +1,5 @@
 import { resolveIsModerator } from "@/lib/auth/moderator";
-import { LIGA_GLOBAL_ID } from "@/lib/constants";
+import { fetchGlobalPronosticoForPartidoOrSibling } from "@/lib/partidos/pronostico-sibling-lookup";
 import {
   assertAuthenticatedUserId,
   createServerDataClient,
@@ -61,13 +61,11 @@ export async function fetchPartidoDetallePageData(
     return null;
   }
 
-  const { data: pronostico } = await admin
-    .from("pronosticos")
-    .select("id, goles_local, goles_visitante, puntos")
-    .eq("liga_id", LIGA_GLOBAL_ID)
-    .eq("usuario_id", userId)
-    .eq("partido_id", partidoId)
-    .maybeSingle();
+  const pronostico = await fetchGlobalPronosticoForPartidoOrSibling(
+    admin,
+    userId,
+    partido,
+  );
 
   const esAdmin = await resolveIsModerator(supabase, userId);
 

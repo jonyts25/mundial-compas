@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildPartidoMatchKey } from "@/lib/partidos/partido-match-key";
+import {
+  buildPartidoMatchKey,
+  buildTeamPairKey,
+} from "@/lib/partidos/partido-match-key";
+import { PLACEHOLDER_FIXTURE_BASE } from "@/lib/world-cup/knockout-match-ids";
 
 type PartidoUpsertLike = {
   api_football_fixture_id: number;
@@ -22,9 +26,25 @@ export type AlignedPartidoUpsertRows<T extends PartidoUpsertLike> = {
   updates: Array<T & { id: string }>;
 };
 
+const KICKOFF_WINDOW_MS = 3 * 60 * 60 * 1000;
+
+function findPlaceholderMatch<T extends PartidoUpsertLike>(
+  row: T,
+  placeholders: ExistingPartidoRow[],
+): ExistingPartidoRow | undefined {
+  const teamKey = buildTeamPairKey(row);
+  const kickoffMs = new Date(row.fecha_kickoff).getTime();
+
+  return placeholders.find((candidate) => {
+    if (buildTeamPairKey(candidate) !== teamKey) return false;
+    const delta = Math.abs(new Date(candidate.fecha_kickoff).getTime() - kickoffMs);
+    return delta <= KICKOFF_WINDOW_MS;
+  });
+}
+
 /**
- * Evita duplicar partidos cuando api-sports y apifootball usan distintos fixture ids
- * para el mismo encuentro (mismo kickoff + equipos).
+ * Evita duplicar partidos cuando api-sports y placeholders KO usan distintos fixture ids
+ * para el mismo encuentro (mismo kickoff + equipos, o par de equipos en ventana ±3 h).
  */
 export async function alignPartidoUpsertRowsToExistingMatches<
   T extends PartidoUpsertLike,
@@ -33,17 +53,25 @@ export async function alignPartidoUpsertRowsToExistingMatches<
     return { inserts: [], updates: [] };
   }
 
-  const kickoffs = [...new Set(rows.map((r) => r.fecha_kickoff))];
+  const kickoffTimes = rows.map((r) => new Date(r.fecha_kickoff).getTime());
+  const windowStart = new Date(Math.min(...kickoffTimes) - KICKOFF_WINDOW_MS).toISOString();
+  const windowEnd = new Date(Math.max(...kickoffTimes) + KICKOFF_WINDOW_MS).toISOString();
+
   const { data: existingRows, error } = await supabase
     .from("partidos")
     .select(
       "id, api_football_fixture_id, fecha_kickoff, equipo_local_nombre, equipo_visitante_nombre",
     )
-    .in("fecha_kickoff", kickoffs);
+    .gte("fecha_kickoff", windowStart)
+    .lte("fecha_kickoff", windowEnd);
 
   if (error) {
     throw new Error(error.message);
   }
+
+  const placeholders = ((existingRows ?? []) as ExistingPartidoRow[]).filter(
+    (row) => row.api_football_fixture_id >= PLACEHOLDER_FIXTURE_BASE,
+  );
 
   const byMatchKey = new Map<string, ExistingPartidoRow>();
   const byFixtureId = new Map<number, ExistingPartidoRow>();
@@ -64,19 +92,24 @@ export async function alignPartidoUpsertRowsToExistingMatches<
     }
 
     const matchKey = buildPartidoMatchKey(row);
-    const sameMatch = byMatchKey.get(matchKey);
+    let sameMatch = byMatchKey.get(matchKey);
+
+    if (!sameMatch) {
+      sameMatch = findPlaceholderMatch(row, placeholders);
+    }
+
     if (sameMatch && sameMatch.api_football_fixture_id !== row.api_football_fixture_id) {
       updates.push({ ...row, id: sameMatch.id });
-      byMatchKey.set(matchKey, {
+      const merged: ExistingPartidoRow = {
         ...sameMatch,
         api_football_fixture_id: row.api_football_fixture_id,
         equipo_local_nombre: row.equipo_local_nombre,
         equipo_visitante_nombre: row.equipo_visitante_nombre,
-      });
-      byFixtureId.set(row.api_football_fixture_id, {
-        ...sameMatch,
-        api_football_fixture_id: row.api_football_fixture_id,
-      });
+        fecha_kickoff: row.fecha_kickoff,
+      };
+      byMatchKey.set(buildPartidoMatchKey(merged), merged);
+      byMatchKey.set(matchKey, merged);
+      byFixtureId.set(row.api_football_fixture_id, merged);
       continue;
     }
 
