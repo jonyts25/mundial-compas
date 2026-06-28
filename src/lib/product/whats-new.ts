@@ -5,8 +5,12 @@
 
 export const WHATS_NEW_STORAGE_KEY = "mundial-compas:whats-new-seen";
 
+/** Banner dismissible en pantallas de quiniela (misma versión que el modal). */
+export const KNOCKOUT_QUINIELA_BANNER_KEY =
+  "mundial-compas:knockout-quiniela-banner-seen";
+
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = "2026-06-quiniela-fix-v1";
+export const WHATS_NEW_VERSION = "2026-06-knockout-quiniela-v1";
 
 export interface WhatsNewItem {
   emoji: string;
@@ -14,7 +18,15 @@ export interface WhatsNewItem {
   description: string;
 }
 
+export const KNOCKOUT_QUINIELA_ANNOUNCEMENT: WhatsNewItem = {
+  emoji: "🏆",
+  title: "Eliminatoria en la quiniela",
+  description:
+    "Ya puedes pronosticar la fase eliminatoria: ronda de 32, octavos, cuartos, semifinal, tercer lugar y final. Los cruces con equipos por definir aparecen en el calendario; podrás guardar tu marcador en cuanto se confirmen ambos.",
+};
+
 export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
+  KNOCKOUT_QUINIELA_ANNOUNCEMENT,
   {
     emoji: "✅",
     title: "Quinielas abiertas de nuevo",

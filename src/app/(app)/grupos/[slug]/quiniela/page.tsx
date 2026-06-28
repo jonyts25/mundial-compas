@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { DisclaimerBlock } from "@/components/legal/DisclaimerBlock";
 import { QuinielaCompactHeader } from "@/components/quiniela/QuinielaCompactHeader";
+import { KnockoutQuinielaBanner } from "@/components/quiniela/KnockoutQuinielaBanner";
 import { PronosticoFusionBanner } from "@/components/quiniela/PronosticoFusionBanner";
 import { DISCLAIMER_COOPERACHA } from "@/lib/legal/disclaimers";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
@@ -98,6 +99,8 @@ export default async function GrupoQuinielaPage({ params, searchParams }: PagePr
             faseActual={fase}
           />
         </Suspense>
+
+        <KnockoutQuinielaBanner />
 
         <PronosticoFusionBanner pendientes={fusionPendientes} />
 
