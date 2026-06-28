@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PronosticoRow } from "@/components/quiniela/PronosticoRow";
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
+import { isKnockoutPronosticable } from "@/lib/world-cup/knockout-participant-utils";
 import type { TipoQuiniela } from "@/lib/liga/tipo-quiniela";
 import { TIPO_QUINIELA_LABELS } from "@/lib/liga/tipo-quiniela";
 import type { PronosticoUsuario } from "@/lib/quiniela/queries";
@@ -55,10 +56,11 @@ export function QuinielaList({
 
     for (const p of partidos) {
       const locked = isPronosticoLocked(p.fecha_kickoff, now);
+      const pronosticable = isKnockoutPronosticable(p);
       const tiene = Boolean(pronosticosPorPartido[p.id]);
       if (tiene) guardados += 1;
-      if (!locked && !tiene) pendientes += 1;
-      if (!locked && !tiene) {
+      if (!locked && !tiene && pronosticable) pendientes += 1;
+      if (!locked && !tiene && pronosticable) {
         const kickoff = new Date(p.fecha_kickoff).getTime();
         if (kickoff - now <= CIERRE_PROXIMO_MS && kickoff > now) {
           cierranPronto += 1;
@@ -78,6 +80,7 @@ export function QuinielaList({
     const now = nowMs;
     return partidos.filter((p) => {
       const locked = isPronosticoLocked(p.fecha_kickoff, now);
+      const pronosticable = isKnockoutPronosticable(p);
       const tiene = Boolean(pronosticosPorPartido[p.id]);
       const esHoy = toMexicoDateKey(p.fecha_kickoff) === hoyKey;
       const kickoff = new Date(p.fecha_kickoff).getTime();
@@ -85,15 +88,15 @@ export function QuinielaList({
 
       switch (filtro) {
         case "pendientes":
-          return !locked && !tiene;
+          return !locked && !tiene && pronosticable;
         case "guardados":
           return tiene;
         case "cerrados":
           return locked;
         case "hoy":
-          return esHoy && !locked;
+          return esHoy && !locked && pronosticable;
         case "proximos":
-          return esProximo && !locked;
+          return esProximo && !locked && pronosticable;
         default:
           return true;
       }

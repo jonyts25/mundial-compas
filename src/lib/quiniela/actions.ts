@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { assertUsuarioEsMiembro } from "@/lib/liga/grupos-queries";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
+import {
+  isKnockoutPartido,
+  isKnockoutPronosticable,
+} from "@/lib/world-cup/knockout-participant-utils";
 import { createClient } from "@/lib/supabase/server";
 
 export type SavePronosticoResult =
@@ -57,12 +61,22 @@ export async function savePronostico(
 
   const { data: partido, error: partidoError } = await supabase
     .from("partidos")
-    .select("fecha_kickoff, estatus")
+    .select("fecha_kickoff, estatus, fase, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre")
     .eq("id", partidoId)
     .single();
 
   if (partidoError || !partido) {
     return { ok: false, error: "Partido no encontrado" };
+  }
+
+  if (
+    isKnockoutPartido(partido) &&
+    !isKnockoutPronosticable(partido)
+  ) {
+    return {
+      ok: false,
+      error: "Espera a que se confirmen ambos equipos para pronosticar",
+    };
   }
 
   if (partido.estatus !== "programado" && partido.estatus !== "aplazado") {

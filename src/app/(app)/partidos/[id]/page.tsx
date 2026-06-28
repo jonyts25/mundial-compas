@@ -16,6 +16,7 @@ import { pitonisoStaticContextToLabInput } from "@/lib/ai/pitoniso-signals-forma
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { fetchPartidoDetallePageData } from "@/lib/partidos/detail-queries";
 import { fetchPitonisoStaticContext } from "@/lib/partidos/pitoniso-queries";
+import { isKnockoutPronosticable } from "@/lib/world-cup/knockout-participant-utils";
 import { fetchPartidoQuinielaContexts } from "@/lib/queries/partido-quiniela-contexts";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,7 +48,8 @@ export default async function PartidoPage({
 
   const { partido } = data;
   const esPronosticable =
-    partido.estatus === "programado" || partido.estatus === "aplazado";
+    (partido.estatus === "programado" || partido.estatus === "aplazado") &&
+    isKnockoutPronosticable(partido);
   const finalizado = partido.estatus === "finalizado";
   const enJuego =
     partido.estatus === "en_vivo" || partido.estatus === "medio_tiempo";

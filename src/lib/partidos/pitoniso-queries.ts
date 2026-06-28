@@ -13,6 +13,10 @@ import {
   type GroupMiniStandings,
   type TeamCompetitionForm,
 } from "@/lib/prediction-engine/team-competition-form";
+import {
+  areBothTeamsConfirmed,
+  isKnockoutPartido,
+} from "@/lib/world-cup/knockout-participant-utils";
 import { createClient } from "@/lib/supabase/server";
 import { lookupFifaRank } from "@/lib/sports-core/data/fifa-ranking-2026-06";
 import { getFifaRankingSignal } from "@/lib/sports-core/predictions/preview/fifa-ranking-signal";
@@ -95,6 +99,21 @@ export async function fetchPitonisoStaticContext(
     return {
       ok: false,
       error: "El Pitoniso solo está disponible antes del partido",
+    };
+  }
+
+  if (
+    isKnockoutPartido({ fase: partido.fase as FaseMundial }) &&
+    !areBothTeamsConfirmed({
+      equipo_local_codigo: partido.equipo_local_codigo as string,
+      equipo_visitante_codigo: partido.equipo_visitante_codigo as string,
+      equipo_local_nombre: partido.equipo_local_nombre as string,
+      equipo_visitante_nombre: partido.equipo_visitante_nombre as string,
+    })
+  ) {
+    return {
+      ok: false,
+      error: "El Pitoniso estará disponible cuando se confirmen ambos equipos",
     };
   }
 

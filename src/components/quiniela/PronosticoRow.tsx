@@ -16,6 +16,12 @@ import {
   isPronosticoLocked,
   QUINIELA_LOCK_MINUTES_BEFORE,
 } from "@/lib/quiniela/lock";
+import {
+  areBothTeamsConfirmed,
+  isKnockoutPartido,
+  isKnockoutPronosticable,
+  knockoutTeamDisplayLabel,
+} from "@/lib/world-cup/knockout-participant-utils";
 import { getTeamImageUrl } from "@/lib/teams/flags";
 import type { PronosticoUsuario } from "@/lib/quiniela/queries";
 import type { Partido } from "@/types/database";
@@ -48,6 +54,18 @@ export function PronosticoRow({
 
   const locked =
     soloLectura || isPronosticoLocked(partido.fecha_kickoff, nowMs);
+  const teamsPending =
+    isKnockoutPartido(partido) && !areBothTeamsConfirmed(partido);
+  const pronosticable = isKnockoutPronosticable(partido);
+  const inputLocked = locked || !pronosticable;
+  const localLabel = knockoutTeamDisplayLabel(
+    partido.equipo_local_nombre,
+    partido.equipo_local_codigo,
+  );
+  const awayLabel = knockoutTeamDisplayLabel(
+    partido.equipo_visitante_nombre,
+    partido.equipo_visitante_codigo,
+  );
   const cierreLabel = formatTimeUntilLock(partido.fecha_kickoff, nowMs);
   const { fecha: fechaPartido, hora: horaPartido } = formatMexicoKickoff(
     partido.fecha_kickoff,
@@ -56,7 +74,12 @@ export function PronosticoRow({
   const savedVisitante = pronostico ? pronostico.goles_visitante : null;
   const dirty = local !== savedLocal || visitante !== savedVisitante;
   const canSave =
-    !locked && local !== null && visitante !== null && local >= 0 && visitante >= 0;
+    !inputLocked &&
+    pronosticable &&
+    local !== null &&
+    visitante !== null &&
+    local >= 0 &&
+    visitante >= 0;
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
@@ -91,7 +114,7 @@ export function PronosticoRow({
   return (
     <article
       className={`rounded-2xl border p-4 transition ${
-        locked
+        inputLocked
           ? "border-zinc-700/80 bg-zinc-900/40 opacity-90"
           : "border-zinc-800 bg-zinc-900/70"
       }`}
@@ -111,6 +134,10 @@ export function PronosticoRow({
             <span className="flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-1 text-[10px] font-bold text-zinc-400">
               🔒 Cerrado
             </span>
+          ) : teamsPending ? (
+            <span className="rounded-full bg-amber-900/40 px-2 py-1 text-[10px] font-bold text-amber-300/90">
+              Equipos TBD
+            </span>
           ) : (
             <span className="text-[10px] text-zinc-500">{cierreLabel}</span>
           )}
@@ -120,7 +147,7 @@ export function PronosticoRow({
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <TeamMini
-          nombre={partido.equipo_local_nombre}
+          nombre={localLabel}
           codigo={partido.equipo_local_codigo}
           escudoUrl={getEscudoFromMetadata(partido.metadata, "local")}
         />
@@ -130,28 +157,37 @@ export function PronosticoRow({
             key={`local-${savedLocal ?? "none"}`}
             value={local}
             onChange={setLocal}
-            disabled={locked}
-            aria-label={`Goles ${partido.equipo_local_nombre}`}
+            disabled={inputLocked}
+            aria-label={`Goles ${localLabel}`}
           />
           <span className="px-0.5 text-sm font-bold text-zinc-500">vs</span>
           <ScoreInput
             key={`away-${savedVisitante ?? "none"}`}
             value={visitante}
             onChange={setVisitante}
-            disabled={locked}
-            aria-label={`Goles ${partido.equipo_visitante_nombre}`}
+            disabled={inputLocked}
+            aria-label={`Goles ${awayLabel}`}
           />
         </div>
 
         <TeamMini
-          nombre={partido.equipo_visitante_nombre}
+          nombre={awayLabel}
           codigo={partido.equipo_visitante_codigo}
           escudoUrl={getEscudoFromMetadata(partido.metadata, "visitante")}
           align="right"
         />
       </div>
 
-      {!locked && (
+      {teamsPending && !locked && (
+        <p className="mt-3 text-center text-[11px] text-amber-300/80">
+          Pronóstico disponible cuando se confirmen ambos equipos.
+          {isKnockoutPartido(partido)
+            ? " Marcador = tiempo reglamentario (sin penales en quiniela)."
+            : ""}
+        </p>
+      )}
+
+      {!inputLocked && (
         <button
           type="button"
           onClick={handleSave}
