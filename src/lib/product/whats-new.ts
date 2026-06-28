@@ -5,12 +5,22 @@
 
 export const WHATS_NEW_STORAGE_KEY = "mundial-compas:whats-new-seen";
 
-/** Banner dismissible en pantallas de quiniela (misma versión que el modal). */
+/** Banner eliminatoria habilitada — versión fija de dismiss. */
+export const KNOCKOUT_QUINIELA_BANNER_VERSION = "2026-06-knockout-quiniela-v1";
+
+/** Banner dismissible en pantallas de quiniela (eliminatoria habilitada). */
 export const KNOCKOUT_QUINIELA_BANNER_KEY =
   "mundial-compas:knockout-quiniela-banner-seen";
 
+/** Banner reglas eliminatoria — dedupe independiente. */
+export const KNOCKOUT_RULES_BANNER_KEY =
+  "mundial-compas:knockout-rules-banner-seen";
+
+/** Clave dedupe push / notificaciones producto. */
+export const KNOCKOUT_RULES_VERSION = "2026-06-knockout-rules-v1";
+
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = "2026-06-knockout-quiniela-v1";
+export const WHATS_NEW_VERSION = KNOCKOUT_RULES_VERSION;
 
 export interface WhatsNewItem {
   emoji: string;
@@ -25,7 +35,15 @@ export const KNOCKOUT_QUINIELA_ANNOUNCEMENT: WhatsNewItem = {
     "Ya puedes pronosticar la fase eliminatoria: ronda de 32, octavos, cuartos, semifinal, tercer lugar y final. Los cruces con equipos por definir aparecen en el calendario; podrás guardar tu marcador en cuanto se confirmen ambos.",
 };
 
+export const KNOCKOUT_RULES_ANNOUNCEMENT: WhatsNewItem = {
+  emoji: "🏆",
+  title: "Arranca la fase final",
+  description:
+    "En eliminatorias, tu pronóstico cuenta hasta el marcador final del partido. Si hay tiempo extra, cuenta el marcador tras 120'. Si hay penales, el resultado de quiniela sigue siendo empate; los penales solo definen quién avanza.",
+};
+
 export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
+  KNOCKOUT_RULES_ANNOUNCEMENT,
   KNOCKOUT_QUINIELA_ANNOUNCEMENT,
   {
     emoji: "✅",

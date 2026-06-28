@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { KnockoutQuinielaRulesHint } from "@/components/quiniela/KnockoutQuinielaRulesHint";
 import { ScoreInput, type ScoreValue } from "@/components/quiniela/ScoreInput";
 import { trackEvent } from "@/lib/analytics/track";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
@@ -129,6 +130,8 @@ export function TuPronosticoCard({
       aria-label="Tu pronóstico"
     >
       <h2 className="text-sm font-bold text-emerald-200">Tu pronóstico</h2>
+
+      <KnockoutQuinielaRulesHint partido={partido} className="mt-2" />
 
       {pronostico && !locked && (
         <p className="mt-1 text-xs text-zinc-400">

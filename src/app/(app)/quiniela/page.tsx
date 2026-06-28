@@ -4,6 +4,7 @@ import { AppBottomNav } from "@/components/home/AppBottomNav";
 import { LegalFooterLink } from "@/components/legal/LegalFooterLink";
 import { PilotModeBanner } from "@/components/pilot/PilotModeBanner";
 import { KnockoutQuinielaBanner } from "@/components/quiniela/KnockoutQuinielaBanner";
+import { KnockoutRulesBanner } from "@/components/quiniela/KnockoutRulesBanner";
 import { PronosticoFusionBanner } from "@/components/quiniela/PronosticoFusionBanner";
 import { QuinielaCompactHeader } from "@/components/quiniela/QuinielaCompactHeader";
 import { QuinielaList } from "@/components/quiniela/QuinielaList";
@@ -51,6 +52,7 @@ export default async function QuinielaPage() {
           />
         )}
 
+        <KnockoutRulesBanner />
         <KnockoutQuinielaBanner />
 
         <PronosticoFusionBanner pendientes={fusionPendientes} />

@@ -97,7 +97,7 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
     <div className="space-y-3">
       <p className="text-[10px] leading-relaxed text-zinc-500">
         {tree.groupStageComplete
-          ? "Toca un partido para ver detalle, pronósticos y marcador en vivo."
+          ? "Cruces definidos — ronda de 32 confirmada. Toca un partido para ver detalle, pronósticos y marcador en vivo."
           : "Cuadro en vivo según resultados de grupo. Desliza horizontalmente para ver cada ronda."}
       </p>
 
@@ -160,10 +160,16 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
         </p>
       )}
 
-      {tree.isProvisional && (
+      {!tree.groupStageComplete && tree.isProvisional && (
         <p className="rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-[10px] text-amber-400/90">
           Cuadro provisional — equipos y emparejamientos de 3.º pueden cambiar
           hasta cerrar la fase de grupos.
+        </p>
+      )}
+
+      {tree.groupStageComplete && (
+        <p className="rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-[10px] text-emerald-400/90">
+          Cruces definidos — la ronda de 32 ya no depende de otros grupos.
         </p>
       )}
     </div>

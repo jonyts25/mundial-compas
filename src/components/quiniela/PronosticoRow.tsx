@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
+import { KnockoutQuinielaRulesHint } from "@/components/quiniela/KnockoutQuinielaRulesHint";
 import { ScoreInput, type ScoreValue } from "@/components/quiniela/ScoreInput";
 import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
 import { SilenciarPartidoToggle } from "@/components/push/SilenciarPartidoToggle";
@@ -181,10 +182,11 @@ export function PronosticoRow({
       {teamsPending && !locked && (
         <p className="mt-3 text-center text-[11px] text-amber-300/80">
           Pronóstico disponible cuando se confirmen ambos equipos.
-          {isKnockoutPartido(partido)
-            ? " Marcador = tiempo reglamentario (sin penales en quiniela)."
-            : ""}
         </p>
+      )}
+
+      {pronosticable && !locked && isKnockoutPartido(partido) && (
+        <KnockoutQuinielaRulesHint partido={partido} className="mt-3 text-center" />
       )}
 
       {!inputLocked && (

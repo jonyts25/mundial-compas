@@ -76,7 +76,7 @@ export function PosicionesContent({
 
       <div className="mb-4 mt-4 rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2.5 text-[11px] leading-relaxed text-zinc-400">
         {groupStageComplete
-          ? "Cuadro de eliminatorias FIFA 2026. Toca un partido del cuadro para ver detalle y pronósticos."
+          ? "Cuadro de eliminatorias FIFA 2026 — cruces definidos. Toca un partido del cuadro para ver detalle y pronósticos."
           : "Consulta tablas y calendario por grupo. Independiente de quinielas globales o privadas. Criterios de desempate según "}
         {!groupStageComplete && (
           <>

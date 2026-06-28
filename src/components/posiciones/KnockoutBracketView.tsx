@@ -40,7 +40,13 @@ function MatchScheduleMeta({ match }: { match: KnockoutMatch }) {
   );
 }
 
-function TeamRow({ slot }: { slot: KnockoutTeamSlot }) {
+function TeamRow({
+  slot,
+  groupStageComplete,
+}: {
+  slot: KnockoutTeamSlot;
+  groupStageComplete: boolean;
+}) {
   const showFlag = Boolean(slot.teamId);
 
   return (
@@ -74,7 +80,7 @@ function TeamRow({ slot }: { slot: KnockoutTeamSlot }) {
                 ? "2.º"
                 : "3.º"}{" "}
             · Grupo {slot.groupLetter}
-            {slot.isProvisional ? " · provisional" : ""}
+            {slot.isProvisional && !groupStageComplete ? " · provisional" : ""}
           </p>
         )}
       </div>
@@ -82,7 +88,13 @@ function TeamRow({ slot }: { slot: KnockoutTeamSlot }) {
   );
 }
 
-function MatchCard({ match }: { match: KnockoutMatch }) {
+function MatchCard({
+  match,
+  groupStageComplete,
+}: {
+  match: KnockoutMatch;
+  groupStageComplete: boolean;
+}) {
   const phaseLabel = KNOCKOUT_PHASE_LABELS[match.phase];
   const borderClass = match.isDefined
     ? "border-emerald-800/45 bg-emerald-950/15 hover:border-emerald-700/60"
@@ -102,7 +114,7 @@ function MatchCard({ match }: { match: KnockoutMatch }) {
       <MatchScheduleMeta match={match} />
 
       <div className="space-y-2 px-3 py-3">
-        <TeamRow slot={match.home} />
+        <TeamRow slot={match.home} groupStageComplete={groupStageComplete} />
         <div className="flex items-center gap-2 px-1">
           <div className="h-px flex-1 bg-zinc-800" />
           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
@@ -110,7 +122,7 @@ function MatchCard({ match }: { match: KnockoutMatch }) {
           </span>
           <div className="h-px flex-1 bg-zinc-800" />
         </div>
-        <TeamRow slot={match.away} />
+        <TeamRow slot={match.away} groupStageComplete={groupStageComplete} />
       </div>
     </>
   );
@@ -151,16 +163,19 @@ export function KnockoutBracketView({
           Eliminatorias según{" "}
           <span className="text-emerald-500/90">FIFA 2026</span>: ronda de 32
           con Anexo C + cuadro completo hasta la final.
-          {bracket.isProvisional ? (
+          {fullTree.groupStageComplete ? (
+            <>
+              {" "}
+              <span className="text-emerald-400/90">Cruces definidos.</span>
+            </>
+          ) : bracket.isProvisional ? (
             <>
               {" "}
               <span className="text-amber-400/90">
-                Provisional: se actualiza con cada partido.
+                Provisional: se actualiza con cada partido de grupos.
               </span>
             </>
-          ) : (
-            <> Clasificación de grupos cerrada.</>
-          )}
+          ) : null}
         </p>
         {bracket.scenarioKey && (
           <p className="mt-1.5 text-[10px] text-zinc-600">
@@ -202,7 +217,11 @@ export function KnockoutBracketView({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {bracket.matches.map((match) => (
-            <MatchCard key={match.matchNumber} match={match} />
+            <MatchCard
+              key={match.matchNumber}
+              match={match}
+              groupStageComplete={fullTree.groupStageComplete}
+            />
           ))}
         </div>
       )}

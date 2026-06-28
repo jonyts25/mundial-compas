@@ -2,9 +2,9 @@
 
 import { useSyncExternalStore, useState } from "react";
 import {
-  KNOCKOUT_QUINIELA_ANNOUNCEMENT,
-  KNOCKOUT_QUINIELA_BANNER_KEY,
-  KNOCKOUT_QUINIELA_BANNER_VERSION,
+  KNOCKOUT_RULES_ANNOUNCEMENT,
+  KNOCKOUT_RULES_BANNER_KEY,
+  KNOCKOUT_RULES_VERSION,
 } from "@/lib/product/whats-new";
 
 const bannerListeners = new Set<() => void>();
@@ -21,10 +21,7 @@ function emitBannerChange(): void {
 function readBannerDismissed(): boolean {
   if (typeof window === "undefined") return true;
   try {
-    return (
-      localStorage.getItem(KNOCKOUT_QUINIELA_BANNER_KEY) ===
-      KNOCKOUT_QUINIELA_BANNER_VERSION
-    );
+    return localStorage.getItem(KNOCKOUT_RULES_BANNER_KEY) === KNOCKOUT_RULES_VERSION;
   } catch {
     return true;
   }
@@ -32,17 +29,14 @@ function readBannerDismissed(): boolean {
 
 function dismissBanner(): void {
   try {
-    localStorage.setItem(
-      KNOCKOUT_QUINIELA_BANNER_KEY,
-      KNOCKOUT_QUINIELA_BANNER_VERSION,
-    );
+    localStorage.setItem(KNOCKOUT_RULES_BANNER_KEY, KNOCKOUT_RULES_VERSION);
   } catch {
     /* ignore */
   }
   emitBannerChange();
 }
 
-export function KnockoutQuinielaBanner() {
+export function KnockoutRulesBanner() {
   const dismissed = useSyncExternalStore(
     subscribeBanner,
     readBannerDismissed,
@@ -57,11 +51,11 @@ export function KnockoutQuinielaBanner() {
     dismissBanner();
   }
 
-  const { emoji, title, description } = KNOCKOUT_QUINIELA_ANNOUNCEMENT;
+  const { emoji, title, description } = KNOCKOUT_RULES_ANNOUNCEMENT;
 
   return (
     <div
-      className={`mb-4 rounded-xl border border-emerald-800/50 bg-emerald-950/30 px-3 py-3 transition ${
+      className={`mb-4 rounded-xl border border-amber-800/40 bg-amber-950/25 px-3 py-3 transition ${
         closing ? "opacity-0" : "opacity-100"
       }`}
       role="status"
@@ -71,7 +65,7 @@ export function KnockoutQuinielaBanner() {
           {emoji}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-emerald-300">{title}</p>
+          <p className="text-sm font-bold text-amber-200">{title}</p>
           <p className="mt-1 text-xs leading-relaxed text-zinc-300">
             {description}
           </p>
