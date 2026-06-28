@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   getFeederMatchNumbers,
   getKnockoutAdvancementMap,
+  isBracketAlignedWithAdjacentR32,
   knockoutBracketRow,
 } from "@/lib/standings/knockout-bracket-layout";
-import { isBracketAlignedWithAdjacentR32 } from "@/lib/standings/knockout-feed-labels";
 import {
   KNOCKOUT_SCHEDULE_BY_MATCH,
   WORLD_CUP_KNOCKOUT_SCHEDULE,
@@ -28,6 +28,17 @@ describe("knockout bracket layout (FIFA 2026)", () => {
     const p90 = KNOCKOUT_SCHEDULE_BY_MATCH[90];
     expect(getFeederMatchNumbers(p90)).toEqual([73, 75]);
     expect(knockoutBracketRow(90)).toBe(1);
+  });
+
+  it("octavos se ordenan por fila del bracket, no por número FIFA", () => {
+    const r16 = WORLD_CUP_KNOCKOUT_SCHEDULE.filter((e) => e.phase === "r16").map(
+      (e) => e.matchNumber,
+    );
+    const sorted = [...r16].sort(
+      (a, b) => knockoutBracketRow(a) - knockoutBracketRow(b) || a - b,
+    );
+    expect(sorted[0]).toBe(90);
+    expect(sorted[1]).toBe(89);
   });
 
   it("cada ganador de R32 avanza exactamente a un octavo", () => {

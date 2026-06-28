@@ -38,7 +38,6 @@ import {
   isR32SlotLocked,
   type GroupPositionKey,
 } from "@/lib/standings/knockout-match-certainty";
-import { formatFeedSlotLabel } from "@/lib/standings/knockout-feed-labels";
 import type { Partido } from "@/types/database";
 
 const MATCHES_PER_GROUP = 6;
@@ -156,8 +155,18 @@ function resolveR32Slot(
 function resolveFeedSlotLabel(
   slot: Extract<KnockoutFeedSlot, { kind: "winner" | "loser" }>,
 ): KnockoutTeamSlot {
+  if (slot.kind === "winner") {
+    return {
+      label: `Ganador P${slot.matchNumber}`,
+      teamId: null,
+      teamName: null,
+      isProvisional: true,
+      isLocked: false,
+    };
+  }
+
   return {
-    label: formatFeedSlotLabel(slot),
+    label: `Perdedor P${slot.matchNumber}`,
     teamId: null,
     teamName: null,
     isProvisional: true,

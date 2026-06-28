@@ -5,15 +5,26 @@ import type {
   KnockoutMatch,
   KnockoutTeamSlot,
 } from "@/lib/standings/knockout-bracket-types";
-import {
-  KNOCKOUT_BRACKET_TOTAL_HEIGHT,
-  knockoutBracketCenterPx,
-} from "@/lib/standings/knockout-bracket-layout";
-import { formatFeederHint } from "@/lib/standings/knockout-feed-labels";
+import { sortMatchesByBracketRow } from "@/lib/standings/knockout-bracket-layout";
 import { getFlagImageUrl } from "@/lib/teams/flags";
 
 interface KnockoutTreeViewProps {
   tree: FullKnockoutTree;
+}
+
+function phaseMinHeight(phaseId: string): string {
+  switch (phaseId) {
+    case "r32":
+      return "720px";
+    case "r16":
+      return "360px";
+    case "qf":
+      return "180px";
+    case "sf":
+      return "90px";
+    default:
+      return "48px";
+  }
 }
 
 function matchNodeClassName(isDefined: boolean): string {
@@ -51,7 +62,6 @@ function MiniTeam({ slot }: { slot: KnockoutTeamSlot }) {
               ? "text-zinc-500"
               : "text-zinc-400"
         }`}
-        title={slot.label}
       >
         {slot.label}
       </span>
@@ -62,7 +72,6 @@ function MiniTeam({ slot }: { slot: KnockoutTeamSlot }) {
 function TreeMatchNode({ match }: { match: KnockoutMatch }) {
   const { schedule } = match;
   const partidoId = schedule.partidoId;
-  const feederHint = formatFeederHint(match.matchNumber);
 
   const content = (
     <>
@@ -74,11 +83,6 @@ function TreeMatchNode({ match }: { match: KnockoutMatch }) {
           {schedule.dateLabel.split(",")[0]}
         </span>
       </div>
-      {feederHint && (
-        <p className="mb-1 truncate text-[7px] leading-tight text-amber-500/80">
-          {feederHint}
-        </p>
-      )}
       <div className="space-y-1 border-b border-zinc-800/80 pb-1.5">
         <MiniTeam slot={match.home} />
         <MiniTeam slot={match.away} />
@@ -109,54 +113,49 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
     <div className="space-y-3">
       <p className="text-[10px] leading-relaxed text-zinc-500">
         {tree.groupStageComplete
-          ? "Cruces definidos — ronda de 32 confirmada. Los octavos y rondas siguientes siguen el calendario FIFA (no el orden numérico de la columna anterior). Toca un partido para detalle."
-          : "Cuadro en vivo según resultados de grupo. Desliza horizontalmente para ver cada ronda; la posición vertical indica qué partidos de 32 alimentan cada cruce."}
+          ? "Cruces definidos — ronda de 32 confirmada. Toca un partido para ver detalle, pronósticos y marcador en vivo."
+          : "Cuadro en vivo según resultados de grupo. Desliza horizontalmente para ver cada ronda."}
       </p>
 
       <div className="-mx-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-w-max items-start gap-3">
-          {tree.phases.map((phase, phaseIndex) => (
-            <div
-              key={phase.id}
-              className="flex w-[148px] shrink-0 flex-col"
-            >
-              <div className="mb-2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/90">
-                  {phase.label}
-                </p>
-                <p className="text-[9px] text-zinc-600">
-                  {phase.matches.length} partido
-                  {phase.matches.length === 1 ? "" : "s"}
-                </p>
-              </div>
+        <div className="flex min-w-max items-stretch gap-3">
+          {tree.phases.map((phase, phaseIndex) => {
+            const matches = sortMatchesByBracketRow(phase.matches);
 
+            return (
               <div
-                className="relative"
-                style={{
-                  height: KNOCKOUT_BRACKET_TOTAL_HEIGHT,
-                  minHeight: KNOCKOUT_BRACKET_TOTAL_HEIGHT,
-                }}
+                key={phase.id}
+                className="flex w-[148px] shrink-0 flex-col"
               >
-                {phase.matches.map((match) => (
-                  <div
-                    key={match.matchNumber}
-                    className="absolute left-0 right-0 -translate-y-1/2"
-                    style={{
-                      top: knockoutBracketCenterPx(match.matchNumber),
-                    }}
-                  >
-                    {phaseIndex < tree.phases.length - 1 && (
-                      <span
-                        aria-hidden
-                        className="absolute -right-3 top-1/2 hidden h-px w-3 bg-zinc-700 sm:block"
-                      />
-                    )}
-                    <TreeMatchNode match={match} />
-                  </div>
-                ))}
+                <div className="mb-2 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500/90">
+                    {phase.label}
+                  </p>
+                  <p className="text-[9px] text-zinc-600">
+                    {matches.length} partido
+                    {matches.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+
+                <div
+                  className="flex flex-1 flex-col justify-around gap-2"
+                  style={{ minHeight: phaseMinHeight(phase.id) }}
+                >
+                  {matches.map((match) => (
+                    <div key={match.matchNumber} className="relative">
+                      {phaseIndex < tree.phases.length - 1 && (
+                        <span
+                          aria-hidden
+                          className="absolute -right-3 top-1/2 hidden h-px w-3 bg-zinc-700 sm:block"
+                        />
+                      )}
+                      <TreeMatchNode match={match} />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

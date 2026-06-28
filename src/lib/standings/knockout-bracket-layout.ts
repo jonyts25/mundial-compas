@@ -1,3 +1,4 @@
+import type { KnockoutMatch } from "@/lib/standings/knockout-bracket-types";
 import type { KnockoutFeedSlot } from "@/lib/standings/world-cup-knockout-schedule";
 import {
   KNOCKOUT_SCHEDULE_BY_MATCH,
@@ -10,11 +11,6 @@ export const KNOCKOUT_R32_FIRST_MATCH = 73;
 
 /** Vertical slots in the bracket tree (one per R32 match). */
 export const KNOCKOUT_BRACKET_R32_SLOTS = 16;
-
-export const KNOCKOUT_BRACKET_ROW_HEIGHT = 44;
-
-export const KNOCKOUT_BRACKET_TOTAL_HEIGHT =
-  KNOCKOUT_BRACKET_R32_SLOTS * KNOCKOUT_BRACKET_ROW_HEIGHT;
 
 function feedSlotRow(slot: KnockoutFeedSlot): number {
   if (slot.kind === "winner" || slot.kind === "loser") {
@@ -37,9 +33,14 @@ export function knockoutBracketRow(matchNumber: number): number {
   return (homeRow + awayRow) / 2;
 }
 
-/** Pixel offset for vertical center of a match node. */
-export function knockoutBracketCenterPx(matchNumber: number): number {
-  return knockoutBracketRow(matchNumber) * KNOCKOUT_BRACKET_ROW_HEIGHT;
+export function sortMatchesByBracketRow(
+  matches: KnockoutMatch[],
+): KnockoutMatch[] {
+  return [...matches].sort(
+    (a, b) =>
+      knockoutBracketRow(a.matchNumber) - knockoutBracketRow(b.matchNumber) ||
+      a.matchNumber - b.matchNumber,
+  );
 }
 
 export function getFeederMatchNumbers(
@@ -73,4 +74,16 @@ export function getKnockoutAdvancementMap(): {
   }
 
   return { winnerNext, loserNext };
+}
+
+/** Whether a knockout match sits between two adjacent R32 rows (common misread). */
+export function isBracketAlignedWithAdjacentR32(
+  matchNumber: number,
+  leftR32: number,
+  rightR32: number,
+): boolean {
+  const row = knockoutBracketRow(matchNumber);
+  const left = knockoutBracketRow(leftR32);
+  const right = knockoutBracketRow(rightR32);
+  return row === (left + right) / 2;
 }
