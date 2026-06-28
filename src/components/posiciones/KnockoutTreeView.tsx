@@ -5,7 +5,7 @@ import type {
   KnockoutMatch,
   KnockoutTeamSlot,
 } from "@/lib/standings/knockout-bracket-types";
-import { sortMatchesByBracketRow } from "@/lib/standings/knockout-bracket-layout";
+import { sortMatchesForBracketDisplay } from "@/lib/standings/knockout-bracket-layout";
 import { getFlagImageUrl } from "@/lib/teams/flags";
 
 interface KnockoutTreeViewProps {
@@ -120,7 +120,10 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
       <div className="-mx-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex min-w-max items-stretch gap-3">
           {tree.phases.map((phase, phaseIndex) => {
-            const matches = sortMatchesByBracketRow(phase.matches);
+            const matches = sortMatchesForBracketDisplay(
+              phase.id,
+              phase.matches,
+            );
 
             return (
               <div

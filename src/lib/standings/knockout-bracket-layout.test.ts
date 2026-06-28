@@ -3,12 +3,32 @@ import {
   getFeederMatchNumbers,
   getKnockoutAdvancementMap,
   isBracketAlignedWithAdjacentR32,
+  KNOCKOUT_BRACKET_DISPLAY_ORDER,
   knockoutBracketRow,
+  sortMatchesForBracketDisplay,
 } from "@/lib/standings/knockout-bracket-layout";
+import type { KnockoutMatch } from "@/lib/standings/knockout-bracket-types";
 import {
   KNOCKOUT_SCHEDULE_BY_MATCH,
   WORLD_CUP_KNOCKOUT_SCHEDULE,
 } from "@/lib/standings/world-cup-knockout-schedule";
+
+function mockMatch(matchNumber: number): KnockoutMatch {
+  const entry = KNOCKOUT_SCHEDULE_BY_MATCH[matchNumber];
+  return {
+    matchNumber,
+    phase: entry.phase,
+    home: { label: "H", teamId: null, teamName: null, isProvisional: true, isLocked: false },
+    away: { label: "A", teamId: null, teamName: null, isProvisional: true, isLocked: false },
+    schedule: {
+      partidoId: null,
+      dateLabel: "",
+      timeLabel: null,
+      sede: "",
+    },
+    isDefined: false,
+  };
+}
 
 describe("knockout bracket layout (FIFA 2026)", () => {
   it("P89 octavos alimenta ganadores de P74 y P77, no P73 y P74", () => {
@@ -30,15 +50,53 @@ describe("knockout bracket layout (FIFA 2026)", () => {
     expect(knockoutBracketRow(90)).toBe(1);
   });
 
-  it("octavos se ordenan por fila del bracket, no por número FIFA", () => {
+  it("R32 agrupa P73 y P75 consecutivos (feeders de P90)", () => {
+    const r32 = KNOCKOUT_BRACKET_DISPLAY_ORDER.r32;
+    const i73 = r32.indexOf(73);
+    const i75 = r32.indexOf(75);
+    expect(i73).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(i73 - i75)).toBe(1);
+    expect(r32.indexOf(74)).not.toBe(i73 + 1);
+  });
+
+  it("R32 agrupa P74 y P77 consecutivos (feeders de P89)", () => {
+    const r32 = KNOCKOUT_BRACKET_DISPLAY_ORDER.r32;
+    const i74 = r32.indexOf(74);
+    const i77 = r32.indexOf(77);
+    expect(Math.abs(i74 - i77)).toBe(1);
+  });
+
+  it("cada partido alinea sus dos feeders consecutivos en la ronda anterior", () => {
+    const pairs: Array<[keyof typeof KNOCKOUT_BRACKET_DISPLAY_ORDER, keyof typeof KNOCKOUT_BRACKET_DISPLAY_ORDER]> = [
+      ["r16", "r32"],
+      ["qf", "r16"],
+      ["sf", "qf"],
+      ["final", "sf"],
+      ["third", "sf"],
+    ];
+
+    for (const [phase, prevPhase] of pairs) {
+      for (const matchNumber of KNOCKOUT_BRACKET_DISPLAY_ORDER[phase]) {
+        const feeders = getFeederMatchNumbers(
+          KNOCKOUT_SCHEDULE_BY_MATCH[matchNumber],
+        );
+        const [a, b] = feeders;
+        const prev = KNOCKOUT_BRACKET_DISPLAY_ORDER[prevPhase];
+        const ia = prev.indexOf(a);
+        const ib = prev.indexOf(b);
+        expect(ia).toBeGreaterThanOrEqual(0);
+        expect(ib).toBeGreaterThanOrEqual(0);
+        expect(Math.abs(ia - ib)).toBe(1);
+      }
+    }
+  });
+
+  it("sortMatchesForBracketDisplay respeta el orden del cuadro", () => {
     const r16 = WORLD_CUP_KNOCKOUT_SCHEDULE.filter((e) => e.phase === "r16").map(
-      (e) => e.matchNumber,
+      (e) => mockMatch(e.matchNumber),
     );
-    const sorted = [...r16].sort(
-      (a, b) => knockoutBracketRow(a) - knockoutBracketRow(b) || a - b,
-    );
-    expect(sorted[0]).toBe(90);
-    expect(sorted[1]).toBe(89);
+    const sorted = sortMatchesForBracketDisplay("r16", r16).map((m) => m.matchNumber);
+    expect(sorted).toEqual(KNOCKOUT_BRACKET_DISPLAY_ORDER.r16);
   });
 
   it("cada ganador de R32 avanza exactamente a un octavo", () => {
@@ -60,17 +118,6 @@ describe("knockout bracket layout (FIFA 2026)", () => {
       for (const feeder of feeders) {
         expect(feeder).toBeLessThan(entry.matchNumber);
       }
-    }
-  });
-
-  it("filas del bracket son monótonas entre rondas (sin saltos invertidos)", () => {
-    for (const entry of WORLD_CUP_KNOCKOUT_SCHEDULE) {
-      if (entry.phase === "r32") continue;
-
-      const feeders = getFeederMatchNumbers(entry);
-      const [a, b] = feeders;
-      const row = knockoutBracketRow(entry.matchNumber);
-      expect(row).toBe((knockoutBracketRow(a) + knockoutBracketRow(b)) / 2);
     }
   });
 });
