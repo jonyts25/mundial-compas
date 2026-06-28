@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics/track";
 import { formatMexicoKickoff } from "@/lib/datetime/mexico";
-import { labelFase } from "@/lib/partidos/labels";
+import { quinielaRoundTitle } from "@/lib/quiniela/knockout-rounds";
 import type { NextPendingPredictionItem } from "@/lib/quiniela/next-pending-prediction";
 
 interface NextPendingPredictionCardProps {
@@ -12,7 +12,7 @@ interface NextPendingPredictionCardProps {
 }
 
 function metaLine(item: NextPendingPredictionItem): string {
-  const parts: string[] = [labelFase(item.fase)];
+  const parts: string[] = [quinielaRoundTitle(item.fase)];
   if (item.grupo) parts.push(`Grupo ${item.grupo}`);
   if (item.jornada != null) parts.push(`J${item.jornada}`);
   const { fecha, hora } = formatMexicoKickoff(item.fechaKickoff);

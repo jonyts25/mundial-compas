@@ -22,6 +22,7 @@ function mockMatch(matchNumber: number): KnockoutMatch {
     away: { label: "A", teamId: null, teamName: null, isProvisional: true, isLocked: false },
     schedule: {
       partidoId: null,
+      fechaKickoff: null,
       dateLabel: "",
       timeLabel: null,
       sede: "",

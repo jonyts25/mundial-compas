@@ -1,3 +1,4 @@
+import { knockoutKickoffIso } from "@/lib/standings/world-cup-knockout-kickoffs";
 import { formatMexicoDateLabel, formatMexicoKickoff, toMexicoDateKey } from "@/lib/datetime/mexico";
 import type { KnockoutFeedSlot } from "@/lib/standings/world-cup-knockout-schedule";
 import {
@@ -102,12 +103,15 @@ export function resolveKnockoutSchedule(
     };
   }
 
+  const fallbackIso = knockoutKickoffIso(entry.matchNumber, entry.date);
+  const { fecha, hora } = formatMexicoKickoff(fallbackIso);
+
   return {
     fechaKickoff: null,
     sede,
     partidoId: db?.id ?? null,
-    dateLabel: formatMexicoDateLabel(`${entry.date}T12:00:00`),
-    timeLabel: null,
+    dateLabel: fecha,
+    timeLabel: hora,
   };
 }
 

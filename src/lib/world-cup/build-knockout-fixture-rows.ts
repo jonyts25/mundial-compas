@@ -1,4 +1,4 @@
-import { buildKickoffIsoFromApi } from "@/lib/datetime/kickoff";
+import { knockoutKickoffIso } from "@/lib/standings/world-cup-knockout-kickoffs";
 import type { PartidoUpsertRow } from "@/lib/api-football/map-fixture-row";
 import {
   buildKnockoutAdvancementMap,
@@ -49,7 +49,7 @@ export function buildKnockoutFixtureUpsertRow(
     equipo_local_nombre: `Equipo por definir (${knockoutMatchId}-L)`,
     equipo_visitante_nombre: `Equipo por definir (${knockoutMatchId}-V)`,
     sede: entry.venue,
-    fecha_kickoff: buildKickoffIsoFromApi(entry.date),
+    fecha_kickoff: knockoutKickoffIso(entry.matchNumber, entry.date),
     estatus: "programado",
     marcador_local: null,
     marcador_visitante: null,

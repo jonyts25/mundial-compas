@@ -10,13 +10,15 @@ import { fetchUserProfile } from "@/lib/insights/profile-data";
 import { fetchMisGrupos } from "@/lib/liga/grupos-queries";
 import { fetchLeaderboard } from "@/lib/leaderboard/queries";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
+import { isKnockoutPronosticable } from "@/lib/world-cup/knockout-participant-utils";
 import {
   assertAuthenticatedUserId,
   createServerDataClient,
 } from "@/lib/supabase/server-data";
+import type { FaseMundial } from "@/types/database";
 
 const PARTIDO_SELECT =
-  "id, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, metadata";
+  "id, fase, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, metadata";
 
 const PRONOSTICABLE_STATUSES = new Set(["programado", "finalizado"]);
 
@@ -65,6 +67,9 @@ export interface HomeQuinielaSummary {
 
 type PartidoRow = {
   id: string;
+  fase: FaseMundial;
+  equipo_local_codigo: string;
+  equipo_visitante_codigo: string;
   equipo_local_nombre: string;
   equipo_visitante_nombre: string;
   fecha_kickoff: string;
@@ -118,6 +123,8 @@ function computeLigaStats(
 
   for (const row of partidosMundial) {
     if (!PRONOSTICABLE_STATUSES.has(row.estatus)) continue;
+    if (!isKnockoutPronosticable(row)) continue;
+
     const partidoId = row.id;
     pronosticableIds.add(partidoId);
 

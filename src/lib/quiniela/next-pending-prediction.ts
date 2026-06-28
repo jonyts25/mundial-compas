@@ -8,6 +8,10 @@ import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { filterOutPilotPartidos } from "@/lib/api-football/pilot-config";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
 import {
+  isGroupStageClosedForQuiniela,
+} from "@/lib/quiniela/knockout-rounds";
+import { isKnockoutPronosticable } from "@/lib/world-cup/knockout-participant-utils";
+import {
   assertAuthenticatedUserId,
   createServerDataClient,
 } from "@/lib/supabase/server-data";
@@ -66,12 +70,25 @@ export async function fetchNextPendingPredictionForUser(
 
   const savedIds = new Set((pronosticos ?? []).map((p) => p.partido_id as string));
   const candidatos = filterOutPilotPartidos(partidos ?? []);
+  const skipGrupos = isGroupStageClosedForQuiniela(candidatos, nowMs);
 
   for (const row of candidatos) {
     const partidoId = row.id as string;
     if (savedIds.has(partidoId)) continue;
     const fechaKickoff = row.fecha_kickoff as string;
     if (isPronosticoLocked(fechaKickoff, nowMs)) continue;
+
+    const fase = row.fase as FaseMundial;
+    if (skipGrupos && fase === "grupos") continue;
+
+    const partidoLike = {
+      fase,
+      equipo_local_codigo: row.equipo_local_codigo as string,
+      equipo_visitante_codigo: row.equipo_visitante_codigo as string,
+      equipo_local_nombre: row.equipo_local_nombre as string,
+      equipo_visitante_nombre: row.equipo_visitante_nombre as string,
+    };
+    if (!isKnockoutPronosticable(partidoLike)) continue;
 
     return {
       ok: true,

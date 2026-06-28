@@ -19,8 +19,11 @@ export const KNOCKOUT_RULES_BANNER_KEY =
 /** Clave dedupe push / notificaciones producto. */
 export const KNOCKOUT_RULES_VERSION = "2026-06-knockout-rules-v1";
 
+/** Quiniela por rondas + horarios KO corregidos. */
+export const KNOCKOUT_ROUND_QUINIELA_VERSION = "2026-06-knockout-round-quiniela-v1";
+
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = KNOCKOUT_RULES_VERSION;
+export const WHATS_NEW_VERSION = KNOCKOUT_ROUND_QUINIELA_VERSION;
 
 export interface WhatsNewItem {
   emoji: string;
@@ -35,6 +38,13 @@ export const KNOCKOUT_QUINIELA_ANNOUNCEMENT: WhatsNewItem = {
     "Ya puedes pronosticar la fase eliminatoria: ronda de 32, octavos, cuartos, semifinal, tercer lugar y final. Los cruces con equipos por definir aparecen en el calendario; podrás guardar tu marcador en cuanto se confirmen ambos.",
 };
 
+export const KNOCKOUT_ROUND_QUINIELA_ANNOUNCEMENT: WhatsNewItem = {
+  emoji: "🏆",
+  title: "Quiniela por rondas — ¡partido de hoy!",
+  description:
+    "La quiniela ya muestra cada fase eliminatoria por sección: Ronda de 32, octavos, cuartos, semifinales, tercer lugar y final. Ya puedes pronosticar el partido de hoy; corregimos los horarios y la quiniela cierra 5 min antes del pitazo.",
+};
+
 export const KNOCKOUT_RULES_ANNOUNCEMENT: WhatsNewItem = {
   emoji: "🏆",
   title: "Arranca la fase final",
@@ -43,6 +53,7 @@ export const KNOCKOUT_RULES_ANNOUNCEMENT: WhatsNewItem = {
 };
 
 export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
+  KNOCKOUT_ROUND_QUINIELA_ANNOUNCEMENT,
   KNOCKOUT_RULES_ANNOUNCEMENT,
   KNOCKOUT_QUINIELA_ANNOUNCEMENT,
   {

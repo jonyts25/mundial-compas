@@ -1,5 +1,6 @@
 import { HomeEngagementDashboard } from "@/components/home/HomeEngagementDashboard";
 import { MultiQuinielaSummaryCarousel } from "@/components/home/MultiQuinielaSummaryCarousel";
+import { NextPendingPredictionCard } from "@/components/home/NextPendingPredictionCard";
 import { WhatsNewModal } from "@/components/product/WhatsNewModal";
 import { PublicLandingPage } from "@/components/landing/PublicLandingPage";
 import { AdminPlatformCard } from "@/components/admin/AdminPlatformCard";
@@ -19,6 +20,7 @@ import {
   fetchHomeQuinielaSummaries,
 } from "@/lib/home/home-dashboard-queries";
 import { fetchHomePageData } from "@/lib/partidos/queries";
+import { fetchNextPendingPredictionForUser } from "@/lib/quiniela/next-pending-prediction";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +42,7 @@ export default async function HomePage() {
     onboarding,
     dashboardResult,
     quinielaSummaries,
+    nextPendingResult,
   ] = await Promise.all([
     fetchHomePageData(user.id),
     fetchCalendarioPartidosData(user.id),
@@ -47,10 +50,13 @@ export default async function HomePage() {
     fetchOnboardingUserState(user.id),
     fetchHomeDashboardData(user.id),
     fetchHomeQuinielaSummaries(user.id),
+    fetchNextPendingPredictionForUser(user.id),
   ]);
 
   const dashboard = dashboardResult.ok ? dashboardResult.data : null;
   const dashboardError = dashboardResult.ok ? null : dashboardResult.error;
+  const nextPending =
+    nextPendingResult.ok ? nextPendingResult.item : null;
 
   return (
     <>
@@ -69,6 +75,7 @@ export default async function HomePage() {
           dashboard={dashboard}
           error={dashboardError}
         />
+        <NextPendingPredictionCard item={nextPending} />
         <MultiQuinielaSummaryCarousel summaries={quinielaSummaries} />
         <OnboardingStartCard eligible={onboarding.eligible} />
         <HeroSection partidosEnVivo={partidosEnVivo} datoMamalon={datoMamalon} />

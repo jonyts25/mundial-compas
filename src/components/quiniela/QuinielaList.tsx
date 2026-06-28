@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PronosticoRow } from "@/components/quiniela/PronosticoRow";
+import { QuinielaRoundSection } from "@/components/quiniela/QuinielaRoundSection";
+import {
+  detectActiveQuinielaPhase,
+  groupPartidosByQuinielaRound,
+} from "@/lib/quiniela/knockout-rounds";
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
 import { isKnockoutPronosticable } from "@/lib/world-cup/knockout-participant-utils";
@@ -47,6 +51,14 @@ export function QuinielaList({
     () => toMexicoDateKey(new Date(nowMs).toISOString()),
     [nowMs],
   );
+
+  const pronosticosGuardados = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const [id] of Object.entries(pronosticosPorPartido)) {
+      map[id] = true;
+    }
+    return map;
+  }, [pronosticosPorPartido]);
 
   const stats = useMemo(() => {
     const now = nowMs;
@@ -102,6 +114,27 @@ export function QuinielaList({
       }
     });
   }, [partidos, pronosticosPorPartido, filtro, hoyKey, nowMs]);
+
+  const activePhase = useMemo(
+    () => detectActiveQuinielaPhase(partidos, nowMs),
+    [partidos, nowMs],
+  );
+
+  const roundGroups = useMemo(
+    () =>
+      groupPartidosByQuinielaRound({
+        partidos,
+        filteredPartidos: filtrados,
+        pronosticosPorPartido: pronosticosGuardados,
+        nowMs,
+      }),
+    [partidos, filtrados, pronosticosGuardados, nowMs],
+  );
+
+  const visibleRoundGroups = useMemo(
+    () => roundGroups.filter((g) => g.visibility !== "empty"),
+    [roundGroups],
+  );
 
   if (partidos.length === 0) {
     const tipoLabel = tipoQuiniela ? TIPO_QUINIELA_LABELS[tipoQuiniela] : null;
@@ -175,20 +208,20 @@ export function QuinielaList({
         ))}
       </div>
 
-      {filtrados.length === 0 ? (
+      {visibleRoundGroups.length === 0 ? (
         <p className="py-10 text-center text-sm text-zinc-500">{emptyMessage}</p>
       ) : (
-        <ul className="space-y-3">
-          {filtrados.map((partido) => (
-            <li key={partido.id}>
-              <PronosticoRow
-                partido={partido}
-                pronostico={pronosticosPorPartido[partido.id]}
-                ligaId={ligaId}
-              />
-            </li>
+        <div className="space-y-3">
+          {visibleRoundGroups.map((group) => (
+            <QuinielaRoundSection
+              key={group.fase}
+              group={group}
+              pronosticosPorPartido={pronosticosPorPartido}
+              ligaId={ligaId}
+              defaultExpanded={group.fase === activePhase}
+            />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   KNOCKOUT_RULES_BANNER_KEY,
   KNOCKOUT_RULES_VERSION,
+  KNOCKOUT_ROUND_QUINIELA_VERSION,
   WHATS_NEW_VERSION,
 } from "@/lib/product/whats-new";
 import {
@@ -58,9 +59,13 @@ describe("knockout quiniela scoring rules", () => {
 });
 
 describe("announcement dedupe keys", () => {
-  it("rules version is unique and matches whats-new bump", () => {
+  it("round quiniela version bumps whats-new", () => {
+    expect(KNOCKOUT_ROUND_QUINIELA_VERSION).toBe("2026-06-knockout-round-quiniela-v1");
+    expect(WHATS_NEW_VERSION).toBe(KNOCKOUT_ROUND_QUINIELA_VERSION);
+  });
+
+  it("rules version is unique", () => {
     expect(KNOCKOUT_RULES_VERSION).toBe("2026-06-knockout-rules-v1");
-    expect(WHATS_NEW_VERSION).toBe(KNOCKOUT_RULES_VERSION);
     expect(KNOCKOUT_RULES_BANNER_KEY).toContain("knockout-rules");
   });
 });
