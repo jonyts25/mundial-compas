@@ -5,6 +5,11 @@ import type {
   KnockoutMatch,
   KnockoutTeamSlot,
 } from "@/lib/standings/knockout-bracket-types";
+import {
+  KNOCKOUT_BRACKET_TOTAL_HEIGHT,
+  knockoutBracketCenterPx,
+} from "@/lib/standings/knockout-bracket-layout";
+import { formatFeederHint } from "@/lib/standings/knockout-feed-labels";
 import { getFlagImageUrl } from "@/lib/teams/flags";
 
 interface KnockoutTreeViewProps {
@@ -46,6 +51,7 @@ function MiniTeam({ slot }: { slot: KnockoutTeamSlot }) {
               ? "text-zinc-500"
               : "text-zinc-400"
         }`}
+        title={slot.label}
       >
         {slot.label}
       </span>
@@ -56,6 +62,7 @@ function MiniTeam({ slot }: { slot: KnockoutTeamSlot }) {
 function TreeMatchNode({ match }: { match: KnockoutMatch }) {
   const { schedule } = match;
   const partidoId = schedule.partidoId;
+  const feederHint = formatFeederHint(match.matchNumber);
 
   const content = (
     <>
@@ -67,6 +74,11 @@ function TreeMatchNode({ match }: { match: KnockoutMatch }) {
           {schedule.dateLabel.split(",")[0]}
         </span>
       </div>
+      {feederHint && (
+        <p className="mb-1 truncate text-[7px] leading-tight text-amber-500/80">
+          {feederHint}
+        </p>
+      )}
       <div className="space-y-1 border-b border-zinc-800/80 pb-1.5">
         <MiniTeam slot={match.home} />
         <MiniTeam slot={match.away} />
@@ -97,12 +109,12 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
     <div className="space-y-3">
       <p className="text-[10px] leading-relaxed text-zinc-500">
         {tree.groupStageComplete
-          ? "Cruces definidos — ronda de 32 confirmada. Toca un partido para ver detalle, pronósticos y marcador en vivo."
-          : "Cuadro en vivo según resultados de grupo. Desliza horizontalmente para ver cada ronda."}
+          ? "Cruces definidos — ronda de 32 confirmada. Los octavos y rondas siguientes siguen el calendario FIFA (no el orden numérico de la columna anterior). Toca un partido para detalle."
+          : "Cuadro en vivo según resultados de grupo. Desliza horizontalmente para ver cada ronda; la posición vertical indica qué partidos de 32 alimentan cada cruce."}
       </p>
 
       <div className="-mx-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-w-max items-stretch gap-3">
+        <div className="flex min-w-max items-start gap-3">
           {tree.phases.map((phase, phaseIndex) => (
             <div
               key={phase.id}
@@ -119,22 +131,20 @@ export function KnockoutTreeView({ tree }: KnockoutTreeViewProps) {
               </div>
 
               <div
-                className="flex flex-1 flex-col justify-around gap-2"
+                className="relative"
                 style={{
-                  minHeight:
-                    phase.id === "r32"
-                      ? "720px"
-                      : phase.id === "r16"
-                        ? "360px"
-                        : phase.id === "qf"
-                          ? "180px"
-                          : phase.id === "sf"
-                            ? "90px"
-                            : "48px",
+                  height: KNOCKOUT_BRACKET_TOTAL_HEIGHT,
+                  minHeight: KNOCKOUT_BRACKET_TOTAL_HEIGHT,
                 }}
               >
                 {phase.matches.map((match) => (
-                  <div key={match.matchNumber} className="relative">
+                  <div
+                    key={match.matchNumber}
+                    className="absolute left-0 right-0 -translate-y-1/2"
+                    style={{
+                      top: knockoutBracketCenterPx(match.matchNumber),
+                    }}
+                  >
                     {phaseIndex < tree.phases.length - 1 && (
                       <span
                         aria-hidden

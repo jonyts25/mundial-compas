@@ -10,6 +10,7 @@ import type {
   KnockoutMatch,
   KnockoutTeamSlot,
 } from "@/lib/standings/knockout-bracket-types";
+import { formatFeederHint } from "@/lib/standings/knockout-feed-labels";
 import { KNOCKOUT_PHASE_LABELS } from "@/lib/standings/world-cup-knockout-schedule";
 import { getFlagImageUrl } from "@/lib/teams/flags";
 
@@ -96,6 +97,7 @@ function MatchCard({
   groupStageComplete: boolean;
 }) {
   const phaseLabel = KNOCKOUT_PHASE_LABELS[match.phase];
+  const feederHint = formatFeederHint(match.matchNumber);
   const borderClass = match.isDefined
     ? "border-emerald-800/45 bg-emerald-950/15 hover:border-emerald-700/60"
     : "border-rose-900/25 bg-rose-950/10 hover:border-rose-800/35";
@@ -112,6 +114,12 @@ function MatchCard({
       </div>
 
       <MatchScheduleMeta match={match} />
+
+      {feederHint && (
+        <p className="border-b border-zinc-800/80 bg-amber-950/15 px-3 py-1.5 text-[10px] text-amber-400/90">
+          {feederHint}
+        </p>
+      )}
 
       <div className="space-y-2 px-3 py-3">
         <TeamRow slot={match.home} groupStageComplete={groupStageComplete} />
