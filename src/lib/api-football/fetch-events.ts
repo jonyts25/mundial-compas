@@ -40,3 +40,25 @@ export function findLatestGoalForScore(
   );
   return ordered[targetIndex] ?? ordered[ordered.length - 1] ?? null;
 }
+
+function isShootoutPenaltyGoal(event: ApiSportsFixtureEvent): boolean {
+  const detail = (event.detail ?? "").toLowerCase();
+  return (
+    event.type === "Goal" &&
+    detail.includes("penalty") &&
+    !detail.includes("missed")
+  );
+}
+
+/** N-ésimo penal anotado de un equipo en la tanda (1-based). */
+export function findNthPenaltyGoalForTeam(
+  events: ApiSportsFixtureEvent[],
+  teamId: number,
+  kickIndex: number,
+): ApiSportsFixtureEvent | null {
+  const teamPenGoals = events.filter(
+    (event) => isShootoutPenaltyGoal(event) && event.team.id === teamId,
+  );
+  if (teamPenGoals.length === 0) return null;
+  return teamPenGoals[kickIndex - 1] ?? teamPenGoals[teamPenGoals.length - 1] ?? null;
+}

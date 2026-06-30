@@ -1,29 +1,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { metadataPartidoGlobal } from "@/lib/chat/scopes";
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
-import type { MomentoClave } from "@/lib/api-football/match-events";
-import { formatMomentoMinuto } from "@/lib/api-football/match-events";
-import { buildPenalFalladoNotifyMetadata } from "@/lib/api-football/penal-fallado-notify-state";
+import { buildPenNotifyMetadata } from "@/lib/api-football/penalty-notify-state";
 import { tryClaimLiveEvent } from "@/lib/api-football/push/claim-event";
 import { queuePartidoPushNotifications } from "@/lib/api-football/push/notifications";
-import { generarNarracionPenalFallado } from "@/lib/narracion/comentaristas";
+import { generarNarracionPenalAnotado } from "@/lib/narracion/comentaristas";
 import type { WebhookHandlerResult } from "@/types/api-football";
 
-interface OnPenalFalladoContext {
+interface OnPenalAnotadoContext {
   supabase: SupabaseClient;
   partidoId: string;
-  momento: MomentoClave;
   localName: string;
   visitanteName: string;
   penHome: number;
   penAway: number;
+  goleador: string;
+  equipo: string;
+  eventKey: string;
 }
 
-export async function handlePenalFalladoEvent(
-  ctx: OnPenalFalladoContext,
+export async function handlePenalAnotadoEvent(
+  ctx: OnPenalAnotadoContext,
 ): Promise<WebhookHandlerResult> {
-  const { supabase, partidoId, momento, localName, visitanteName, penHome, penAway } = ctx;
-  const eventKey = `penal-fallado-${momento.id}`;
+  const {
+    supabase,
+    partidoId,
+    localName,
+    visitanteName,
+    penHome,
+    penAway,
+    goleador,
+    equipo,
+    eventKey,
+  } = ctx;
 
   const { data: partido, error: readError } = await supabase
     .from("partidos")
@@ -35,28 +44,25 @@ export async function handlePenalFalladoEvent(
     return { ok: false, message: readError.message };
   }
 
-  if (!(await tryClaimLiveEvent(supabase, partidoId, eventKey, "penal_fallado"))) {
-    return { ok: true, message: "Penal fallado ya notificado (claim)" };
+  if (!(await tryClaimLiveEvent(supabase, partidoId, eventKey, "penal_anotado"))) {
+    return { ok: true, message: "Penal anotado ya notificado (claim)" };
   }
 
-  const minutoLabel = formatMomentoMinuto(momento.minuto, momento.extra);
-  const narracion = generarNarracionPenalFallado({
+  const narracion = generarNarracionPenalAnotado({
     local: localName,
     visitante: visitanteName,
     penHome,
     penAway,
-    jugador: momento.jugador,
-    equipo: momento.equipo,
+    goleador,
+    equipo,
   });
 
-  const pushTitulo = minutoLabel
-    ? `🎯 Penal fallado: ${momento.jugador} (${minutoLabel})`
-    : `🎯 Penal fallado: ${momento.jugador}`;
+  const pushTitulo = `⚽ Penal anotado: ${goleador} · ${penHome}-${penAway}`;
 
   const { error: claimError } = await supabase
     .from("partidos")
     .update({
-      metadata: buildPenalFalladoNotifyMetadata(partido?.metadata, [momento.id]),
+      metadata: buildPenNotifyMetadata(partido?.metadata, penHome, penAway),
       updated_at: new Date().toISOString(),
     })
     .eq("id", partidoId);
@@ -72,10 +78,9 @@ export async function handlePenalFalladoEvent(
     contenido: narracion.texto,
     metadata: metadataPartidoGlobal({
       narrador_estilo: narracion.estilo,
-      minuto: momento.minuto,
-      jugador: momento.jugador,
-      equipo: momento.equipo,
-      tipo_evento: "penal_fallado",
+      jugador: goleador,
+      equipo,
+      tipo_evento: "penal_anotado",
       fuente: "api-sports-sync",
     }),
   });
@@ -87,17 +92,17 @@ export async function handlePenalFalladoEvent(
   await queuePartidoPushNotifications(
     supabase,
     partidoId,
-    "penal_fallado",
+    "gol",
     pushTitulo,
     narracion.texto,
     {
       event_key: eventKey,
       skip_claim: true,
       fuente: "api-sports-sync",
-      jugador: momento.jugador,
-      equipo: momento.equipo,
+      jugador: goleador,
+      equipo,
     },
   );
 
-  return { ok: true, message: "Penal fallado procesado" };
+  return { ok: true, message: "Penal anotado procesado" };
 }

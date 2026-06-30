@@ -8,6 +8,7 @@ import {
 import type { MatchPhaseKind } from "@/lib/api-football/push/types";
 import { tryClaimLiveEvent } from "@/lib/api-football/push/claim-event";
 import { buildPhasePushMessage, isFinalMatch } from "@/lib/api-football/push/phase-push";
+import { buildFulltimePushBody } from "@/lib/api-football/push/push-score";
 import { queuePartidoPushNotifications } from "@/lib/api-football/push/notifications";
 import {
   generarNarracionCampeon,
@@ -42,6 +43,7 @@ export interface PhaseSyncContext {
   roundHint?: string | null;
   homeScore: number;
   awayScore: number;
+  penaltyScores?: { home: number; away: number } | null;
   prevMetadata: unknown;
   newRelojMetadata: Record<string, unknown>;
   statusShort?: string | null;
@@ -115,6 +117,7 @@ function buildPhaseChat(
   homeScore: number,
   awayScore: number,
   esFinal: boolean,
+  penaltyScores: { home: number; away: number } | null = null,
 ): { contenido: string; narradorEstilo?: string } {
   const marcadorStr = `${homeScore}-${awayScore}`;
 
@@ -158,9 +161,21 @@ function buildPhaseChat(
           visitante,
           marcadorLocal: homeScore,
           marcadorVisitante: awayScore,
-          penaltyScores: null,
+          penaltyScores,
         });
         return { contenido: n.texto, narradorEstilo: n.estilo };
+      }
+      if (penaltyScores) {
+        return {
+          contenido: buildFulltimePushBody({
+            localName: local,
+            visitanteName: visitante,
+            homeScore,
+            awayScore,
+            penaltyScores,
+          }),
+          narradorEstilo: "VAR Compas",
+        };
       }
       return fromNarracion(
         generarNarracionFase(PLANTILLAS_FIN, local, visitante, marcadorStr),
@@ -212,6 +227,7 @@ export async function notifyPhaseTransitions(
 
   const esFinal = isFinalMatch(ctx.fase, ctx.roundHint);
   const teams = displayTeamPair(ctx.local, ctx.visitante);
+  const penaltyScores = ctx.penaltyScores ?? null;
 
   for (const phase of pending) {
     if (announced.includes(phase)) continue;
@@ -222,7 +238,7 @@ export async function notifyPhaseTransitions(
       ctx.visitante,
       ctx.homeScore,
       ctx.awayScore,
-      null,
+      penaltyScores,
       { isFinalMatch: esFinal },
     );
 
@@ -262,6 +278,7 @@ export async function notifyPhaseTransitions(
           ctx.homeScore,
           ctx.awayScore,
           esFinal,
+          penaltyScores,
         );
         contenido = chat.contenido;
         narradorEstilo = chat.narradorEstilo;
@@ -274,6 +291,7 @@ export async function notifyPhaseTransitions(
         ctx.homeScore,
         ctx.awayScore,
         esFinal,
+        penaltyScores,
       );
       contenido = chat.contenido;
       narradorEstilo = chat.narradorEstilo;

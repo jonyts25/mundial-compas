@@ -28,6 +28,12 @@ export interface ApiFootballFixtureItem {
     home: number | null;
     away: number | null;
   };
+  score?: {
+    penalty?: {
+      home: number | null;
+      away: number | null;
+    };
+  };
 }
 
 export interface ApiFootballTeam {

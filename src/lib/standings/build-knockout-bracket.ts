@@ -174,34 +174,7 @@ function resolveFeedSlotLabel(
   };
 }
 
-function getMatchSideWinner(
-  partido: Partido,
-  side: "home" | "away",
-): { teamId: string; teamName: string } | null {
-  if (partido.estatus !== "finalizado") return null;
-  if (partido.marcador_local == null || partido.marcador_visitante == null) {
-    return null;
-  }
-
-  const homeWins = partido.marcador_local > partido.marcador_visitante;
-  const awayWins = partido.marcador_visitante > partido.marcador_local;
-  if (!homeWins && !awayWins) return null;
-
-  if (side === "home" && homeWins) {
-    return {
-      teamId: partido.equipo_local_codigo,
-      teamName: partido.equipo_local_nombre,
-    };
-  }
-  if (side === "away" && awayWins) {
-    return {
-      teamId: partido.equipo_visitante_codigo,
-      teamName: partido.equipo_visitante_nombre,
-    };
-  }
-
-  return null;
-}
+import { resolveKnockoutSideWinner } from "@/lib/partidos/knockout-match-result";
 
 function teamSlotFromResult(
   team: { teamId: string; teamName: string },
@@ -312,8 +285,8 @@ function storeMatchResults(
   const db = ctx.dbByMatch.get(entry.matchNumber);
   if (!db) return;
 
-  const homeWinner = getMatchSideWinner(db, "home");
-  const awayWinner = getMatchSideWinner(db, "away");
+  const homeWinner = resolveKnockoutSideWinner(db, "home");
+  const awayWinner = resolveKnockoutSideWinner(db, "away");
 
   if (homeWinner) {
     ctx.winners.set(entry.matchNumber, teamSlotFromResult(homeWinner));

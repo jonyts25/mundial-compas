@@ -1,4 +1,5 @@
 import { buildRelojFromApiSportsFixture } from "@/lib/api-football/match-clock";
+import { extractPenaltyScoresFromFixture } from "@/lib/api-football/penalty-sync";
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
 import {
   KNOCKOUT_SCHEDULE_BY_MATCH,
@@ -137,7 +138,13 @@ export function mapFixtureToPartidoRow(
     item.fixture.venue?.city,
   ].filter(Boolean);
 
-  const { reloj, minuto_actual: minutoReloj } = buildRelojFromApiSportsFixture(item);
+  const penScores = extractPenaltyScoresFromFixture(item);
+  const { reloj, minuto_actual: minutoReloj } = buildRelojFromApiSportsFixture(
+    item,
+    undefined,
+    new Date(),
+    penScores,
+  );
   const fifaMatchNumber = resolveFifaMatchNumber(item);
 
   return {
@@ -167,6 +174,10 @@ export function mapFixtureToPartidoRow(
       ...(item.teams.home.logo ? { escudo_local: item.teams.home.logo } : {}),
       ...(item.teams.away.logo ? { escudo_visitante: item.teams.away.logo } : {}),
       reloj,
+      ...(penScores.local != null ? { marcador_penales_local: penScores.local } : {}),
+      ...(penScores.visitante != null
+        ? { marcador_penales_visitante: penScores.visitante }
+        : {}),
       ...(fifaMatchNumber != null ? { fifa_match_number: fifaMatchNumber } : {}),
       ...(fifaMatchNumber != null
         ? { knockout_phase: KNOCKOUT_SCHEDULE_BY_MATCH[fifaMatchNumber]?.phase }

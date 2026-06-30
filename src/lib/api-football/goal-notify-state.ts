@@ -109,6 +109,7 @@ export function mergeLiveNotifyMetadata(
   ) {
     out.notified_penal_fallados = ex.notified_penal_fallados;
   }
+  if (ex.pen_notify_score) out.pen_notify_score = ex.pen_notify_score;
   if (Array.isArray(ex.eventos_clave) && ex.eventos_clave.length > 0) {
     out.eventos_clave = ex.eventos_clave;
   }

@@ -3,6 +3,7 @@ import { fixtureItemToWebhookPayload } from "@/lib/api-football/fixture-to-paylo
 import {
   fetchApiSportsFixtureEvents,
   findLatestGoalForScore,
+  findNthPenaltyGoalForTeam,
 } from "@/lib/api-football/fetch-events";
 import {
   fetchApiSportsFixtureStatistics,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/api-football/fetch-fixtures";
 import { handleGoalEvent } from "@/lib/api-football/handlers/on-goal";
 import { handleGoalCancelledEvent } from "@/lib/api-football/handlers/on-goal-cancelled";
+import { handlePenalAnotadoEvent } from "@/lib/api-football/handlers/on-penal-anotado";
 import { handlePenalFalladoEvent } from "@/lib/api-football/handlers/on-penal-fallado";
 import { handleRedCardEvent } from "@/lib/api-football/handlers/on-red-card";
 import {
@@ -59,6 +61,22 @@ import {
   findNewRedCards,
 } from "@/lib/api-football/red-card-notify-state";
 import { getPilotConfig } from "@/lib/api-football/pilot-config";
+import {
+  baselinePenNotifyScore,
+  buildPenNotifyMetadata,
+  getPenNotifyScore,
+  isPenScoreAlreadyNotified,
+  penScoreIncreased,
+} from "@/lib/api-football/penalty-notify-state";
+import {
+  extractPenaltyScoresFromFixture,
+  isPenaltyShootoutLive,
+  mergePenaltyMetadata,
+  penaltySideIncreased,
+  readPenaltyScoresFromMetadata,
+} from "@/lib/api-football/penalty-sync";
+import { resolvePenaltyScores } from "@/lib/api-football/push/push-score";
+import { parseRelojFromMetadata } from "@/lib/partidos/match-clock";
 import { getTeamDisplayNameEs } from "@/lib/teams/display-names";
 import { getApiSportsEnv } from "@/lib/env";
 import { normalizeTeamNameForMatch } from "@/lib/partidos/partido-match-key";
@@ -197,24 +215,31 @@ async function syncOneApiSportsFixture(
     row.marcador_visitante != null &&
     scoreDecreased(prevDbScore, row.marcador_local, row.marcador_visitante);
 
+  const penScores = extractPenaltyScoresFromFixture(item);
   const { reloj, minuto_actual: minutoReloj } = buildRelojFromApiSportsFixture(
     item,
     existing.metadata,
+    new Date(),
+    penScores,
   );
 
-  const metadata: Record<string, unknown> = {
-    ...(typeof existing.metadata === "object" && existing.metadata !== null
-      ? (existing.metadata as Record<string, unknown>)
-      : {}),
-    reloj,
-    api_football: {
-      ...((existing.metadata as Record<string, unknown>)?.api_football as object),
-      provider: "api-sports",
-      status_short: item.fixture.status.short,
-      status_long: item.fixture.status.long,
-      last_live_sync: new Date().toISOString(),
+  const metadata: Record<string, unknown> = mergePenaltyMetadata(
+    {
+      ...(typeof existing.metadata === "object" && existing.metadata !== null
+        ? (existing.metadata as Record<string, unknown>)
+        : {}),
+      reloj,
+      api_football: {
+        ...((existing.metadata as Record<string, unknown>)?.api_football as object),
+        provider: "api-sports",
+        status_short: item.fixture.status.short,
+        status_long: item.fixture.status.long,
+        last_live_sync: new Date().toISOString(),
+      },
     },
-  };
+    penScores.local,
+    penScores.visitante,
+  );
 
   if (baseline) {
     metadata.gol_notify_score = baseline;
@@ -302,32 +327,116 @@ async function syncOneApiSportsFixture(
           metadata,
           buildPenalFalladoNotifyMetadata(metadata, baselinePenales),
         );
-      } else if (
-        (row.estatus === "en_vivo" || row.estatus === "medio_tiempo") &&
-        row.marcador_local != null &&
-        row.marcador_visitante != null
-      ) {
-        let penalMeta = existing.metadata;
-        const localName = String(existing.equipo_local_nombre ?? item.teams.home.name);
-        const visitanteName = String(
-          existing.equipo_visitante_nombre ?? item.teams.away.name,
+      } else {
+        const relojPeriod = parseRelojFromMetadata({ reloj })?.period;
+        const shootoutLive = isPenaltyShootoutLive(
+          item.fixture.status.short,
+          relojPeriod,
         );
-        for (const penal of findNewPenalFallados(penalMeta, momentos)) {
-          const penalResult = await handlePenalFalladoEvent({
-            supabase,
-            partidoId: existing.id,
-            momento: penal,
-            localName,
-            visitanteName,
-            marcadorLocal: row.marcador_local,
-            marcadorVisitante: row.marcador_visitante,
+        const prevPen = readPenaltyScoresFromMetadata(existing.metadata);
+        const livePen = readPenaltyScoresFromMetadata(metadata);
+        const penHome = livePen.local ?? 0;
+        const penAway = livePen.visitante ?? 0;
+
+        if (
+          shootoutLive ||
+          row.estatus === "en_vivo" ||
+          row.estatus === "medio_tiempo"
+        ) {
+          let penalMeta = existing.metadata;
+          const localName = String(existing.equipo_local_nombre ?? item.teams.home.name);
+          const visitanteName = String(
+            existing.equipo_visitante_nombre ?? item.teams.away.name,
+          );
+          for (const penal of findNewPenalFallados(penalMeta, momentos)) {
+            const penalResult = await handlePenalFalladoEvent({
+              supabase,
+              partidoId: existing.id,
+              momento: penal,
+              localName,
+              visitanteName,
+              penHome,
+              penAway,
+            });
+            if (!penalResult.ok) {
+              result.errors.push(penalResult.message ?? "Error procesando penal fallado");
+            } else if (penalResult.message === "Penal fallado procesado") {
+              result.penalFalladosNotified = (result.penalFalladosNotified ?? 0) + 1;
+              penalMeta = buildPenalFalladoNotifyMetadata(penalMeta, [penal.id]);
+              Object.assign(metadata, penalMeta);
+            }
+          }
+        }
+
+        if (
+          shootoutLive &&
+          livePen.local != null &&
+          livePen.visitante != null &&
+          !isPenScoreAlreadyNotified(existing.metadata, livePen.local, livePen.visitante)
+        ) {
+          let penNotify = getPenNotifyScore(existing.metadata);
+          const penBaseline = baselinePenNotifyScore(existing.metadata, {
+            local: livePen.local,
+            away: livePen.visitante,
           });
-          if (!penalResult.ok) {
-            result.errors.push(penalResult.message ?? "Error procesando penal fallado");
-          } else if (penalResult.message === "Penal fallado procesado") {
-            result.penalFalladosNotified = (result.penalFalladosNotified ?? 0) + 1;
-            penalMeta = buildPenalFalladoNotifyMetadata(penalMeta, [penal.id]);
-            Object.assign(metadata, penalMeta);
+          if (penBaseline) {
+            Object.assign(metadata, buildPenNotifyMetadata(metadata, penBaseline.local, penBaseline.away));
+            penNotify = penBaseline;
+          }
+
+          if (
+            penNotify &&
+            penScoreIncreased(penNotify, livePen.local, livePen.visitante)
+          ) {
+            const side = penaltySideIncreased(prevPen, livePen);
+            if (side && fetchedEvents) {
+              const teamId =
+                side === "local" ? item.teams.home.id : item.teams.away.id;
+              const kickIndex =
+                side === "local" ? livePen.local! : livePen.visitante!;
+              const goalEv = findNthPenaltyGoalForTeam(
+                fetchedEvents,
+                teamId,
+                kickIndex,
+              );
+              const localName = String(
+                existing.equipo_local_nombre ?? item.teams.home.name,
+              );
+              const visitanteName = String(
+                existing.equipo_visitante_nombre ?? item.teams.away.name,
+              );
+              const goleador =
+                goalEv?.player?.name?.trim() ??
+                (side === "local" ? localName : visitanteName);
+              const equipo =
+                side === "local"
+                  ? getTeamDisplayNameEs(localName)
+                  : getTeamDisplayNameEs(visitanteName);
+              const eventKey = `penal-anotado-${livePen.local}-${livePen.visitante}`;
+
+              const anotadoResult = await handlePenalAnotadoEvent({
+                supabase,
+                partidoId: existing.id,
+                localName,
+                visitanteName,
+                penHome: livePen.local,
+                penAway: livePen.visitante,
+                goleador,
+                equipo,
+                eventKey,
+              });
+              if (!anotadoResult.ok) {
+                result.errors.push(
+                  anotadoResult.message ?? "Error procesando penal anotado",
+                );
+              } else if (anotadoResult.message === "Penal anotado procesado") {
+                result.goalsNotified += 1;
+                Object.assign(
+                  metadata,
+                  buildPenNotifyMetadata(metadata, livePen.local, livePen.visitante),
+                );
+              }
+            }
           }
         }
       }
@@ -526,6 +635,7 @@ async function syncOneApiSportsFixture(
     roundHint,
     homeScore: row.marcador_local ?? 0,
     awayScore: row.marcador_visitante ?? 0,
+    penaltyScores: resolvePenaltyScores(penScores.local, penScores.visitante),
     prevMetadata: existing.metadata,
     newRelojMetadata: reloj,
     statusShort: item.fixture.status.short,

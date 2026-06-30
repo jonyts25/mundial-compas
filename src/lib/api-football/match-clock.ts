@@ -64,6 +64,10 @@ export function buildRelojFromApiSportsFixture(
   item: ApiFootballFixtureItem,
   prevMetadata?: unknown,
   now = new Date(),
+  penaltyScores: { local: number | null; visitante: number | null } = {
+    local: null,
+    visitante: null,
+  },
 ): { reloj: Record<string, unknown>; minuto_actual: number | null } {
   const prevReloj = parseRelojFromMetadata(prevMetadata);
   const statusShort = item.fixture.status.short || "";
@@ -76,12 +80,15 @@ export function buildRelojFromApiSportsFixture(
     prevReloj,
   );
 
+  const hasPenaltyScores =
+    penaltyScores.local != null || penaltyScores.visitante != null;
+
   const reloj = buildClockState(
     statusRaw,
     estatus,
     apiMinute,
     prevReloj,
-    { statusShort: statusShort || null },
+    { statusShort: statusShort || null, hasPenaltyScores },
     now,
   );
 
