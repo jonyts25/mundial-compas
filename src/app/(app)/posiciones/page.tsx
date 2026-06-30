@@ -58,8 +58,9 @@ export default async function PosicionesPage() {
   return (
     <>
       <PosicionesLiveRefresh
-        enabled={!data.groupStageComplete}
-        pollWhileLive={data.hasLiveGroupMatches}
+        refreshOnGroupFinal={!data.groupStageComplete}
+        refreshOnKnockoutUpdate={data.groupStageComplete}
+        pollWhileLive={data.hasLiveGroupMatches || data.hasLiveKnockoutMatches}
       />
       <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md">
         <div className="flex items-center gap-3">

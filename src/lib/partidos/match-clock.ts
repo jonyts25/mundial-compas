@@ -102,8 +102,14 @@ export function parsePenaltyScoresFromMetadata(
     return { local: null, visitante: null };
   }
   const m = metadata as Record<string, unknown>;
-  const parse = (v: unknown): number | null =>
-    typeof v === "number" && !Number.isNaN(v) ? v : null;
+  const parse = (v: unknown): number | null => {
+    if (typeof v === "number" && !Number.isNaN(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number.parseInt(v, 10);
+      return Number.isNaN(n) ? null : n;
+    }
+    return null;
+  };
   return {
     local: parse(m.marcador_penales_local),
     visitante: parse(m.marcador_penales_visitante),

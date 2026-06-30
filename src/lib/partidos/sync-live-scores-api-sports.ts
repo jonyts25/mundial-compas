@@ -70,6 +70,7 @@ import {
 } from "@/lib/api-football/penalty-notify-state";
 import {
   extractPenaltyScoresFromFixture,
+  isKnockoutPenaltyMetadataMissing,
   isPenaltyShootoutLive,
   mergePenaltyMetadata,
   penaltySideIncreased,
@@ -327,115 +328,127 @@ async function syncOneApiSportsFixture(
           metadata,
           buildPenalFalladoNotifyMetadata(metadata, baselinePenales),
         );
-      } else {
-        const relojPeriod = parseRelojFromMetadata({ reloj })?.period;
-        const shootoutLive = isPenaltyShootoutLive(
-          item.fixture.status.short,
-          relojPeriod,
-        );
-        const prevPen = readPenaltyScoresFromMetadata(existing.metadata);
-        const livePen = readPenaltyScoresFromMetadata(metadata);
-        const penHome = livePen.local ?? 0;
-        const penAway = livePen.visitante ?? 0;
+      }
 
-        if (
-          shootoutLive ||
+      const relojPeriod = parseRelojFromMetadata({ reloj })?.period;
+      const statusShort = item.fixture.status.short?.trim().toUpperCase() ?? "";
+      const shootoutLive = isPenaltyShootoutLive(statusShort, relojPeriod);
+      const shootoutEnding =
+        row.estatus === "finalizado" &&
+        (statusShort === "PEN" || statusShort === "AP" || relojPeriod === "AP");
+      const prevPen = readPenaltyScoresFromMetadata(existing.metadata);
+      const livePen = readPenaltyScoresFromMetadata(metadata);
+      const penHome = livePen.local ?? 0;
+      const penAway = livePen.visitante ?? 0;
+      const inShootoutContext =
+        shootoutLive ||
+        shootoutEnding ||
+        (livePen.local != null && livePen.visitante != null);
+
+      if (
+        !baselinePenales &&
+        inShootoutContext &&
+        (shootoutLive ||
+          shootoutEnding ||
           row.estatus === "en_vivo" ||
-          row.estatus === "medio_tiempo"
-        ) {
-          let penalMeta = existing.metadata;
-          const localName = String(existing.equipo_local_nombre ?? item.teams.home.name);
-          const visitanteName = String(
-            existing.equipo_visitante_nombre ?? item.teams.away.name,
-          );
-          for (const penal of findNewPenalFallados(penalMeta, momentos)) {
-            const penalResult = await handlePenalFalladoEvent({
-              supabase,
-              partidoId: existing.id,
-              momento: penal,
-              localName,
-              visitanteName,
-              penHome,
-              penAway,
-            });
-            if (!penalResult.ok) {
-              result.errors.push(penalResult.message ?? "Error procesando penal fallado");
-            } else if (penalResult.message === "Penal fallado procesado") {
-              result.penalFalladosNotified = (result.penalFalladosNotified ?? 0) + 1;
-              penalMeta = buildPenalFalladoNotifyMetadata(penalMeta, [penal.id]);
-              Object.assign(metadata, penalMeta);
-            }
+          row.estatus === "medio_tiempo")
+      ) {
+        let penalMeta = existing.metadata;
+        const localName = String(existing.equipo_local_nombre ?? item.teams.home.name);
+        const visitanteName = String(
+          existing.equipo_visitante_nombre ?? item.teams.away.name,
+        );
+        for (const penal of findNewPenalFallados(penalMeta, momentos)) {
+          const penalResult = await handlePenalFalladoEvent({
+            supabase,
+            partidoId: existing.id,
+            momento: penal,
+            localName,
+            visitanteName,
+            penHome,
+            penAway,
+          });
+          if (!penalResult.ok) {
+            result.errors.push(penalResult.message ?? "Error procesando penal fallado");
+          } else if (penalResult.message === "Penal fallado procesado") {
+            result.penalFalladosNotified = (result.penalFalladosNotified ?? 0) + 1;
+            penalMeta = buildPenalFalladoNotifyMetadata(penalMeta, [penal.id]);
+            Object.assign(metadata, penalMeta);
           }
+        }
+      }
+
+      if (
+        inShootoutContext &&
+        livePen.local != null &&
+        livePen.visitante != null &&
+        !isPenScoreAlreadyNotified(existing.metadata, livePen.local, livePen.visitante)
+      ) {
+        let penNotify = getPenNotifyScore(existing.metadata);
+        const penBaseline = baselinePenNotifyScore(existing.metadata, {
+          local: livePen.local,
+          away: livePen.visitante,
+        });
+        if (penBaseline) {
+          Object.assign(
+            metadata,
+            buildPenNotifyMetadata(metadata, penBaseline.local, penBaseline.away),
+          );
+          penNotify = penBaseline;
         }
 
         if (
-          shootoutLive &&
-          livePen.local != null &&
-          livePen.visitante != null &&
-          !isPenScoreAlreadyNotified(existing.metadata, livePen.local, livePen.visitante)
+          penNotify &&
+          penScoreIncreased(penNotify, livePen.local, livePen.visitante) &&
+          (shootoutLive || shootoutEnding)
         ) {
-          let penNotify = getPenNotifyScore(existing.metadata);
-          const penBaseline = baselinePenNotifyScore(existing.metadata, {
-            local: livePen.local,
-            away: livePen.visitante,
-          });
-          if (penBaseline) {
-            Object.assign(metadata, buildPenNotifyMetadata(metadata, penBaseline.local, penBaseline.away));
-            penNotify = penBaseline;
-          }
+          const side = penaltySideIncreased(prevPen, livePen);
+          if (side && fetchedEvents) {
+            const teamId =
+              side === "local" ? item.teams.home.id : item.teams.away.id;
+            const kickIndex =
+              side === "local" ? livePen.local! : livePen.visitante!;
+            const goalEv = findNthPenaltyGoalForTeam(
+              fetchedEvents,
+              teamId,
+              kickIndex,
+            );
+            const localName = String(
+              existing.equipo_local_nombre ?? item.teams.home.name,
+            );
+            const visitanteName = String(
+              existing.equipo_visitante_nombre ?? item.teams.away.name,
+            );
+            const goleador =
+              goalEv?.player?.name?.trim() ??
+              (side === "local" ? localName : visitanteName);
+            const equipo =
+              side === "local"
+                ? getTeamDisplayNameEs(localName)
+                : getTeamDisplayNameEs(visitanteName);
+            const eventKey = `penal-anotado-${livePen.local}-${livePen.visitante}`;
 
-          if (
-            penNotify &&
-            penScoreIncreased(penNotify, livePen.local, livePen.visitante)
-          ) {
-            const side = penaltySideIncreased(prevPen, livePen);
-            if (side && fetchedEvents) {
-              const teamId =
-                side === "local" ? item.teams.home.id : item.teams.away.id;
-              const kickIndex =
-                side === "local" ? livePen.local! : livePen.visitante!;
-              const goalEv = findNthPenaltyGoalForTeam(
-                fetchedEvents,
-                teamId,
-                kickIndex,
+            const anotadoResult = await handlePenalAnotadoEvent({
+              supabase,
+              partidoId: existing.id,
+              localName,
+              visitanteName,
+              penHome: livePen.local,
+              penAway: livePen.visitante,
+              goleador,
+              equipo,
+              eventKey,
+            });
+            if (!anotadoResult.ok) {
+              result.errors.push(
+                anotadoResult.message ?? "Error procesando penal anotado",
               );
-              const localName = String(
-                existing.equipo_local_nombre ?? item.teams.home.name,
+            } else if (anotadoResult.message === "Penal anotado procesado") {
+              result.goalsNotified += 1;
+              Object.assign(
+                metadata,
+                buildPenNotifyMetadata(metadata, livePen.local, livePen.visitante),
               );
-              const visitanteName = String(
-                existing.equipo_visitante_nombre ?? item.teams.away.name,
-              );
-              const goleador =
-                goalEv?.player?.name?.trim() ??
-                (side === "local" ? localName : visitanteName);
-              const equipo =
-                side === "local"
-                  ? getTeamDisplayNameEs(localName)
-                  : getTeamDisplayNameEs(visitanteName);
-              const eventKey = `penal-anotado-${livePen.local}-${livePen.visitante}`;
-
-              const anotadoResult = await handlePenalAnotadoEvent({
-                supabase,
-                partidoId: existing.id,
-                localName,
-                visitanteName,
-                penHome: livePen.local,
-                penAway: livePen.visitante,
-                goleador,
-                equipo,
-                eventKey,
-              });
-              if (!anotadoResult.ok) {
-                result.errors.push(
-                  anotadoResult.message ?? "Error procesando penal anotado",
-                );
-              } else if (anotadoResult.message === "Penal anotado procesado") {
-                result.goalsNotified += 1;
-                Object.assign(
-                  metadata,
-                  buildPenNotifyMetadata(metadata, livePen.local, livePen.visitante),
-                );
-              }
             }
           }
         }
@@ -764,6 +777,33 @@ async function fetchInWindowFixtureIds(
     .filter((id): id is number => id != null && id < 9_000_000);
 }
 
+/** Eliminatorias finalizadas en empate sin marcador de penales en metadata. */
+async function fetchKnockoutMissingPenaltyFixtureIds(
+  supabase: SupabaseClient,
+): Promise<number[]> {
+  const { data: rows, error } = await supabase
+    .from("partidos")
+    .select(
+      "api_football_fixture_id, marcador_local, marcador_visitante, metadata",
+    )
+    .neq("fase", "grupos")
+    .eq("estatus", "finalizado")
+    .not("api_football_fixture_id", "is", null);
+
+  if (error) throw new Error(error.message);
+
+  return (rows ?? [])
+    .filter((row) =>
+      isKnockoutPenaltyMetadataMissing({
+        marcador_local: row.marcador_local as number | null,
+        marcador_visitante: row.marcador_visitante as number | null,
+        metadata: row.metadata,
+      }),
+    )
+    .map((r) => r.api_football_fixture_id as number | null)
+    .filter((id): id is number => id != null && id < 9_000_000);
+}
+
 async function syncFixtureIdsByLookup(
   supabase: SupabaseClient,
   fixtureIds: number[],
@@ -838,12 +878,13 @@ export async function syncLiveScoresFromApiSports(
   }
 
   try {
-    const [staleIds, overdueIds, windowIds] = await Promise.all([
+    const [staleIds, overdueIds, windowIds, missingPenaltyIds] = await Promise.all([
       fetchStaleLiveFixtureIds(supabase, liveIds),
       fetchOverdueLiveFixtureIds(supabase),
       fetchInWindowFixtureIds(supabase),
+      fetchKnockoutMissingPenaltyFixtureIds(supabase),
     ]);
-    const refetchIds = [...new Set([...staleIds, ...overdueIds, ...windowIds])].filter(
+    const refetchIds = [...new Set([...staleIds, ...overdueIds, ...windowIds, ...missingPenaltyIds])].filter(
       (id) => !liveIds.has(id),
     );
 

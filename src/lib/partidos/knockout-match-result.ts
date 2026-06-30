@@ -1,3 +1,4 @@
+import { getPenNotifyScore } from "@/lib/api-football/penalty-notify-state";
 import { parsePenaltyScoresFromMetadata } from "@/lib/partidos/match-clock";
 import type { Partido } from "@/types/database";
 
@@ -23,7 +24,14 @@ export function resolveKnockoutSideWinner(
     return null;
   }
 
-  const pen = parsePenaltyScoresFromMetadata(partido.metadata);
+  const penFromMeta = parsePenaltyScoresFromMetadata(partido.metadata);
+  const penNotify = getPenNotifyScore(partido.metadata);
+  const pen =
+    penFromMeta.local != null && penFromMeta.visitante != null
+      ? penFromMeta
+      : penNotify
+        ? { local: penNotify.local, visitante: penNotify.away }
+        : penFromMeta;
   const hasPenalties =
     pen.local != null &&
     pen.visitante != null &&

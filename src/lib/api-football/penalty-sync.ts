@@ -44,6 +44,19 @@ export function isPenaltyShootoutLive(
   return s === "P" || period === "PEN";
 }
 
+export function isKnockoutPenaltyMetadataMissing(
+  row: {
+    marcador_local: number | null;
+    marcador_visitante: number | null;
+    metadata: unknown;
+  },
+): boolean {
+  if (row.marcador_local == null || row.marcador_visitante == null) return false;
+  if (row.marcador_local !== row.marcador_visitante) return false;
+  const pen = readPenaltyScoresFromMetadata(row.metadata);
+  return pen.local == null || pen.visitante == null;
+}
+
 export function penaltySideIncreased(
   prev: { local: number | null; visitante: number | null },
   next: { local: number | null; visitante: number | null },

@@ -43,11 +43,11 @@ export function findLatestGoalForScore(
 
 function isShootoutPenaltyGoal(event: ApiSportsFixtureEvent): boolean {
   const detail = (event.detail ?? "").toLowerCase();
-  return (
-    event.type === "Goal" &&
-    detail.includes("penalty") &&
-    !detail.includes("missed")
-  );
+  if (event.type !== "Goal") return false;
+  if (!detail.includes("penalty") || detail.includes("missed")) return false;
+  const elapsed = event.time.elapsed;
+  // Tanda de penales: elapsed null o post-120; en juego suele ser 1–120.
+  return elapsed == null || elapsed >= 120;
 }
 
 /** N-ésimo penal anotado de un equipo en la tanda (1-based). */

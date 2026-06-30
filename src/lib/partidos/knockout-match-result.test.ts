@@ -91,4 +91,18 @@ describe("resolveKnockoutSideWinner", () => {
     expect(resolveKnockoutSideWinner(p, "home")).toBeNull();
     expect(resolveKnockoutSideWinner(p, "away")).toBeNull();
   });
+
+  it("falls back to pen_notify_score when marcador_penales is missing", () => {
+    const p = partido({
+      marcador_local: 1,
+      marcador_visitante: 1,
+      metadata: {
+        pen_notify_score: { local: 5, away: 4 },
+      },
+    });
+    expect(resolveKnockoutSideWinner(p, "home")).toEqual({
+      teamId: "MEX",
+      teamName: "México",
+    });
+  });
 });

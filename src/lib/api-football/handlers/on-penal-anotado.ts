@@ -4,6 +4,7 @@ import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { buildPenNotifyMetadata } from "@/lib/api-football/penalty-notify-state";
 import { tryClaimLiveEvent } from "@/lib/api-football/push/claim-event";
 import { queuePartidoPushNotifications } from "@/lib/api-football/push/notifications";
+import { buildGoalPushTitle } from "@/lib/api-football/push/push-score";
 import { generarNarracionPenalAnotado } from "@/lib/narracion/comentaristas";
 import type { WebhookHandlerResult } from "@/types/api-football";
 
@@ -57,7 +58,15 @@ export async function handlePenalAnotadoEvent(
     equipo,
   });
 
-  const pushTitulo = `⚽ Penal anotado: ${goleador} · ${penHome}-${penAway}`;
+  const pushTitulo = buildGoalPushTitle({
+    localName,
+    visitanteName,
+    homeScore: penHome,
+    awayScore: penAway,
+    homePenaltyScore: penHome,
+    awayPenaltyScore: penAway,
+    period: "PEN",
+  });
 
   const { error: claimError } = await supabase
     .from("partidos")

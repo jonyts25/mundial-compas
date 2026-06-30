@@ -29,6 +29,7 @@ export interface PosicionesMundialData {
   fullKnockoutTree: FullKnockoutTree;
   groupStageComplete: boolean;
   hasLiveGroupMatches: boolean;
+  hasLiveKnockoutMatches: boolean;
   liveScenarioCard: LiveScenarioCardModel;
   source: "partidos" | "api" | "partidos+api";
   calculatedAt: string;
@@ -148,6 +149,9 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
   const hasLiveGroupMatches = partidos.some(
     (p) => p.estatus === "en_vivo" || p.estatus === "medio_tiempo",
   );
+  const hasLiveKnockoutMatches = knockoutPartidos.some(
+    (p) => p.estatus === "en_vivo" || p.estatus === "medio_tiempo",
+  );
 
   const liveScenarioCard = buildLiveScenarioCardModel(partidosGrupoRows);
 
@@ -159,6 +163,7 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
     fullKnockoutTree,
     groupStageComplete: knockoutBracket.groupStageComplete,
     hasLiveGroupMatches,
+    hasLiveKnockoutMatches,
     liveScenarioCard,
     source,
     calculatedAt: new Date().toISOString(),
