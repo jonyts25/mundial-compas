@@ -32,6 +32,10 @@ import {
   scoreIncreased,
 } from "@/lib/api-football/goal-notify-state";
 import {
+  resetPartidoLiveNotifyState,
+  shouldResetLiveNotifyState,
+} from "@/lib/api-football/notify-state-reset";
+import {
   buildCancelledGoalNotifyMetadata,
   cancelledGoalNotifyKey,
   isCancelledGoalAlreadyNotified,
@@ -77,6 +81,7 @@ import {
   readPenaltyScoresFromMetadata,
 } from "@/lib/api-football/penalty-sync";
 import { resolvePenaltyScores } from "@/lib/api-football/push/push-score";
+import type { EstatusPartido } from "@/types/database";
 import { parseRelojFromMetadata } from "@/lib/partidos/match-clock";
 import { getTeamDisplayNameEs } from "@/lib/teams/display-names";
 import { getApiSportsEnv } from "@/lib/env";
@@ -190,6 +195,23 @@ async function syncOneApiSportsFixture(
     existing.api_football_fixture_id !== fixtureId;
 
   partidoId = existing.id;
+
+  const prevEstatus = (existing.estatus ?? "programado") as EstatusPartido;
+  const nextEstatus = row.estatus;
+
+  if (shouldResetLiveNotifyState(prevEstatus, nextEstatus)) {
+    const cleared = await resetPartidoLiveNotifyState(
+      supabase,
+      existing.id,
+      typeof existing.metadata === "object" && existing.metadata !== null
+        ? { ...(existing.metadata as Record<string, unknown>) }
+        : {},
+    );
+    existing = { ...existing, metadata: cleared };
+    console.info(
+      `[sync-live] notify reset partido=${existing.id} ${prevEstatus}→${nextEstatus}`,
+    );
+  }
 
   let notifyScore = getGolNotifyScore(existing.metadata);
   const baseline = baselineGolNotifyScore(existing.metadata, {

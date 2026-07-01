@@ -65,6 +65,24 @@ function periodFromStatusShort(short: string | null | undefined): MatchPeriod | 
   return null;
 }
 
+/** Evita push de fase en aplazamiento o antes de que el partido esté realmente en juego. */
+function canDeliverPhasePush(
+  phase: MatchPhaseKind,
+  estatus: EstatusPartido,
+  statusShort?: string | null,
+): boolean {
+  if (phase === "fulltime") {
+    return estatus === "finalizado";
+  }
+  if (estatus !== "en_vivo" && estatus !== "medio_tiempo") {
+    return false;
+  }
+  if (phase === "kickoff") {
+    return statusShort?.trim().toUpperCase() === "1H";
+  }
+  return true;
+}
+
 /** Fases que debieron avisarse pero el poll llegó tarde (reloj ya en el nuevo periodo). */
 function resolvePendingPhases(
   prevPeriod: MatchPeriod,
@@ -231,6 +249,7 @@ export async function notifyPhaseTransitions(
 
   for (const phase of pending) {
     if (announced.includes(phase)) continue;
+    if (!canDeliverPhasePush(phase, ctx.estatus, ctx.statusShort)) continue;
 
     const pushPreview = buildPhasePushMessage(
       phase,

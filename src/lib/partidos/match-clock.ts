@@ -179,6 +179,14 @@ export function resolveMatchPeriod(
   const prev = opts.prevPeriod ?? null;
   const prevMin = opts.prevAnchorMinute ?? null;
 
+  if (
+    estatus === "aplazado" ||
+    estatus === "suspendido" ||
+    estatus === "cancelado"
+  ) {
+    return "NS";
+  }
+
   if (shortUpper === "1H") return "1H";
   if (shortUpper === "2H") return "2H";
   if (shortUpper === "HT" || shortUpper === "BT") return "HT";

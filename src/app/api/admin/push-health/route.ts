@@ -84,6 +84,7 @@ export async function GET(request: Request) {
       (subsRes.count ?? 0) === 0
         ? "Ningún usuario tiene suscripción push activa"
         : null,
+      "Tras aplazamiento climático: POST /api/admin/reset-partido-notify?partidoId=<uuid>",
     ].filter(Boolean),
   });
 }
