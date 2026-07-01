@@ -83,6 +83,12 @@ export async function queuePartidoPushNotifications(
   }
 
   if (inserted?.length) {
-    await dispatchPushForNotifications(supabase, inserted);
+    // No bloquear sync-live: el envío continúa en background y el drain admin reintenta pendientes.
+    void dispatchPushForNotifications(supabase, inserted).catch((err) => {
+      console.error(
+        `[push] dispatch async error (${tipo}, partido ${partidoId}):`,
+        err instanceof Error ? err.message : err,
+      );
+    });
   }
 }

@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { tryClaimSyncLiveRun } from "@/lib/api-football/push/claim-event";
 import { warnSyncLiveLockSkipped } from "@/lib/partidos/sync-live-telemetry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminEnv, getFootballDataProvider } from "@/lib/env";
+import { drainPendingPushNotifications } from "@/lib/push/drain-pending";
 import { syncLiveScoresFromApi } from "@/lib/partidos/sync-live-scores";
 import { reconcileKnockoutPlaceholderFixtureIds } from "@/lib/world-cup/reconcile-knockout-fixture-ids";
 import { syncPartidosLineupsInWindow } from "@/lib/partidos/sync-lineups-batch";
@@ -36,6 +37,22 @@ export async function POST(request: Request) {
   }
 
   const result = await syncLiveScoresFromApi(supabase, { pilotOnly, force });
+
+  after(async () => {
+    try {
+      const pushDrain = await drainPendingPushNotifications(supabase);
+      if (pushDrain.fetched > 0) {
+        console.info(
+          `[push] drain after sync-live fetched=${pushDrain.fetched} sent=${pushDrain.sent} failed=${pushDrain.failed}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        "[push] drain after sync-live error:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  });
 
   return NextResponse.json({
     ok: true,
