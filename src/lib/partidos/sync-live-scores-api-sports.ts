@@ -86,6 +86,7 @@ import { parseRelojFromMetadata } from "@/lib/partidos/match-clock";
 import { getTeamDisplayNameEs } from "@/lib/teams/display-names";
 import { getApiSportsEnv } from "@/lib/env";
 import { normalizeTeamNameForMatch } from "@/lib/partidos/partido-match-key";
+import { shouldSyncKickoffFromApi } from "@/lib/partidos/kickoff-sync";
 import {
   getLiveSyncWindowConfig,
   type LiveSyncWindowConfig,
@@ -268,6 +269,12 @@ async function syncOneApiSportsFixture(
     metadata.gol_notify_score = baseline;
   }
 
+  const kickoffChanged = shouldSyncKickoffFromApi(
+    nextEstatus,
+    String(existing.fecha_kickoff),
+    row.fecha_kickoff,
+  );
+
   const { error: updateError } = await supabase
     .from("partidos")
     .update({
@@ -278,6 +285,7 @@ async function syncOneApiSportsFixture(
       metadata,
       updated_at: new Date().toISOString(),
       ...(linkedFromPlaceholder ? { api_football_fixture_id: fixtureId } : {}),
+      ...(kickoffChanged ? { fecha_kickoff: row.fecha_kickoff } : {}),
     })
     .eq("id", existing.id);
 
@@ -773,6 +781,23 @@ async function fetchOverdueLiveFixtureIds(
     .filter((id): id is number => id != null);
 }
 
+/** Partidos aplazados: reconsultar siempre (pueden haberse reprogramado o jugado). */
+async function fetchPostponedFixtureIds(
+  supabase: SupabaseClient,
+): Promise<number[]> {
+  const { data: rows, error } = await supabase
+    .from("partidos")
+    .select("api_football_fixture_id")
+    .eq("estatus", "aplazado")
+    .not("api_football_fixture_id", "is", null);
+
+  if (error) throw new Error(error.message);
+
+  return (rows ?? [])
+    .map((r) => r.api_football_fixture_id as number | null)
+    .filter((id): id is number => id != null && id < 9_000_000);
+}
+
 /** Partidos en ventana de sync-live aún no en live=all (p. ej. recién arrancó). */
 async function fetchInWindowFixtureIds(
   supabase: SupabaseClient,
@@ -900,13 +925,15 @@ export async function syncLiveScoresFromApiSports(
   }
 
   try {
-    const [staleIds, overdueIds, windowIds, missingPenaltyIds] = await Promise.all([
+    const [staleIds, overdueIds, windowIds, postponedIds, missingPenaltyIds] =
+      await Promise.all([
       fetchStaleLiveFixtureIds(supabase, liveIds),
       fetchOverdueLiveFixtureIds(supabase),
       fetchInWindowFixtureIds(supabase),
+      fetchPostponedFixtureIds(supabase),
       fetchKnockoutMissingPenaltyFixtureIds(supabase),
     ]);
-    const refetchIds = [...new Set([...staleIds, ...overdueIds, ...windowIds, ...missingPenaltyIds])].filter(
+    const refetchIds = [...new Set([...staleIds, ...overdueIds, ...windowIds, ...postponedIds, ...missingPenaltyIds])].filter(
       (id) => !liveIds.has(id),
     );
 
