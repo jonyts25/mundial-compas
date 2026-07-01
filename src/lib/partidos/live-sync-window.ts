@@ -28,13 +28,32 @@ export type LiveWindowStatus = {
   count: number;
   liveNow: number;
   upcoming: number;
+  postponed: number;
 };
 
-/** Hay partidos que requieren polling (en vivo o ventana ±15 min / +3.5 h). */
+/** Hay partidos que requieren polling (en vivo, ventana ±15 min / +3.5 h, o aplazados). */
 export async function getLiveSyncWindowStatus(
   supabase: SupabaseClient,
   config: LiveSyncWindowConfig = getLiveSyncWindowConfig(),
 ): Promise<LiveWindowStatus> {
+  const { count: postponedCount, error: postponedErr } = await supabase
+    .from("partidos")
+    .select("id", { count: "exact", head: true })
+    .eq("estatus", "aplazado");
+
+  if (postponedErr) throw new Error(postponedErr.message);
+
+  const postponed = postponedCount ?? 0;
+  if (postponed > 0) {
+    return {
+      inWindow: true,
+      count: postponed,
+      liveNow: 0,
+      upcoming: 0,
+      postponed,
+    };
+  }
+
   const { count: liveNow, error: liveErr } = await supabase
     .from("partidos")
     .select("id", { count: "exact", head: true })
@@ -44,7 +63,7 @@ export async function getLiveSyncWindowStatus(
 
   const live = liveNow ?? 0;
   if (live > 0) {
-    return { inWindow: true, count: live, liveNow: live, upcoming: 0 };
+    return { inWindow: true, count: live, liveNow: live, upcoming: 0, postponed: 0 };
   }
 
   const now = Date.now();
@@ -70,6 +89,7 @@ export async function getLiveSyncWindowStatus(
     count: up,
     liveNow: 0,
     upcoming: up,
+    postponed: 0,
   };
 }
 

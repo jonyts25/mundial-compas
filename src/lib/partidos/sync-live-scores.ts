@@ -23,6 +23,7 @@ export type SyncLiveResult = {
     count: number;
     liveNow: number;
     upcoming: number;
+    postponed?: number;
   };
   apiRequests?: number;
   phases?: string[];

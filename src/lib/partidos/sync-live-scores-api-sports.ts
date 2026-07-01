@@ -87,6 +87,7 @@ import { getTeamDisplayNameEs } from "@/lib/teams/display-names";
 import { getApiSportsEnv } from "@/lib/env";
 import { normalizeTeamNameForMatch } from "@/lib/partidos/partido-match-key";
 import { shouldSyncKickoffFromApi } from "@/lib/partidos/kickoff-sync";
+import { syncAplazadoPartidosFromApiDates } from "@/lib/partidos/sync-aplazado-fixtures";
 import {
   getLiveSyncWindowConfig,
   type LiveSyncWindowConfig,
@@ -944,6 +945,25 @@ export async function syncLiveScoresFromApiSports(
       timezone,
       pilot.enabled,
       pilot.label,
+      result,
+    );
+  } catch (e) {
+    result.errors.push(e instanceof Error ? e.message : String(e));
+  }
+
+  try {
+    await syncAplazadoPartidosFromApiDates(
+      supabase,
+      timezone,
+      (item) =>
+        syncOneApiSportsFixture(
+          supabase,
+          item,
+          apiKey,
+          pilot.enabled,
+          pilot.label,
+          result,
+        ),
       result,
     );
   } catch (e) {

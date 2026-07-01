@@ -2,20 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadApiSportsFixtures } from "@/lib/api-football/cargar-fixtures";
 import { mapFixtureToPartidoRow } from "@/lib/api-football/map-fixture-row";
 import { upsertPartidoRows } from "@/lib/partidos/upsert-partido-rows";
+import { kickoffDateInTimezone } from "@/lib/partidos/kickoff-date-key";
 import { withSeasonIdRows } from "@/lib/partidos/with-season-id";
 import { PLACEHOLDER_FIXTURE_BASE } from "@/lib/world-cup/knockout-match-ids";
 
 const LOOKAHEAD_MS = 48 * 60 * 60 * 1000;
 const LOOKBACK_MS = 30 * 60 * 1000;
-
-function kickoffDateInTimezone(iso: string, timezone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(iso));
-}
+const POSTPONED_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Enlaza fixture ids placeholder (9xxxxxx) con ids reales de api-sports por fecha + equipos. */
 export async function reconcileKnockoutPlaceholderFixtureIds(
@@ -25,19 +18,35 @@ export async function reconcileKnockoutPlaceholderFixtureIds(
   const now = Date.now();
   const fromIso = new Date(now - LOOKBACK_MS).toISOString();
   const toIso = new Date(now + LOOKAHEAD_MS).toISOString();
+  const postponedFromIso = new Date(now - POSTPONED_LOOKBACK_MS).toISOString();
 
-  const { data: placeholders, error } = await supabase
-    .from("partidos")
-    .select("id, fecha_kickoff, fase")
-    .gte("api_football_fixture_id", PLACEHOLDER_FIXTURE_BASE)
-    .neq("fase", "grupos")
-    .gte("fecha_kickoff", fromIso)
-    .lte("fecha_kickoff", toIso);
+  const [windowResult, postponedResult] = await Promise.all([
+    supabase
+      .from("partidos")
+      .select("id, fecha_kickoff, fase")
+      .gte("api_football_fixture_id", PLACEHOLDER_FIXTURE_BASE)
+      .neq("fase", "grupos")
+      .gte("fecha_kickoff", fromIso)
+      .lte("fecha_kickoff", toIso),
+    supabase
+      .from("partidos")
+      .select("id, fecha_kickoff, fase")
+      .gte("api_football_fixture_id", PLACEHOLDER_FIXTURE_BASE)
+      .neq("fase", "grupos")
+      .eq("estatus", "aplazado")
+      .gte("fecha_kickoff", postponedFromIso),
+  ]);
+
+  const error = windowResult.error ?? postponedResult.error;
+  const placeholders = [
+    ...((windowResult.data ?? []) as Array<{ fecha_kickoff: string }>),
+    ...((postponedResult.data ?? []) as Array<{ fecha_kickoff: string }>),
+  ];
 
   if (error) {
     return { linked: 0, dates: [], errors: [error.message] };
   }
-  if (!placeholders?.length) {
+  if (!placeholders.length) {
     return { linked: 0, dates: [], errors: [] };
   }
 
