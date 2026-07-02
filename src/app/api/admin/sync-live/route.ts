@@ -22,6 +22,22 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
 
   const reconcile = await reconcileKnockoutPlaceholderFixtureIds(supabase);
+  const { data: knockoutDeduped, error: knockoutDedupeError } = await supabase.rpc(
+    "reconcile_knockout_partido_duplicates",
+  );
+  const knockoutDedupePairs =
+    (knockoutDeduped as Array<{ canonical_id: string; legacy_id: string }> | null) ??
+    [];
+  if (knockoutDedupeError) {
+    console.error(
+      "[sync-live] reconcile_knockout_partido_duplicates:",
+      knockoutDedupeError.message,
+    );
+  } else if (knockoutDedupePairs.length > 0) {
+    console.info(
+      `[sync-live] knockout dedupe: ${knockoutDedupePairs.length} legacy partido(s) fusionados`,
+    );
+  }
   const lineups = await syncPartidosLineupsInWindow(supabase);
 
   if (!(await tryClaimSyncLiveRun(supabase))) {
@@ -32,6 +48,10 @@ export async function POST(request: Request) {
       reason: "sync-live ya en curso (lock)",
       provider: getFootballDataProvider(),
       reconcile,
+      knockoutDedupe: {
+        pairs: knockoutDedupePairs.length,
+        error: knockoutDedupeError?.message ?? null,
+      },
       lineups,
     });
   }
@@ -58,6 +78,10 @@ export async function POST(request: Request) {
     ok: true,
     provider: getFootballDataProvider(),
     reconcile,
+    knockoutDedupe: {
+      pairs: knockoutDedupePairs.length,
+      error: knockoutDedupeError?.message ?? null,
+    },
     lineups,
     ...result,
   });
