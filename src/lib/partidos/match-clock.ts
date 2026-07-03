@@ -296,17 +296,26 @@ export function buildClockState(
   }
 
   if (apiMinute != null) {
-    return { period, anchorMinute: apiMinute, anchoredAt: nowIso, ticking: true };
+    let anchorMinute = apiMinute;
+    if (
+      prev?.period === period &&
+      prev.anchorMinute != null &&
+      prev.ticking
+    ) {
+      const wallEstimate = advanceClockFromPrev(prev, now);
+      // No regresar ni quedarse pegados si la API repite elapsed=46 u otro valor viejo.
+      if (apiMinute <= prev.anchorMinute || apiMinute < wallEstimate - 1) {
+        anchorMinute = Math.max(wallEstimate, prev.anchorMinute, apiMinute);
+      }
+    }
+    return { period, anchorMinute, anchoredAt: nowIso, ticking: true };
   }
 
   if (prev && prev.period === period) {
     if (prev.anchorMinute != null && prev.ticking) {
-      const elapsed = Math.floor(
-        (now.getTime() - new Date(prev.anchoredAt).getTime()) / 60_000,
-      );
       return {
         period,
-        anchorMinute: prev.anchorMinute + Math.max(0, elapsed),
+        anchorMinute: advanceClockFromPrev(prev, now, 120),
         anchoredAt: nowIso,
         ticking,
       };
@@ -324,6 +333,20 @@ export function buildClockState(
 
 /** Máximo de minutos a interpolar entre polls de sync-live (~60s cron). */
 const MAX_MINUTE_INTERPOLATION = 3;
+
+/** Avance máximo por sync cuando la API manda un minuto obsoleto (p. ej. elapsed=46). */
+const MAX_CLOCK_ADVANCE_PER_SYNC = 5;
+
+function advanceClockFromPrev(
+  prev: MatchClockState,
+  now: Date,
+  capMinutes = MAX_CLOCK_ADVANCE_PER_SYNC,
+): number {
+  const wallMinutes = Math.floor(
+    (now.getTime() - new Date(prev.anchoredAt).getTime()) / 60_000,
+  );
+  return prev.anchorMinute! + Math.min(Math.max(0, wallMinutes), capMinutes);
+}
 
 export function computeDisplayMinute(
   clock: MatchClockState | null | undefined,

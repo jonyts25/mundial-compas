@@ -29,7 +29,8 @@ export function normalizeApiSportsElapsed(
       return base + extra;
     }
     if (short === "2H") {
-      const base = elapsed >= 46 ? elapsed : 90;
+      // En 90+ la API a veces manda elapsed=46 (inicio 2T) con extra=18 → base debe ser 90.
+      const base = elapsed >= 90 ? elapsed : 90;
       return base + extra;
     }
     if (short === "ET") {
@@ -40,6 +41,16 @@ export function normalizeApiSportsElapsed(
 
   if (short === "2H" && elapsed < 46) {
     return 90 + elapsed;
+  }
+
+  // elapsed=46 pegado al arranque del 2T mientras el partido ya va en 90+.
+  if (
+    short === "2H" &&
+    elapsed === 46 &&
+    prevMin != null &&
+    prevMin >= 55
+  ) {
+    return prevMin;
   }
 
   if (
