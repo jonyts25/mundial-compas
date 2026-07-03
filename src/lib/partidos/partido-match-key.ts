@@ -74,6 +74,10 @@ function readKnockoutMatchId(metadata: unknown): string | null {
   return typeof koId === "string" && koId.length > 0 ? koId : null;
 }
 
+function extractFifaFromFields(partido: PartidoMatchKeyFields): number | null {
+  return extractFifaMatchNumber(partido as unknown as Partido);
+}
+
 /** Clave de dedupe para UI: KO por slot FIFA, grupos por kickoff exacto. */
 export function buildPartidoDisplayDedupeKey(
   partido: PartidoMatchKeyFields,
@@ -86,7 +90,7 @@ export function buildPartidoDisplayDedupeKey(
         ? (partido.metadata as Record<string, unknown>).fifa_match_number
         : null;
     if (typeof fifa === "number") return `fifa:${fifa}`;
-    const fromMeta = extractFifaMatchNumber(partido as Partido);
+    const fromMeta = extractFifaFromFields(partido);
     if (fromMeta != null) return `fifa:${fromMeta}`;
     return `ko-day:${buildTeamPairKey(partido)}|${toMexicoDateKey(partido.fecha_kickoff)}`;
   }
@@ -122,7 +126,7 @@ export function filterOrphanKnockoutApiFixtures<T extends PartidoMatchKeyFields>
     if (readKnockoutMatchId(partido.metadata)) return true;
     if (isPlaceholderFixtureId(partido.api_football_fixture_id)) return true;
 
-    const fifa = extractFifaMatchNumber(partido as Partido);
+    const fifa = extractFifaFromFields(partido);
     if (fifa != null) {
       const canonical = indexed.get(fifa);
       return !canonical || canonical.id === partido.id;
@@ -141,7 +145,7 @@ function indexKnockoutByFifa<T extends PartidoMatchKeyFields>(
 ): Map<number, T> {
   const map = new Map<number, T>();
   for (const partido of partidos) {
-    const fifa = extractFifaMatchNumber(partido as Partido);
+    const fifa = extractFifaFromFields(partido);
     if (fifa == null) continue;
     const existing = map.get(fifa);
     if (
