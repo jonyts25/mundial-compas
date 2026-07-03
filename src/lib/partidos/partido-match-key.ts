@@ -1,4 +1,7 @@
+import { toMexicoDateKey } from "@/lib/datetime/mexico";
+import { extractFifaMatchNumber } from "@/lib/standings/knockout-schedule-utils";
 import { isPlaceholderFixtureId } from "@/lib/world-cup/knockout-match-ids";
+import type { Partido } from "@/types/database";
 
 /** Normaliza nombres de selección para emparejar el mismo partido entre proveedores. */
 export function normalizeTeamNameForMatch(name: string): string {
@@ -60,7 +63,35 @@ export type PartidoMatchKeyFields = {
   equipo_visitante_nombre: string;
   api_football_fixture_id?: number | null;
   estatus?: string;
+  fase?: string;
+  metadata?: unknown;
+  sede?: string | null;
 };
+
+function readKnockoutMatchId(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const koId = (metadata as Record<string, unknown>).knockout_match_id;
+  return typeof koId === "string" && koId.length > 0 ? koId : null;
+}
+
+/** Clave de dedupe para UI: KO por slot FIFA, grupos por kickoff exacto. */
+export function buildPartidoDisplayDedupeKey(
+  partido: PartidoMatchKeyFields,
+): string {
+  if (partido.fase && partido.fase !== "grupos") {
+    const koId = readKnockoutMatchId(partido.metadata);
+    if (koId) return `ko:${koId}`;
+    const fifa =
+      partido.metadata && typeof partido.metadata === "object"
+        ? (partido.metadata as Record<string, unknown>).fifa_match_number
+        : null;
+    if (typeof fifa === "number") return `fifa:${fifa}`;
+    const fromMeta = extractFifaMatchNumber(partido as Partido);
+    if (fromMeta != null) return `fifa:${fromMeta}`;
+    return `ko-day:${buildTeamPairKey(partido)}|${toMexicoDateKey(partido.fecha_kickoff)}`;
+  }
+  return buildPartidoMatchKey(partido);
+}
 
 function partidoDedupeScore(
   partido: PartidoMatchKeyFields,
@@ -69,10 +100,84 @@ function partidoDedupeScore(
   let score = 0;
   if (pronosticosPorPartido[partido.id]) score += 4;
   if (!isPlaceholderFixtureId(partido.api_football_fixture_id)) score += 8;
+  if (readKnockoutMatchId(partido.metadata)) score += 16;
   if (partido.estatus === "en_vivo" || partido.estatus === "medio_tiempo") {
     score += 1;
   }
   return score + (partido.api_football_fixture_id ?? 0) / 1_000_000_000_000;
+}
+
+/**
+ * Quita fixtures api-sports huérfanos (sin knockout_match_id ni slot FIFA) que
+ * duplican la misma ronda en quiniela/calendario.
+ */
+export function filterOrphanKnockoutApiFixtures<T extends PartidoMatchKeyFields>(
+  partidos: T[],
+): T[] {
+  const knockout = partidos.filter((p) => p.fase && p.fase !== "grupos");
+  const indexed = indexKnockoutByFifa(knockout);
+
+  return partidos.filter((partido) => {
+    if (!partido.fase || partido.fase === "grupos") return true;
+    if (readKnockoutMatchId(partido.metadata)) return true;
+    if (isPlaceholderFixtureId(partido.api_football_fixture_id)) return true;
+
+    const fifa = extractFifaMatchNumber(partido as Partido);
+    if (fifa != null) {
+      const canonical = indexed.get(fifa);
+      return !canonical || canonical.id === partido.id;
+    }
+
+    if (partido.fase === "dieciseisavos") {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function indexKnockoutByFifa<T extends PartidoMatchKeyFields>(
+  partidos: T[],
+): Map<number, T> {
+  const map = new Map<number, T>();
+  for (const partido of partidos) {
+    const fifa = extractFifaMatchNumber(partido as Partido);
+    if (fifa == null) continue;
+    const existing = map.get(fifa);
+    if (
+      !existing ||
+      partidoDedupeScore(partido, {}) > partidoDedupeScore(existing, {})
+    ) {
+      map.set(fifa, partido);
+    }
+  }
+  return map;
+}
+
+/** Dedupe para quiniela/calendario: evita duplicados KO y prioriza fixture real. */
+export function dedupePartidosForDisplay<T extends PartidoMatchKeyFields>(
+  partidos: T[],
+  pronosticosPorPartido: Record<string, unknown> = {},
+): T[] {
+  const filtered = filterOrphanKnockoutApiFixtures(partidos);
+  const byKey = new Map<string, T>();
+
+  for (const partido of filtered) {
+    const key = buildPartidoDisplayDedupeKey(partido);
+    const existing = byKey.get(key);
+    if (
+      !existing ||
+      partidoDedupeScore(partido, pronosticosPorPartido) >
+        partidoDedupeScore(existing, pronosticosPorPartido)
+    ) {
+      byKey.set(key, partido);
+    }
+  }
+
+  return [...byKey.values()].sort(
+    (a, b) =>
+      new Date(a.fecha_kickoff).getTime() - new Date(b.fecha_kickoff).getTime(),
+  );
 }
 
 /** Dedupe partidos del mismo encuentro; prioriza fixture real api-sports y pronósticos. */
@@ -117,9 +222,11 @@ export function remapPronosticosToDedupedPartidos<
 
   for (const kept of keptPartidos) {
     if (remapped[kept.id]) continue;
-    const key = buildPartidoMatchKey(kept);
+    const key = buildPartidoDisplayDedupeKey(kept);
     for (const sibling of allPartidos) {
-      if (sibling.id === kept.id || buildPartidoMatchKey(sibling) !== key) continue;
+      if (sibling.id === kept.id || buildPartidoDisplayDedupeKey(sibling) !== key) {
+        continue;
+      }
       const pronostico = pronosticosPorPartido[sibling.id];
       if (pronostico) {
         remapped[kept.id] = { ...pronostico, partido_id: kept.id };

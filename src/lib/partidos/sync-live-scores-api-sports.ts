@@ -94,6 +94,7 @@ import {
 } from "@/lib/partidos/live-sync-window";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
 import { PLACEHOLDER_FIXTURE_BASE, placeholderFixtureId } from "@/lib/world-cup/knockout-match-ids";
+import { runResolveKnockoutParticipants } from "@/lib/world-cup/run-resolve-knockout-participants";
 import {
   logSyncLiveComplete,
   logSyncLiveFixture,
@@ -968,6 +969,20 @@ export async function syncLiveScoresFromApiSports(
     );
   } catch (e) {
     result.errors.push(e instanceof Error ? e.message : String(e));
+  }
+
+  try {
+    const koResolve = await runResolveKnockoutParticipants(supabase);
+    if (koResolve.applied > 0) {
+      result.updated += koResolve.applied;
+    }
+    if (koResolve.errors.length > 0) {
+      result.errors.push(...koResolve.errors);
+    }
+  } catch (e) {
+    result.errors.push(
+      `resolve-knockout-participants: ${e instanceof Error ? e.message : String(e)}`,
+    );
   }
 
   const durationMs = Date.now() - syncStartedAt;

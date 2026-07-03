@@ -1,7 +1,7 @@
 import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { filterOutPilotPartidos } from "@/lib/api-football/pilot-config";
 import { filterPartidosPorTipo } from "@/lib/liga/partido-filters";
-import { dedupePartidosByMatchKey, remapPronosticosToDedupedPartidos } from "@/lib/partidos/partido-match-key";
+import { dedupePartidosForDisplay, remapPronosticosToDedupedPartidos } from "@/lib/partidos/partido-match-key";
 import {
   parseTipoQuinielaFromConfig,
   type TipoQuiniela,
@@ -97,7 +97,7 @@ export async function fetchQuinielaData(
     pronosticosPorPartido[p.partido_id] = p as PronosticoUsuario;
   }
 
-  const partidosDeduped = dedupePartidosByMatchKey(
+  const partidosDeduped = dedupePartidosForDisplay(
     partidosFiltrados,
     pronosticosPorPartido,
   );

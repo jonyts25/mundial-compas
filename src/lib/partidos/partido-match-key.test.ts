@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { dedupePartidosByMatchKey } from "@/lib/partidos/partido-match-key";
+import {
+  dedupePartidosByMatchKey,
+  dedupePartidosForDisplay,
+  filterOrphanKnockoutApiFixtures,
+} from "@/lib/partidos/partido-match-key";
 
 describe("dedupePartidosByMatchKey", () => {
   it("prefiere fixture api-sports real sobre placeholder con pronóstico", () => {
@@ -26,5 +30,60 @@ describe("dedupePartidosByMatchKey", () => {
 
     expect(deduped).toHaveLength(1);
     expect(deduped[0]!.id).toBe("real-id");
+  });
+});
+
+describe("dedupePartidosForDisplay", () => {
+  it("elimina fixture api-sports huérfano en dieciseisavos", () => {
+    const canonical = {
+      id: "r32-canonical",
+      fase: "dieciseisavos",
+      fecha_kickoff: "2026-07-04T17:00:00.000Z",
+      equipo_local_nombre: "Canada",
+      equipo_visitante_nombre: "Morocco",
+      api_football_fixture_id: 9_000_083,
+      metadata: { knockout_match_id: "r32_09", fifa_match_number: 81 },
+    };
+    const orphan = {
+      id: "r32-orphan",
+      fase: "dieciseisavos",
+      fecha_kickoff: "2026-07-04T17:00:00.000Z",
+      equipo_local_nombre: "Canada",
+      equipo_visitante_nombre: "Morocco",
+      api_football_fixture_id: 1_567_824,
+      metadata: {},
+    };
+
+    const filtered = filterOrphanKnockoutApiFixtures([canonical, orphan]);
+    expect(filtered.map((p) => p.id)).toEqual(["r32-canonical"]);
+
+    const deduped = dedupePartidosForDisplay([canonical, orphan]);
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]!.id).toBe("r32-canonical");
+  });
+
+  it("dedupe octavos por knockout_match_id aunque kickoff difiera", () => {
+    const placeholder = {
+      id: "r16-placeholder",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-04T21:00:00.000Z",
+      equipo_local_nombre: "Ganador P74",
+      equipo_visitante_nombre: "Ganador P77",
+      api_football_fixture_id: 9_000_089,
+      metadata: { knockout_match_id: "r16_01", fifa_match_number: 89 },
+    };
+    const real = {
+      id: "r16-real",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-04T21:30:00.000Z",
+      equipo_local_nombre: "Spain",
+      equipo_visitante_nombre: "Austria",
+      api_football_fixture_id: 1_600_001,
+      metadata: { knockout_match_id: "r16_01", fifa_match_number: 89 },
+    };
+
+    const deduped = dedupePartidosForDisplay([placeholder, real]);
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]!.id).toBe("r16-real");
   });
 });

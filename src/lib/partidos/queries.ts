@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServerDataClient } from "@/lib/supabase/server-data";
 import { filterOutPilotPartidos } from "@/lib/api-football/pilot-config";
-import { dedupePartidosByMatchKey } from "@/lib/partidos/partido-match-key";
+import { dedupePartidosForDisplay } from "@/lib/partidos/partido-match-key";
 import { pickDatoMamalonVariado } from "@/lib/datos-mamalones/pick";
 import { isPartidoEnVivo } from "@/lib/partidos/labels";
 import type { DatoMamalón, Partido, Usuario } from "@/types/database";
@@ -32,7 +32,7 @@ export async function fetchHomePageData(userId: string): Promise<HomePageData> {
     )
     .in("estatus", ["en_vivo", "medio_tiempo"]);
 
-  const partidosEnVivo = dedupePartidosByMatchKey(
+  const partidosEnVivo = dedupePartidosForDisplay(
     filterOutPilotPartidos(todosPartidos ?? []).filter((p) =>
       isPartidoEnVivo(p.estatus),
     ) as Partido[],

@@ -2,7 +2,7 @@ import { LIGA_GLOBAL_ID } from "@/lib/constants";
 import { filterOutPilotPartidos } from "@/lib/api-football/pilot-config";
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
 import {
-  dedupePartidosByMatchKey,
+  dedupePartidosForDisplay,
   remapPronosticosToDedupedPartidos,
 } from "@/lib/partidos/partido-match-key";
 import {
@@ -60,7 +60,7 @@ export async function fetchCalendarioPartidosData(
     pronosticosGuardados[p.partido_id] = true;
   }
 
-  const partidosDeduped = dedupePartidosByMatchKey(partidosMundial, pronosticosGuardados);
+  const partidosDeduped = dedupePartidosForDisplay(partidosMundial, pronosticosGuardados);
   const pronosticosRemapped = remapPronosticosToDedupedPartidos(
     partidosDeduped,
     partidosMundial,

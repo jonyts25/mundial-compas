@@ -11,6 +11,7 @@ import {
   isGroupStageClosedForQuiniela,
 } from "@/lib/quiniela/knockout-rounds";
 import { isKnockoutPronosticable } from "@/lib/world-cup/knockout-participant-utils";
+import { dedupePartidosForDisplay } from "@/lib/partidos/partido-match-key";
 import {
   assertAuthenticatedUserId,
   createServerDataClient,
@@ -69,7 +70,7 @@ export async function fetchNextPendingPredictionForUser(
   }
 
   const savedIds = new Set((pronosticos ?? []).map((p) => p.partido_id as string));
-  const candidatos = filterOutPilotPartidos(partidos ?? []);
+  const candidatos = dedupePartidosForDisplay(filterOutPilotPartidos(partidos ?? []));
   const skipGrupos = isGroupStageClosedForQuiniela(candidatos, nowMs);
 
   for (const row of candidatos) {
