@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  KNOCKOUT_OCTAVOS_SYNC_VERSION,
   KNOCKOUT_RULES_BANNER_KEY,
   KNOCKOUT_RULES_VERSION,
   KNOCKOUT_ROUND_QUINIELA_VERSION,
@@ -59,9 +60,10 @@ describe("knockout quiniela scoring rules", () => {
 });
 
 describe("announcement dedupe keys", () => {
-  it("round quiniela version bumps whats-new", () => {
+  it("octavos sync version bumps whats-new", () => {
+    expect(KNOCKOUT_OCTAVOS_SYNC_VERSION).toBe("2026-07-knockout-octavos-sync-v1");
+    expect(WHATS_NEW_VERSION).toBe(KNOCKOUT_OCTAVOS_SYNC_VERSION);
     expect(KNOCKOUT_ROUND_QUINIELA_VERSION).toBe("2026-06-knockout-round-quiniela-v1");
-    expect(WHATS_NEW_VERSION).toBe(KNOCKOUT_ROUND_QUINIELA_VERSION);
   });
 
   it("rules version is unique", () => {

@@ -14,6 +14,7 @@ import {
 } from "@/lib/world-cup/knockout-participant-utils";
 import {
   buildKnockoutParticipantPatches,
+  enrichParticipantPatchMetadata,
   resolveKnockoutParticipants,
 } from "@/lib/world-cup/resolve-knockout-participants";
 import type { PartidoGrupoRow } from "@/lib/standings/calculate-group-standings";
@@ -215,5 +216,61 @@ describe("quiniela TBD rules", () => {
     live.estatus = "en_vivo";
     const patches = buildKnockoutParticipantPatches([], [live]);
     expect(patches.length).toBe(0);
+  });
+
+  it("copies escudos from feeder R32 winners into octavos patch", () => {
+    const r32Home = placeholderKnockout(76);
+    r32Home.equipo_local_codigo = "BRA";
+    r32Home.equipo_visitante_codigo = "POR";
+    r32Home.equipo_local_nombre = "Brasil";
+    r32Home.equipo_visitante_nombre = "Portugal";
+    r32Home.estatus = "finalizado";
+    r32Home.marcador_local = 2;
+    r32Home.marcador_visitante = 0;
+    r32Home.metadata = {
+      fifa_match_number: 76,
+      escudo_local: "https://cdn.example/bra.png",
+      escudo_visitante: "https://cdn.example/por.png",
+    };
+
+    const r32Away = placeholderKnockout(78);
+    r32Away.equipo_local_codigo = "NOR";
+    r32Away.equipo_visitante_codigo = "ARG";
+    r32Away.equipo_local_nombre = "Noruega";
+    r32Away.equipo_visitante_nombre = "Argentina";
+    r32Away.estatus = "finalizado";
+    r32Away.marcador_local = 1;
+    r32Away.marcador_visitante = 0;
+    r32Away.metadata = {
+      fifa_match_number: 78,
+      escudo_local: "https://cdn.example/nor.png",
+      escudo_visitante: "https://cdn.example/arg.png",
+    };
+
+    const octavos = placeholderKnockout(91, "octavos");
+    octavos.equipo_local_codigo = "BRA";
+    octavos.equipo_visitante_codigo = "NOR";
+    octavos.equipo_local_nombre = "Brasil";
+    octavos.equipo_visitante_nombre = "Noruega";
+    octavos.metadata = {
+      fifa_match_number: 91,
+      participants_defined: true,
+    };
+
+    const resolved = resolveKnockoutParticipants({
+      partidosGrupo: [],
+      knockoutPartidos: [r32Home, r32Away, octavos],
+    });
+    const row = resolved.find((r) => r.matchNumber === 91)!;
+
+    const patches = buildKnockoutParticipantPatches([], [r32Home, r32Away, octavos]);
+    expect(patches.length).toBe(1);
+    expect(patches[0]?.metadata.escudo_local).toBe("https://cdn.example/bra.png");
+    expect(patches[0]?.metadata.escudo_visitante).toBe(
+      "https://cdn.example/nor.png",
+    );
+
+    const enriched = enrichParticipantPatchMetadata(row, {}, new Map());
+    expect(enriched.escudo_local).toBeUndefined();
   });
 });

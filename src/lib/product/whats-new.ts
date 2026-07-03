@@ -22,8 +22,11 @@ export const KNOCKOUT_RULES_VERSION = "2026-06-knockout-rules-v1";
 /** Quiniela por rondas + horarios KO corregidos. */
 export const KNOCKOUT_ROUND_QUINIELA_VERSION = "2026-06-knockout-round-quiniela-v1";
 
+/** Octavos sincronizados con cuadro + escudos en quiniela. */
+export const KNOCKOUT_OCTAVOS_SYNC_VERSION = "2026-07-knockout-octavos-sync-v1";
+
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = KNOCKOUT_ROUND_QUINIELA_VERSION;
+export const WHATS_NEW_VERSION = KNOCKOUT_OCTAVOS_SYNC_VERSION;
 
 export interface WhatsNewItem {
   emoji: string;
@@ -45,6 +48,13 @@ export const KNOCKOUT_ROUND_QUINIELA_ANNOUNCEMENT: WhatsNewItem = {
     "La quiniela ya muestra cada fase eliminatoria por sección: Ronda de 32, octavos, cuartos, semifinales, tercer lugar y final. Ya puedes pronosticar el partido de hoy; corregimos los horarios y la quiniela cierra 5 min antes del pitazo.",
 };
 
+export const KNOCKOUT_OCTAVOS_SYNC_ANNOUNCEMENT: WhatsNewItem = {
+  emoji: "🏆",
+  title: "Octavos listos en la quiniela",
+  description:
+    "La quiniela ya coincide con el cuadro general: octavos del fin de semana con equipos, escudos y horarios. Ya puedes pronosticar Brasil–Noruega, México–Inglaterra, Portugal–España y USA–Bélgica. Los cruces del viernes se completan al terminar los dieciseisavos de hoy.",
+};
+
 export const KNOCKOUT_RULES_ANNOUNCEMENT: WhatsNewItem = {
   emoji: "🏆",
   title: "Arranca la fase final",
@@ -53,6 +63,7 @@ export const KNOCKOUT_RULES_ANNOUNCEMENT: WhatsNewItem = {
 };
 
 export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
+  KNOCKOUT_OCTAVOS_SYNC_ANNOUNCEMENT,
   KNOCKOUT_ROUND_QUINIELA_ANNOUNCEMENT,
   KNOCKOUT_RULES_ANNOUNCEMENT,
   KNOCKOUT_QUINIELA_ANNOUNCEMENT,

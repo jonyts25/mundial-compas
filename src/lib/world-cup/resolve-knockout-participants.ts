@@ -1,3 +1,5 @@
+import { getEscudoFromMetadata } from "@/lib/partidos/escudos";
+import { resolveKnockoutSideWinner } from "@/lib/partidos/knockout-match-result";
 import { buildBestThirdPlacesRanking } from "@/lib/standings/best-third-places";
 import { buildFullKnockoutTree } from "@/lib/standings/build-knockout-bracket";
 import type { BestThirdPlaceRow } from "@/lib/standings/best-third-places";
@@ -7,6 +9,7 @@ import {
 } from "@/lib/standings/calculate-group-standings";
 import { indexKnockoutPartidosByMatchNumber } from "@/lib/standings/knockout-schedule-utils";
 import type { StandingGroup } from "@/lib/standings/types";
+import { KNOCKOUT_SCHEDULE_BY_MATCH } from "@/lib/standings/world-cup-knockout-schedule";
 import { knockoutMatchIdFromNumber } from "@/lib/world-cup/knockout-match-ids";
 import {
   areBothTeamsConfirmed,
@@ -121,6 +124,92 @@ export type ParticipantPatch = {
 
 const LIVE_OR_DONE = new Set(["en_vivo", "medio_tiempo", "finalizado"]);
 
+function escudoForTeamInPartido(partido: Partido, teamCode: string): string | null {
+  if (partido.equipo_local_codigo === teamCode) {
+    return getEscudoFromMetadata(partido.metadata, "local");
+  }
+  if (partido.equipo_visitante_codigo === teamCode) {
+    return getEscudoFromMetadata(partido.metadata, "visitante");
+  }
+  return null;
+}
+
+function escudoFromFeederWinner(
+  teamCode: string,
+  feederMatchNumber: number,
+  dbByMatch: Map<number, Partido>,
+): string | null {
+  if (isTbdTeamCode(teamCode)) return null;
+  const feeder = dbByMatch.get(feederMatchNumber);
+  if (!feeder || feeder.estatus !== "finalizado") return null;
+
+  const homeWinner = resolveKnockoutSideWinner(feeder, "home");
+  const awayWinner = resolveKnockoutSideWinner(feeder, "away");
+  const winnerCode = homeWinner?.teamId ?? awayWinner?.teamId ?? null;
+  if (winnerCode !== teamCode) return null;
+
+  return escudoForTeamInPartido(feeder, teamCode);
+}
+
+/** Copia escudos desde el partido feeder donde ganó cada selección. */
+export function enrichParticipantPatchMetadata(
+  row: ResolvedKnockoutParticipant,
+  metadata: Record<string, unknown>,
+  dbByMatch: Map<number, Partido>,
+): Record<string, unknown> {
+  if (!row.isDefined) return metadata;
+
+  const entry = KNOCKOUT_SCHEDULE_BY_MATCH[row.matchNumber];
+  if (!entry) return metadata;
+
+  const next = { ...metadata };
+  const homeFeeder =
+    entry.home.kind === "winner" ? entry.home.matchNumber : null;
+  const awayFeeder =
+    entry.away.kind === "winner" ? entry.away.matchNumber : null;
+
+  if (homeFeeder != null) {
+    const escudo = escudoFromFeederWinner(row.home.codigo, homeFeeder, dbByMatch);
+    if (escudo) next.escudo_local = escudo;
+  }
+  if (awayFeeder != null) {
+    const escudo = escudoFromFeederWinner(row.away.codigo, awayFeeder, dbByMatch);
+    if (escudo) next.escudo_visitante = escudo;
+  }
+
+  return next;
+}
+
+function patchNeedsApply(
+  db: Partido,
+  patch: ParticipantPatch,
+  row: ResolvedKnockoutParticipant,
+): boolean {
+  const existingMeta =
+    typeof db.metadata === "object" && db.metadata !== null
+      ? (db.metadata as Record<string, unknown>)
+      : {};
+
+  const namesChanged =
+    db.equipo_local_codigo !== patch.equipo_local_codigo ||
+    db.equipo_visitante_codigo !== patch.equipo_visitante_codigo ||
+    db.equipo_local_nombre !== patch.equipo_local_nombre ||
+    db.equipo_visitante_nombre !== patch.equipo_visitante_nombre;
+
+  const definedChanged = existingMeta.participants_defined !== row.isDefined;
+
+  const escudosNeedUpdate =
+    row.isDefined &&
+    Boolean(getEscudoFromMetadata(patch.metadata, "local")) &&
+    Boolean(getEscudoFromMetadata(patch.metadata, "visitante")) &&
+    (getEscudoFromMetadata(existingMeta, "local") !==
+      getEscudoFromMetadata(patch.metadata, "local") ||
+      getEscudoFromMetadata(existingMeta, "visitante") !==
+        getEscudoFromMetadata(patch.metadata, "visitante"));
+
+  return namesChanged || definedChanged || escudosNeedUpdate;
+}
+
 /** Build DB patches for scheduled knockout matches; skips live/finished. */
 export function buildKnockoutParticipantPatches(
   partidosGrupo: PartidoGrupoRow[],
@@ -150,20 +239,18 @@ export function buildKnockoutParticipantPatches(
       equipo_visitante_codigo: row.away.codigo,
       equipo_local_nombre: row.home.nombre,
       equipo_visitante_nombre: row.away.nombre,
-      metadata: {
-        ...existingMeta,
-        participants_resolved_at: new Date().toISOString(),
-        participants_defined: row.isDefined,
-      },
+      metadata: enrichParticipantPatchMetadata(
+        row,
+        {
+          ...existingMeta,
+          participants_resolved_at: new Date().toISOString(),
+          participants_defined: row.isDefined,
+        },
+        dbByMatch,
+      ),
     };
 
-    const unchanged =
-      db.equipo_local_codigo === patch.equipo_local_codigo &&
-      db.equipo_visitante_codigo === patch.equipo_visitante_codigo &&
-      db.equipo_local_nombre === patch.equipo_local_nombre &&
-      db.equipo_visitante_nombre === patch.equipo_visitante_nombre;
-
-    if (!unchanged) {
+    if (patchNeedsApply(db, patch, row)) {
       patches.push(patch);
     }
   }
