@@ -40,6 +40,7 @@ export interface PhaseSyncContext {
   visitante: string;
   fase: FaseMundial;
   estatus: EstatusPartido;
+  prevEstatus?: EstatusPartido;
   roundHint?: string | null;
   homeScore: number;
   awayScore: number;
@@ -70,6 +71,7 @@ function canDeliverPhasePush(
   phase: MatchPhaseKind,
   estatus: EstatusPartido,
   statusShort?: string | null,
+  prevPeriod?: MatchPeriod,
 ): boolean {
   if (phase === "fulltime") {
     return estatus === "finalizado";
@@ -78,7 +80,16 @@ function canDeliverPhasePush(
     return false;
   }
   if (phase === "kickoff") {
-    return statusShort?.trim().toUpperCase() === "1H";
+    const short = statusShort?.trim().toUpperCase() ?? "";
+    if (short === "1H") return true;
+    // Sync tardío: el partido acaba de arrancar y el poll no alcanzó el 1er tiempo.
+    if (
+      prevPeriod === "NS" &&
+      (short === "2H" || short === "HT" || estatus === "en_vivo")
+    ) {
+      return true;
+    }
+    return false;
   }
   return true;
 }
@@ -224,7 +235,11 @@ export async function notifyPhaseTransitions(
     "NS";
 
   let announced = getAnnouncedPhases(ctx.prevMetadata);
-  if (announced.length === 0 && nextPeriod !== "NS") {
+  const wasAlreadyLive =
+    ctx.prevEstatus === "en_vivo" ||
+    ctx.prevEstatus === "medio_tiempo" ||
+    ctx.prevEstatus === "finalizado";
+  if (announced.length === 0 && nextPeriod !== "NS" && wasAlreadyLive) {
     announced = baselineAnnouncedPhases(nextPeriod);
   }
 
@@ -249,7 +264,7 @@ export async function notifyPhaseTransitions(
 
   for (const phase of pending) {
     if (announced.includes(phase)) continue;
-    if (!canDeliverPhasePush(phase, ctx.estatus, ctx.statusShort)) continue;
+    if (!canDeliverPhasePush(phase, ctx.estatus, ctx.statusShort, prevPeriod)) continue;
 
     const pushPreview = buildPhasePushMessage(
       phase,

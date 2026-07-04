@@ -10,6 +10,7 @@ import type { FullKnockoutTree, KnockoutBracket } from "@/lib/standings/knockout
 import type { GroupStandingsSnapshot } from "@/lib/standings/types";
 import type { LiveScenarioCardModel } from "@/lib/world-cup/fifa-live-scenarios";
 import { buildLiveScenarioCardModel } from "@/lib/world-cup/fifa-live-scenarios";
+import { dedupePartidosForDisplay } from "@/lib/partidos/partido-match-key";
 import type { Partido } from "@/types/database";
 import {
   isWorldCupGroupLetter,
@@ -57,7 +58,8 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
   if (koError) throw new Error(koError.message);
 
   const partidos = (partidosRaw ?? []) as Partido[];
-  const knockoutPartidos = (knockoutRaw ?? []) as Partido[];
+  const knockoutPartidosRaw = (knockoutRaw ?? []) as Partido[];
+  const knockoutPartidos = dedupePartidosForDisplay(knockoutPartidosRaw);
   const partidosGrupoRows: PartidoGrupoRow[] = partidos.map((p) => ({
     id: p.id,
     grupo: p.grupo,
@@ -149,7 +151,7 @@ export async function fetchPosicionesMundialData(): Promise<PosicionesMundialDat
   const hasLiveGroupMatches = partidos.some(
     (p) => p.estatus === "en_vivo" || p.estatus === "medio_tiempo",
   );
-  const hasLiveKnockoutMatches = knockoutPartidos.some(
+  const hasLiveKnockoutMatches = knockoutPartidosRaw.some(
     (p) => p.estatus === "en_vivo" || p.estatus === "medio_tiempo",
   );
 

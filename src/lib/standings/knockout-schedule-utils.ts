@@ -5,7 +5,22 @@ import {
   KNOCKOUT_SCHEDULE_BY_MATCH,
   type KnockoutScheduleEntry,
 } from "@/lib/standings/world-cup-knockout-schedule";
+import {
+  scoreKnockoutPartidoForIndex,
+  type PartidoMatchKeyFields,
+} from "@/lib/partidos/partido-match-key";
 import type { Partido } from "@/types/database";
+
+function pickBestPartidoForMatchNumber<T extends PartidoMatchKeyFields>(
+  current: T | undefined,
+  candidate: T,
+): T {
+  if (!current) return candidate;
+  return scoreKnockoutPartidoForIndex(candidate) >
+    scoreKnockoutPartidoForIndex(current)
+    ? candidate
+    : current;
+}
 
 function readRoundText(partido: Partido): string {
   const meta = partido.metadata as Record<string, unknown> | null;
@@ -64,13 +79,18 @@ export function indexKnockoutPartidosByMatchNumber(
 
   for (const partido of partidos) {
     const fromMeta = extractFifaMatchNumber(partido);
-    if (fromMeta != null) map.set(fromMeta, partido);
+    if (fromMeta != null) {
+      map.set(fromMeta, pickBestPartidoForMatchNumber(map.get(fromMeta), partido));
+    }
   }
 
   for (const partido of partidos) {
     if (extractFifaMatchNumber(partido) != null) continue;
     for (const matchNumber of fallbackMatchNumbers(partido)) {
-      if (!map.has(matchNumber)) map.set(matchNumber, partido);
+      map.set(
+        matchNumber,
+        pickBestPartidoForMatchNumber(map.get(matchNumber), partido),
+      );
     }
   }
 

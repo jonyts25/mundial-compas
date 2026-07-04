@@ -677,6 +677,7 @@ async function syncOneApiSportsFixture(
     visitante: String(existing.equipo_visitante_nombre ?? item.teams.away.name),
     fase: existing.fase ?? "grupos",
     estatus: row.estatus,
+    prevEstatus,
     roundHint,
     homeScore: row.marcador_local ?? 0,
     awayScore: row.marcador_visitante ?? 0,

@@ -9,6 +9,8 @@ interface PartidoRefreshRow {
   id?: string;
   fase?: FaseMundial | string;
   estatus?: EstatusPartido;
+  marcador_local?: number | null;
+  marcador_visitante?: number | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -72,9 +74,26 @@ export function PosicionesLiveRefresh({
           }
 
           if (refreshOnKnockoutUpdate && row.fase && row.fase !== "grupos") {
-            if (row.estatus !== "finalizado" && !hasPenaltyMetadata(row.metadata)) {
+            const isLive =
+              row.estatus === "en_vivo" || row.estatus === "medio_tiempo";
+            const isFinal = row.estatus === "finalizado";
+            const hasScore =
+              row.marcador_local != null && row.marcador_visitante != null;
+
+            if (!isLive && !isFinal && !hasPenaltyMetadata(row.metadata)) {
               return;
             }
+
+            const key = [
+              "ko",
+              row.id,
+              row.estatus,
+              row.marcador_local,
+              row.marcador_visitante,
+              hasPenaltyMetadata(row.metadata) ? "pen" : "",
+            ].join(":");
+            if (seenKeys.current.has(key)) return;
+            seenKeys.current.add(key);
             scheduleRefresh();
           }
         },
@@ -90,7 +109,7 @@ export function PosicionesLiveRefresh({
   useEffect(() => {
     if (!pollWhileLive) return;
 
-    const id = window.setInterval(() => router.refresh(), 60_000);
+    const id = window.setInterval(() => router.refresh(), 30_000);
     return () => window.clearInterval(id);
   }, [pollWhileLive, router]);
 
