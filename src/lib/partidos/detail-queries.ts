@@ -1,6 +1,9 @@
 import { resolveIsModerator } from "@/lib/auth/moderator";
 import { fetchGlobalPronosticoForPartidoOrSibling } from "@/lib/partidos/pronostico-sibling-lookup";
 import {
+  resolveCanonicalSiblingFromList,
+} from "@/lib/partidos/partido-match-key";
+import {
   assertAuthenticatedUserId,
   createServerDataClient,
 } from "@/lib/supabase/server-data";
@@ -26,6 +29,8 @@ export type PartidoDetalle = Partido & {
 export interface PartidoDetallePageData {
   usuario: Usuario;
   partido: PartidoDetalle;
+  /** Si el enlace apuntaba a un duplicado placeholder, id canonical para redirect. */
+  canonicalPartidoId?: string;
   pronostico: PronosticoPartido | null;
   mensajes: MensajeChatConAutor[];
   esAdmin: boolean;
@@ -61,17 +66,44 @@ export async function fetchPartidoDetallePageData(
     return null;
   }
 
+  let partidoResolved = partido as PartidoDetalle;
+  if (partidoResolved.fase && partidoResolved.fase !== "grupos") {
+    const kickoffMs = new Date(partidoResolved.fecha_kickoff).getTime();
+    const fromIso = new Date(kickoffMs - 3 * 60 * 60 * 1000).toISOString();
+    const toIso = new Date(kickoffMs + 3 * 60 * 60 * 1000).toISOString();
+    const { data: siblings, error: siblingsError } = await admin
+      .from("partidos")
+      .select(PARTIDO_SELECT)
+      .neq("fase", "grupos")
+      .gte("fecha_kickoff", fromIso)
+      .lte("fecha_kickoff", toIso);
+
+    if (!siblingsError && siblings?.length) {
+      const canonical = resolveCanonicalSiblingFromList(
+        partidoResolved,
+        siblings as PartidoDetalle[],
+      );
+      if (canonical) {
+        partidoResolved = canonical;
+      }
+    }
+  }
+
+  const effectivePartidoId = partidoResolved.id;
   const pronostico = await fetchGlobalPronosticoForPartidoOrSibling(
     admin,
     userId,
-    partido,
+    partidoResolved,
   );
 
   const esAdmin = await resolveIsModerator(supabase, userId);
 
-  const mensajesVisibles = await fetchMensajesChatHistorial(partidoId, esAdmin);
+  const mensajesVisibles = await fetchMensajesChatHistorial(
+    effectivePartidoId,
+    esAdmin,
+  );
 
-  let partidoDetalle = partido as PartidoDetalle;
+  let partidoDetalle = partidoResolved;
   if (
     !readLineupsFromMetadata(partido.metadata) &&
     partido.api_football_fixture_id
@@ -111,6 +143,8 @@ export async function fetchPartidoDetallePageData(
   return {
     usuario: usuario as Usuario,
     partido: partidoDetalle,
+    canonicalPartidoId:
+      effectivePartidoId !== partidoId ? effectivePartidoId : undefined,
     pronostico: pronostico as PronosticoPartido | null,
     mensajes: mensajesVisibles,
     esAdmin,

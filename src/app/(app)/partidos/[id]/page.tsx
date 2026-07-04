@@ -46,6 +46,10 @@ export default async function PartidoPage({
     notFound();
   }
 
+  if (data.canonicalPartidoId && data.canonicalPartidoId !== id) {
+    redirect(`/partidos/${data.canonicalPartidoId}`);
+  }
+
   const { partido } = data;
   const esPronosticable =
     (partido.estatus === "programado" || partido.estatus === "aplazado") &&

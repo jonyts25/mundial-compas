@@ -66,6 +66,8 @@ export type PartidoMatchKeyFields = {
   fase?: string;
   metadata?: unknown;
   sede?: string | null;
+  marcador_local?: number | null;
+  marcador_visitante?: number | null;
 };
 
 function readKnockoutMatchId(metadata: unknown): string | null {
@@ -111,6 +113,33 @@ function partidoDedupeScore(
   return score + (partido.api_football_fixture_id ?? 0) / 1_000_000_000_000;
 }
 
+/** Prioriza fila canonical al indexar partidos KO por número FIFA (cuadro, resolución). */
+export function scoreKnockoutPartidoForIndex(
+  partido: PartidoMatchKeyFields,
+): number {
+  let score = partidoDedupeScore(partido, {});
+  if (partido.estatus === "finalizado") score += 32;
+  if (partido.estatus === "en_vivo" || partido.estatus === "medio_tiempo") {
+    score += 16;
+  }
+  if (
+    partido.marcador_local != null &&
+    partido.marcador_visitante != null
+  ) {
+    score += 4;
+  }
+  return score;
+}
+
+function pickBestPartidoByScore<T extends PartidoMatchKeyFields>(
+  current: T | undefined,
+  candidate: T,
+  scoreFn: (partido: PartidoMatchKeyFields) => number,
+): T {
+  if (!current) return candidate;
+  return scoreFn(candidate) > scoreFn(current) ? candidate : current;
+}
+
 /**
  * Quita fixtures api-sports huérfanos (sin knockout_match_id ni slot FIFA) que
  * duplican la misma ronda en quiniela/calendario.
@@ -147,13 +176,10 @@ function indexKnockoutByFifa<T extends PartidoMatchKeyFields>(
   for (const partido of partidos) {
     const fifa = extractFifaFromFields(partido);
     if (fifa == null) continue;
-    const existing = map.get(fifa);
-    if (
-      !existing ||
-      partidoDedupeScore(partido, {}) > partidoDedupeScore(existing, {})
-    ) {
-      map.set(fifa, partido);
-    }
+    map.set(
+      fifa,
+      pickBestPartidoByScore(map.get(fifa), partido, scoreKnockoutPartidoForIndex),
+    );
   }
   return map;
 }
@@ -211,6 +237,26 @@ export function dedupePartidosByMatchKey<T extends PartidoMatchKeyFields>(
     (a, b) =>
       new Date(a.fecha_kickoff).getTime() - new Date(b.fecha_kickoff).getTime(),
   );
+}
+
+/** Elige la fila canonical entre duplicados del mismo slot KO (p. ej. placeholder vs api-sports). */
+export function resolveCanonicalSiblingFromList<T extends PartidoMatchKeyFields>(
+  partido: T,
+  siblings: T[],
+): T | null {
+  const key = buildPartidoDisplayDedupeKey(partido);
+  const candidates = siblings.filter(
+    (row) => row.id !== partido.id && buildPartidoDisplayDedupeKey(row) === key,
+  );
+  if (candidates.length === 0) return null;
+
+  let best = partido;
+  for (const candidate of candidates) {
+    if (scoreKnockoutPartidoForIndex(candidate) > scoreKnockoutPartidoForIndex(best)) {
+      best = candidate;
+    }
+  }
+  return best.id === partido.id ? null : best;
 }
 
 /** Tras dedupe, enlaza pronósticos que quedaron en la fila duplicada descartada. */
