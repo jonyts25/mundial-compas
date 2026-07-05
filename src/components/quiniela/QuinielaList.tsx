@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { QuinielaRoundSection } from "@/components/quiniela/QuinielaRoundSection";
 import {
   detectActiveQuinielaPhase,
+  computeQuinielaTotalPoints,
   groupPartidosByQuinielaRound,
 } from "@/lib/quiniela/knockout-rounds";
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
@@ -120,6 +121,11 @@ export function QuinielaList({
     [partidos, nowMs],
   );
 
+  const totalPuntos = useMemo(
+    () => computeQuinielaTotalPoints(partidos, pronosticosPorPartido),
+    [partidos, pronosticosPorPartido],
+  );
+
   const roundGroups = useMemo(
     () =>
       groupPartidosByQuinielaRound({
@@ -177,6 +183,18 @@ export function QuinielaList({
 
   return (
     <div className="space-y-3">
+      <div className="rounded-xl border border-emerald-900/40 bg-emerald-950/20 px-3 py-2.5 text-center">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-500/80">
+          Tus puntos en esta quiniela
+        </p>
+        <p className="mt-0.5 text-2xl font-black tabular-nums text-emerald-300">
+          {totalPuntos}
+        </p>
+        <p className="mt-0.5 text-[10px] text-zinc-500">
+          Suma de partidos finalizados con pronóstico guardado
+        </p>
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         <StatCard label="Pendientes" value={stats.pendientes} accent="amber" />
         <StatCard label="Guardados" value={stats.guardados} accent="emerald" />

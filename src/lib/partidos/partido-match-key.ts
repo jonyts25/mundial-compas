@@ -323,21 +323,28 @@ export function remapPronosticosToDedupedPartidos<
   allPartidos: T[],
   pronosticosPorPartido: Record<string, P>,
 ): Record<string, P> {
-  const remapped = { ...pronosticosPorPartido };
+  const remapped: Record<string, P> = {};
 
   for (const kept of keptPartidos) {
-    let pronostico = remapped[kept.id];
+    let pronostico = pronosticosPorPartido[kept.id];
+
     if (!pronostico) {
-      const key = buildPartidoDisplayDedupeKey(kept);
+      let bestSibling: P | undefined;
       for (const sibling of allPartidos) {
-        if (sibling.id === kept.id || buildPartidoDisplayDedupeKey(sibling) !== key) {
+        if (sibling.id === kept.id || !arePartidosDisplaySiblings(kept, sibling)) {
           continue;
         }
         const siblingPronostico = pronosticosPorPartido[sibling.id];
-        if (siblingPronostico) {
-          pronostico = { ...siblingPronostico, partido_id: kept.id };
-          break;
+        if (!siblingPronostico) continue;
+        if (
+          !bestSibling ||
+          (siblingPronostico.puntos ?? 0) > (bestSibling.puntos ?? 0)
+        ) {
+          bestSibling = siblingPronostico;
         }
+      }
+      if (bestSibling) {
+        pronostico = { ...bestSibling, partido_id: kept.id };
       }
     }
 

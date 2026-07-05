@@ -1,4 +1,5 @@
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
+import { enrichPronosticoPuntosFromPartido } from "@/lib/partidos/partido-match-key";
 import {
   areBothTeamsConfirmed,
   isKnockoutPartido,
@@ -121,16 +122,49 @@ export interface QuinielaRoundProgress {
   total: number;
 }
 
+export interface QuinielaPronosticoPuntos {
+  puntos: number;
+  goles_local?: number;
+  goles_visitante?: number;
+}
+
+export function resolvePronosticoPuntosForPartido(
+  partido: Partido,
+  pronostico?: QuinielaPronosticoPuntos | null,
+): number {
+  if (!pronostico) return 0;
+  if (
+    typeof pronostico.goles_local === "number" &&
+    typeof pronostico.goles_visitante === "number"
+  ) {
+    return enrichPronosticoPuntosFromPartido(partido, {
+      goles_local: pronostico.goles_local,
+      goles_visitante: pronostico.goles_visitante,
+      puntos: pronostico.puntos ?? 0,
+    }).puntos;
+  }
+  return pronostico.puntos ?? 0;
+}
+
 export function computeQuinielaRoundPoints(
   partidos: Partido[],
-  pronosticosPorPartido: Record<string, { puntos: number }>,
+  pronosticosPorPartido: Record<string, QuinielaPronosticoPuntos>,
 ): number {
   let total = 0;
   for (const p of partidos) {
-    const pronostico = pronosticosPorPartido[p.id];
-    if (pronostico) total += pronostico.puntos;
+    total += resolvePronosticoPuntosForPartido(
+      p,
+      pronosticosPorPartido[p.id],
+    );
   }
   return total;
+}
+
+export function computeQuinielaTotalPoints(
+  partidos: Partido[],
+  pronosticosPorPartido: Record<string, QuinielaPronosticoPuntos>,
+): number {
+  return computeQuinielaRoundPoints(partidos, pronosticosPorPartido);
 }
 
 export function computeQuinielaRoundProgress(
@@ -176,7 +210,7 @@ export function groupPartidosByQuinielaRound(input: {
   partidos: Partido[];
   filteredPartidos: Partido[];
   pronosticosPorPartido: Record<string, boolean>;
-  pronosticosConPuntos?: Record<string, { puntos: number }>;
+  pronosticosConPuntos?: Record<string, QuinielaPronosticoPuntos>;
   nowMs: number;
 }): QuinielaRoundGroup[] {
   const {

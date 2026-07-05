@@ -3,6 +3,7 @@ import { isPronosticoLocked } from "@/lib/quiniela/lock";
 import {
   computeQuinielaRoundProgress,
   computeQuinielaRoundPoints,
+  computeQuinielaTotalPoints,
   detectActiveQuinielaPhase,
   groupPartidosByQuinielaRound,
   isGroupStageClosedForQuiniela,
@@ -118,16 +119,46 @@ describe("quiniela knockout rounds", () => {
 
   it("suma puntos de la ronda desde pronósticos enriquecidos", () => {
     const partidos = [
-      partido("r32-1", "dieciseisavos"),
-      partido("r32-2", "dieciseisavos"),
+      partido("r32-1", "dieciseisavos", {
+        estatus: "finalizado",
+        marcador_local: 2,
+        marcador_visitante: 1,
+      }),
+      partido("r32-2", "dieciseisavos", {
+        estatus: "finalizado",
+        marcador_local: 0,
+        marcador_visitante: 0,
+      }),
     ];
 
     expect(
       computeQuinielaRoundPoints(partidos, {
-        "r32-1": { puntos: 3 },
-        "r32-2": { puntos: 1 },
+        "r32-1": { puntos: 0, goles_local: 2, goles_visitante: 1 },
+        "r32-2": { puntos: 0, goles_local: 1, goles_visitante: 1 },
       }),
     ).toBe(4);
+  });
+
+  it("calcula total acumulado de la quiniela", () => {
+    const partidos = [
+      partido("r32-1", "dieciseisavos", {
+        estatus: "finalizado",
+        marcador_local: 1,
+        marcador_visitante: 0,
+      }),
+      partido("r16-1", "octavos", {
+        estatus: "programado",
+        marcador_local: null,
+        marcador_visitante: null,
+      }),
+    ];
+
+    expect(
+      computeQuinielaTotalPoints(partidos, {
+        "r32-1": { puntos: 0, goles_local: 1, goles_visitante: 0 },
+        "r16-1": { puntos: 0, goles_local: 0, goles_visitante: 1 },
+      }),
+    ).toBe(3);
   });
 
   it("agrupa por ronda y muestra awaiting_teams para octavos TBD", () => {

@@ -193,6 +193,54 @@ describe("dedupePartidosForDisplay", () => {
     });
   });
 
+  it("remapea pronóstico por siblings aunque la clave fifa difiera", () => {
+    const placeholder = {
+      id: "r16-placeholder",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-04T21:00:00.000Z",
+      equipo_local_nombre: "Ganador P74",
+      equipo_visitante_nombre: "Ganador P77",
+      api_football_fixture_id: 9_000_089,
+      estatus: "programado",
+      marcador_local: null,
+      marcador_visitante: null,
+      metadata: { knockout_match_id: "r16_01", fifa_match_number: 89 },
+    };
+    const real = {
+      id: "r16-real",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-04T21:30:00.000Z",
+      equipo_local_nombre: "Spain",
+      equipo_visitante_nombre: "Austria",
+      api_football_fixture_id: 1_600_001,
+      estatus: "finalizado",
+      marcador_local: 2,
+      marcador_visitante: 1,
+      metadata: { fifa_match_number: 89 },
+    };
+
+    const deduped = dedupePartidosForDisplay([placeholder, real]);
+    const remapped = remapPronosticosToDedupedPartidos(
+      deduped,
+      [placeholder, real],
+      {
+        "r16-placeholder": {
+          partido_id: "r16-placeholder",
+          goles_local: 2,
+          goles_visitante: 1,
+          puntos: 0,
+        },
+      },
+    );
+
+    expect(remapped["r16-real"]).toMatchObject({
+      goles_local: 2,
+      goles_visitante: 1,
+      puntos: 3,
+    });
+    expect(remapped["r16-placeholder"]).toBeUndefined();
+  });
+
   it("enriquece puntos al leer pronóstico contra marcador final", () => {
     const partido = {
       id: "p1",

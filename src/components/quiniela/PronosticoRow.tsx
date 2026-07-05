@@ -17,6 +17,7 @@ import {
   isPronosticoLocked,
   QUINIELA_LOCK_MINUTES_BEFORE,
 } from "@/lib/quiniela/lock";
+import { resolvePronosticoPuntosForPartido } from "@/lib/quiniela/knockout-rounds";
 import {
   areBothTeamsConfirmed,
   isKnockoutPartido,
@@ -81,6 +82,7 @@ export function PronosticoRow({
     visitante !== null &&
     local >= 0 &&
     visitante >= 0;
+  const puntosPartido = resolvePronosticoPuntosForPartido(partido, pronostico);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
@@ -209,13 +211,13 @@ export function PronosticoRow({
 
       {pronostico && !locked && (
         <p className="mt-2 text-center text-[10px] text-zinc-600">
-          Puntos al cierre: {pronostico.puntos} (máx. 3 por acierto)
+          Puntos al cierre: {puntosPartido} (máx. 3 por acierto)
         </p>
       )}
 
-      {pronostico && locked && pronostico.puntos > 0 && (
+      {pronostico && locked && puntosPartido > 0 && (
         <p className="mt-2 text-center text-[10px] text-emerald-500/80">
-          +{pronostico.puntos} pts en este partido
+          +{puntosPartido} pts en este partido
         </p>
       )}
 
