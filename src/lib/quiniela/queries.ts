@@ -55,7 +55,7 @@ export async function fetchQuinielaData(
   const { data: partidos, error: partidosError } = await supabase
     .from("partidos")
     .select(
-      "id, api_football_fixture_id, fase, grupo, jornada, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, metadata",
+      "id, api_football_fixture_id, fase, grupo, jornada, sede, equipo_local_codigo, equipo_visitante_codigo, equipo_local_nombre, equipo_visitante_nombre, fecha_kickoff, estatus, marcador_local, marcador_visitante, canal_transmision, minuto_actual, metadata",
     )
     .in("estatus", [
       "programado",
