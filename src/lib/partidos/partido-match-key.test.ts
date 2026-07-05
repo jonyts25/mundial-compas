@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  arePartidosDisplaySiblings,
   dedupePartidosByMatchKey,
   dedupePartidosForDisplay,
   enrichPronosticoPuntosFromPartido,
@@ -62,6 +63,57 @@ describe("dedupePartidosForDisplay", () => {
     const deduped = dedupePartidosForDisplay([canonical, orphan]);
     expect(deduped).toHaveLength(1);
     expect(deduped[0]!.id).toBe("r32-canonical");
+  });
+
+  it("dedupe octavos por fifa aunque solo uno tenga knockout_match_id", () => {
+    const placeholder = {
+      id: "r16-placeholder",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-04T21:00:00.000Z",
+      equipo_local_nombre: "Ganador P74",
+      equipo_visitante_nombre: "Ganador P77",
+      api_football_fixture_id: 9_000_089,
+      metadata: { knockout_match_id: "r16_01", fifa_match_number: 89 },
+    };
+    const real = {
+      id: "r16-real",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-04T21:30:00.000Z",
+      equipo_local_nombre: "Spain",
+      equipo_visitante_nombre: "Austria",
+      api_football_fixture_id: 1_600_001,
+      metadata: { fifa_match_number: 89 },
+    };
+
+    expect(arePartidosDisplaySiblings(placeholder, real)).toBe(true);
+
+    const deduped = dedupePartidosForDisplay([placeholder, real]);
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]!.id).toBe("r16-real");
+  });
+
+  it("elimina fixture api-sports huérfano en octavos", () => {
+    const canonical = {
+      id: "r16-canonical",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-06T17:00:00.000Z",
+      equipo_local_nombre: "Canada",
+      equipo_visitante_nombre: "Morocco",
+      api_football_fixture_id: 9_000_091,
+      metadata: { knockout_match_id: "r16_03", fifa_match_number: 91 },
+    };
+    const orphan = {
+      id: "r16-orphan",
+      fase: "octavos",
+      fecha_kickoff: "2026-07-06T17:00:00.000Z",
+      equipo_local_nombre: "Canada",
+      equipo_visitante_nombre: "Morocco",
+      api_football_fixture_id: 1_600_050,
+      metadata: {},
+    };
+
+    const filtered = filterOrphanKnockoutApiFixtures([canonical, orphan]);
+    expect(filtered.map((p) => p.id)).toEqual(["r16-canonical"]);
   });
 
   it("dedupe octavos por knockout_match_id aunque kickoff difiera", () => {
@@ -154,7 +206,6 @@ describe("dedupePartidosForDisplay", () => {
 
     expect(
       enrichPronosticoPuntosFromPartido(partido, {
-        partido_id: "legacy",
         goles_local: 4,
         goles_visitante: 0,
         puntos: 0,
