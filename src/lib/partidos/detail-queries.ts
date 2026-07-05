@@ -1,6 +1,7 @@
 import { resolveIsModerator } from "@/lib/auth/moderator";
 import { fetchGlobalPronosticoForPartidoOrSibling } from "@/lib/partidos/pronostico-sibling-lookup";
 import {
+  enrichPronosticoPuntosFromPartido,
   resolveCanonicalSiblingFromList,
 } from "@/lib/partidos/partido-match-key";
 import {
@@ -90,11 +91,21 @@ export async function fetchPartidoDetallePageData(
   }
 
   const effectivePartidoId = partidoResolved.id;
-  const pronostico = await fetchGlobalPronosticoForPartidoOrSibling(
+  const pronosticoRaw = await fetchGlobalPronosticoForPartidoOrSibling(
     admin,
     userId,
     partidoResolved,
   );
+  const pronostico = pronosticoRaw
+    ? {
+        ...pronosticoRaw,
+        ...enrichPronosticoPuntosFromPartido(partidoResolved, {
+          goles_local: pronosticoRaw.goles_local,
+          goles_visitante: pronosticoRaw.goles_visitante,
+          puntos: pronosticoRaw.puntos,
+        }),
+      }
+    : null;
 
   const esAdmin = await resolveIsModerator(supabase, userId);
 

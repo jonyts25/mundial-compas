@@ -1,5 +1,6 @@
 import { toMexicoDateKey } from "@/lib/datetime/mexico";
 import { extractFifaMatchNumber } from "@/lib/standings/knockout-schedule-utils";
+import { calcularPuntosPronostico } from "@/lib/world-cup/knockout-quiniela-rules";
 import { isPlaceholderFixtureId } from "@/lib/world-cup/knockout-match-ids";
 import type { Partido } from "@/types/database";
 
@@ -195,11 +196,14 @@ export function dedupePartidosForDisplay<T extends PartidoMatchKeyFields>(
   for (const partido of filtered) {
     const key = buildPartidoDisplayDedupeKey(partido);
     const existing = byKey.get(key);
-    if (
-      !existing ||
-      partidoDedupeScore(partido, pronosticosPorPartido) >
-        partidoDedupeScore(existing, pronosticosPorPartido)
-    ) {
+    const candidateScore =
+      scoreKnockoutPartidoForIndex(partido) +
+      (pronosticosPorPartido[partido.id] ? 4 : 0);
+    const existingScore = existing
+      ? scoreKnockoutPartidoForIndex(existing) +
+        (pronosticosPorPartido[existing.id] ? 4 : 0)
+      : -1;
+    if (!existing || candidateScore > existingScore) {
       byKey.set(key, partido);
     }
   }
@@ -259,10 +263,40 @@ export function resolveCanonicalSiblingFromList<T extends PartidoMatchKeyFields>
   return best.id === partido.id ? null : best;
 }
 
+type PronosticoConMarcador = {
+  goles_local: number;
+  goles_visitante: number;
+  puntos: number;
+};
+
+/** Calcula puntos en lectura cuando el pronóstico quedó en un duplicado legacy. */
+export function enrichPronosticoPuntosFromPartido<
+  P extends PronosticoConMarcador,
+  T extends PartidoMatchKeyFields,
+>(partido: T, pronostico: P): P {
+  if (
+    partido.estatus !== "finalizado" ||
+    partido.marcador_local == null ||
+    partido.marcador_visitante == null
+  ) {
+    return pronostico;
+  }
+
+  return {
+    ...pronostico,
+    puntos: calcularPuntosPronostico(
+      partido.marcador_local,
+      partido.marcador_visitante,
+      pronostico.goles_local,
+      pronostico.goles_visitante,
+    ),
+  };
+}
+
 /** Tras dedupe, enlaza pronósticos que quedaron en la fila duplicada descartada. */
 export function remapPronosticosToDedupedPartidos<
   T extends PartidoMatchKeyFields,
-  P extends { partido_id: string },
+  P extends { partido_id: string } & Partial<PronosticoConMarcador>,
 >(
   keptPartidos: T[],
   allPartidos: T[],
@@ -271,17 +305,38 @@ export function remapPronosticosToDedupedPartidos<
   const remapped = { ...pronosticosPorPartido };
 
   for (const kept of keptPartidos) {
-    if (remapped[kept.id]) continue;
-    const key = buildPartidoDisplayDedupeKey(kept);
-    for (const sibling of allPartidos) {
-      if (sibling.id === kept.id || buildPartidoDisplayDedupeKey(sibling) !== key) {
-        continue;
+    let pronostico = remapped[kept.id];
+    if (!pronostico) {
+      const key = buildPartidoDisplayDedupeKey(kept);
+      for (const sibling of allPartidos) {
+        if (sibling.id === kept.id || buildPartidoDisplayDedupeKey(sibling) !== key) {
+          continue;
+        }
+        const siblingPronostico = pronosticosPorPartido[sibling.id];
+        if (siblingPronostico) {
+          pronostico = { ...siblingPronostico, partido_id: kept.id };
+          break;
+        }
       }
-      const pronostico = pronosticosPorPartido[sibling.id];
-      if (pronostico) {
-        remapped[kept.id] = { ...pronostico, partido_id: kept.id };
-        break;
-      }
+    }
+
+    if (!pronostico) continue;
+
+    const mapped = { ...pronostico, partido_id: kept.id } as P;
+    if (
+      typeof pronostico.goles_local === "number" &&
+      typeof pronostico.goles_visitante === "number"
+    ) {
+      remapped[kept.id] = {
+        ...mapped,
+        ...enrichPronosticoPuntosFromPartido(kept, {
+          goles_local: pronostico.goles_local,
+          goles_visitante: pronostico.goles_visitante,
+          puntos: pronostico.puntos ?? 0,
+        }),
+      } as P;
+    } else {
+      remapped[kept.id] = mapped;
     }
   }
 

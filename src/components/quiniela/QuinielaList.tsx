@@ -126,9 +126,10 @@ export function QuinielaList({
         partidos,
         filteredPartidos: filtrados,
         pronosticosPorPartido: pronosticosGuardados,
+        pronosticosConPuntos: pronosticosPorPartido,
         nowMs,
       }),
-    [partidos, filtrados, pronosticosGuardados, nowMs],
+    [partidos, filtrados, pronosticosGuardados, pronosticosPorPartido, nowMs],
   );
 
   const visibleRoundGroups = useMemo(

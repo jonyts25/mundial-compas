@@ -27,6 +27,8 @@ export function QuinielaRoundSection({
     progress.total > 0
       ? `${progress.saved}/${progress.total} pronosticados`
       : null;
+  const pointsLabel =
+    group.points > 0 ? `${group.points} puntos` : "0 puntos";
 
   return (
     <section className="rounded-2xl border border-zinc-800/80 bg-zinc-900/30">
@@ -39,8 +41,7 @@ export function QuinielaRoundSection({
         <div className="min-w-0">
           <h3 className="text-sm font-bold text-zinc-100">{group.heading}</h3>
           <p className="mt-0.5 text-[11px] text-zinc-500">
-            {group.allPartidos.length}{" "}
-            {group.allPartidos.length === 1 ? "partido" : "partidos"}
+            {pointsLabel}
             {progressLabel ? ` · ${progressLabel}` : ""}
           </p>
         </div>

@@ -121,6 +121,18 @@ export interface QuinielaRoundProgress {
   total: number;
 }
 
+export function computeQuinielaRoundPoints(
+  partidos: Partido[],
+  pronosticosPorPartido: Record<string, { puntos: number }>,
+): number {
+  let total = 0;
+  for (const p of partidos) {
+    const pronostico = pronosticosPorPartido[p.id];
+    if (pronostico) total += pronostico.puntos;
+  }
+  return total;
+}
+
 export function computeQuinielaRoundProgress(
   partidos: Partido[],
   pronosticosPorPartido: Record<string, boolean>,
@@ -156,6 +168,7 @@ export interface QuinielaRoundGroup {
   allPartidos: Partido[];
   visiblePartidos: Partido[];
   progress: QuinielaRoundProgress;
+  points: number;
   visibility: QuinielaRoundVisibility;
 }
 
@@ -163,9 +176,16 @@ export function groupPartidosByQuinielaRound(input: {
   partidos: Partido[];
   filteredPartidos: Partido[];
   pronosticosPorPartido: Record<string, boolean>;
+  pronosticosConPuntos?: Record<string, { puntos: number }>;
   nowMs: number;
 }): QuinielaRoundGroup[] {
-  const { partidos, filteredPartidos, pronosticosPorPartido, nowMs } = input;
+  const {
+    partidos,
+    filteredPartidos,
+    pronosticosPorPartido,
+    pronosticosConPuntos = {},
+    nowMs,
+  } = input;
   const activePhase = detectActiveQuinielaPhase(partidos, nowMs);
 
   const allByFase = new Map<FaseMundial, Partido[]>();
@@ -196,6 +216,7 @@ export function groupPartidosByQuinielaRound(input: {
         allInRound,
         pronosticosPorPartido,
       ),
+      points: computeQuinielaRoundPoints(allInRound, pronosticosConPuntos),
       visibility: getQuinielaRoundVisibility(allInRound, visibleInRound),
     };
   });

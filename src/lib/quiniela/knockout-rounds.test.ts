@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isPronosticoLocked } from "@/lib/quiniela/lock";
 import {
   computeQuinielaRoundProgress,
+  computeQuinielaRoundPoints,
   detectActiveQuinielaPhase,
   groupPartidosByQuinielaRound,
   isGroupStageClosedForQuiniela,
@@ -113,6 +114,20 @@ describe("quiniela knockout rounds", () => {
       total: 2,
     });
     expect(isKnockoutPronosticable(partidos[2]!)).toBe(false);
+  });
+
+  it("suma puntos de la ronda desde pronósticos enriquecidos", () => {
+    const partidos = [
+      partido("r32-1", "dieciseisavos"),
+      partido("r32-2", "dieciseisavos"),
+    ];
+
+    expect(
+      computeQuinielaRoundPoints(partidos, {
+        "r32-1": { puntos: 3 },
+        "r32-2": { puntos: 1 },
+      }),
+    ).toBe(4);
   });
 
   it("agrupa por ronda y muestra awaiting_teams para octavos TBD", () => {
