@@ -35,9 +35,9 @@ export const KNOCKOUT_KICKOFF_UTC_ISO: Record<number, string> = {
   98: "2026-07-10T19:00:00.000Z", // SoFi
   99: "2026-07-11T20:00:00.000Z", // Miami
   100: "2026-07-11T23:00:00.000Z", // Kansas City
-  // Semifinales
-  101: "2026-07-14T21:00:00.000Z", // Arlington
-  102: "2026-07-15T01:00:00.000Z", // Atlanta
+  // Semifinales — 15:00 ET = 13:00 CDMX
+  101: "2026-07-14T19:00:00.000Z", // Arlington
+  102: "2026-07-15T19:00:00.000Z", // Atlanta
   // Tercer lugar + Final
   103: "2026-07-18T23:00:00.000Z", // Miami
   104: "2026-07-19T22:00:00.000Z", // MetLife

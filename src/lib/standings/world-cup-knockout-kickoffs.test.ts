@@ -24,4 +24,13 @@ describe("world-cup-knockout-kickoffs", () => {
       expect(KNOCKOUT_KICKOFF_UTC_ISO[m]).toBeTruthy();
     }
   });
+
+  it("semifinales: 13:00 CDMX (15:00 ET)", () => {
+    for (const m of [101, 102] as const) {
+      const iso = KNOCKOUT_KICKOFF_UTC_ISO[m]!;
+      const { hora } = formatMexicoKickoff(iso);
+      expect(hora).toMatch(/1:00/);
+      expect(iso.endsWith("T19:00:00.000Z")).toBe(true);
+    }
+  });
 });
