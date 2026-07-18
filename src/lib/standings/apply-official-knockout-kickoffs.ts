@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { extractFifaMatchNumber } from "@/lib/standings/knockout-schedule-utils";
 import { KNOCKOUT_KICKOFF_UTC_ISO } from "@/lib/standings/world-cup-knockout-kickoffs";
+import type { Partido } from "@/types/database";
 
 export type KickoffFixRow = {
   id: string;
@@ -8,6 +10,19 @@ export type KickoffFixRow = {
   to: string;
   label: string;
 };
+
+function resolveFifaMatchNumber(row: {
+  fase?: string | null;
+  fecha_kickoff: string;
+  metadata: unknown;
+  sede?: string | null;
+}): number | null {
+  const fromMeta = extractFifaMatchNumber(row as Partido);
+  if (fromMeta != null) return fromMeta;
+  if (row.fase === "tercer_lugar") return 103;
+  if (row.fase === "final") return 104;
+  return null;
+}
 
 /**
  * Corrige fecha_kickoff de eliminatorias programadas/aplazadas
@@ -19,7 +34,7 @@ export async function applyOfficialKnockoutKickoffs(
   const { data, error } = await supabase
     .from("partidos")
     .select(
-      "id, fecha_kickoff, estatus, metadata, equipo_local_nombre, equipo_visitante_nombre",
+      "id, fase, sede, fecha_kickoff, estatus, metadata, equipo_local_nombre, equipo_visitante_nombre",
     )
     .neq("fase", "grupos")
     .in("estatus", ["programado", "aplazado"]);
@@ -32,9 +47,8 @@ export async function applyOfficialKnockoutKickoffs(
   const errors: string[] = [];
 
   for (const row of data ?? []) {
-    const meta = (row.metadata ?? {}) as { fifa_match_number?: unknown };
-    const n = meta.fifa_match_number;
-    if (typeof n !== "number") continue;
+    const n = resolveFifaMatchNumber(row);
+    if (n == null) continue;
 
     const next = KNOCKOUT_KICKOFF_UTC_ISO[n];
     if (!next || row.fecha_kickoff === next) continue;
