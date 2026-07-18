@@ -3,8 +3,14 @@ import { tryClaimSyncLiveRun } from "@/lib/api-football/push/claim-event";
 import { warnSyncLiveLockSkipped } from "@/lib/partidos/sync-live-telemetry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminEnv, getFootballDataProvider } from "@/lib/env";
+import { broadcastProductAnnouncement } from "@/lib/product/broadcast-announcement";
+import {
+  WORLD_CUP_CLOSING_ANNOUNCEMENT,
+  WORLD_CUP_CLOSING_VERSION,
+} from "@/lib/product/whats-new";
 import { drainPendingPushNotifications } from "@/lib/push/drain-pending";
 import { syncLiveScoresFromApi } from "@/lib/partidos/sync-live-scores";
+import { applyOfficialKnockoutKickoffs } from "@/lib/standings/apply-official-knockout-kickoffs";
 import { reconcileKnockoutPlaceholderFixtureIds } from "@/lib/world-cup/reconcile-knockout-fixture-ids";
 import { syncPartidosLineupsInWindow } from "@/lib/partidos/sync-lineups-batch";
 
@@ -21,6 +27,8 @@ export async function POST(request: Request) {
   const force = url.searchParams.get("force") === "1";
   const supabase = createAdminClient();
 
+  // Antes de la ventana: horarios malos dejan el cron fuera y no llegan notificaciones.
+  const kickoffFix = await applyOfficialKnockoutKickoffs(supabase);
   const reconcile = await reconcileKnockoutPlaceholderFixtureIds(supabase);
   const lineups = await syncPartidosLineupsInWindow(supabase);
 
@@ -31,6 +39,7 @@ export async function POST(request: Request) {
       skipped: true,
       reason: "sync-live ya en curso (lock)",
       provider: getFootballDataProvider(),
+      kickoffFix,
       reconcile,
       lineups,
     });
@@ -39,6 +48,24 @@ export async function POST(request: Request) {
   const result = await syncLiveScoresFromApi(supabase, { pilotOnly, force });
 
   after(async () => {
+    try {
+      const closing = await broadcastProductAnnouncement(supabase, {
+        announcementKey: WORLD_CUP_CLOSING_VERSION,
+        announcement: WORLD_CUP_CLOSING_ANNOUNCEMENT,
+        url: "/",
+      });
+      if (!closing.skipped || closing.skipReason !== "ya_enviado") {
+        console.info(
+          `[announce] closing sentUsers=${closing.sentUsers} targets=${closing.targets} skipped=${closing.skipped} reason=${closing.skipReason ?? "—"}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        "[announce] closing error:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+
     try {
       const pushDrain = await drainPendingPushNotifications(supabase);
       if (pushDrain.fetched > 0) {
@@ -57,6 +84,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     provider: getFootballDataProvider(),
+    kickoffFix,
     reconcile,
     lineups,
     ...result,

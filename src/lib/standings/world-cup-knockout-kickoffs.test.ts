@@ -33,4 +33,18 @@ describe("world-cup-knockout-kickoffs", () => {
       expect(iso.endsWith("T19:00:00.000Z")).toBe(true);
     }
   });
+
+  it("tercer lugar: 15:00 CDMX (17:00 ET)", () => {
+    const iso = KNOCKOUT_KICKOFF_UTC_ISO[103]!;
+    const { hora } = formatMexicoKickoff(iso);
+    expect(iso).toBe("2026-07-18T21:00:00.000Z");
+    expect(hora).toMatch(/3:00/);
+  });
+
+  it("final: 13:00 CDMX (15:00 ET)", () => {
+    const iso = KNOCKOUT_KICKOFF_UTC_ISO[104]!;
+    const { hora } = formatMexicoKickoff(iso);
+    expect(iso).toBe("2026-07-19T19:00:00.000Z");
+    expect(hora).toMatch(/1:00/);
+  });
 });
