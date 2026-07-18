@@ -32,21 +32,7 @@ export async function POST(request: Request) {
   const reconcile = await reconcileKnockoutPlaceholderFixtureIds(supabase);
   const lineups = await syncPartidosLineupsInWindow(supabase);
 
-  if (!(await tryClaimSyncLiveRun(supabase))) {
-    warnSyncLiveLockSkipped();
-    return NextResponse.json({
-      ok: true,
-      skipped: true,
-      reason: "sync-live ya en curso (lock)",
-      provider: getFootballDataProvider(),
-      kickoffFix,
-      reconcile,
-      lineups,
-    });
-  }
-
-  const result = await syncLiveScoresFromApi(supabase, { pilotOnly, force });
-
+  // Anuncio de cierre: una sola vez (dedupe), aunque el sync esté en lock.
   after(async () => {
     try {
       const closing = await broadcastProductAnnouncement(supabase, {
@@ -65,7 +51,24 @@ export async function POST(request: Request) {
         err instanceof Error ? err.message : err,
       );
     }
+  });
 
+  if (!(await tryClaimSyncLiveRun(supabase))) {
+    warnSyncLiveLockSkipped();
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: "sync-live ya en curso (lock)",
+      provider: getFootballDataProvider(),
+      kickoffFix,
+      reconcile,
+      lineups,
+    });
+  }
+
+  const result = await syncLiveScoresFromApi(supabase, { pilotOnly, force });
+
+  after(async () => {
     try {
       const pushDrain = await drainPendingPushNotifications(supabase);
       if (pushDrain.fetched > 0) {
