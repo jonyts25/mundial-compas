@@ -25,8 +25,11 @@ export const KNOCKOUT_ROUND_QUINIELA_VERSION = "2026-06-knockout-round-quiniela-
 /** Octavos sincronizados con cuadro + escudos en quiniela. */
 export const KNOCKOUT_OCTAVOS_SYNC_VERSION = "2026-07-knockout-octavos-sync-v1";
 
+/** Cierre del Mundial — mensaje de despedida de la app de prueba. */
+export const WORLD_CUP_CLOSING_VERSION = "2026-07-world-cup-closing-v1";
+
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = KNOCKOUT_OCTAVOS_SYNC_VERSION;
+export const WHATS_NEW_VERSION = WORLD_CUP_CLOSING_VERSION;
 
 export interface WhatsNewItem {
   emoji: string;
@@ -62,7 +65,15 @@ export const KNOCKOUT_RULES_ANNOUNCEMENT: WhatsNewItem = {
     "En eliminatorias, tu pronóstico cuenta hasta el marcador final del partido. Si hay tiempo extra, cuenta el marcador tras 120'. Si hay penales, el resultado de quiniela sigue siendo empate; los penales solo definen quién avanza.",
 };
 
+export const WORLD_CUP_CLOSING_ANNOUNCEMENT: WhatsNewItem = {
+  emoji: "🏆",
+  title: "¡El Mundial está por terminar!",
+  description:
+    "Esperamos que hayan disfrutado esta app de prueba y que los tropiezos hayan sido mínimos. Si tienen algún comentario, háganlo saber a través de quien les compartió la app. ¡Disfruten la final y que gane el mejor!",
+};
+
 export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
+  WORLD_CUP_CLOSING_ANNOUNCEMENT,
   KNOCKOUT_OCTAVOS_SYNC_ANNOUNCEMENT,
   KNOCKOUT_ROUND_QUINIELA_ANNOUNCEMENT,
   KNOCKOUT_RULES_ANNOUNCEMENT,
