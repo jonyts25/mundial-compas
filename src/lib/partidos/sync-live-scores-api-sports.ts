@@ -43,6 +43,10 @@ import {
 import { mapFixtureToPartidoRow, resolveFifaMatchNumber } from "@/lib/api-football/map-fixture-row";
 import type { ApiFootballFixtureItem } from "@/lib/api-football/types-fixtures";
 import {
+  mapFixtureScoresToPartido,
+  teamsMatchEitherOrder,
+} from "@/lib/partidos/map-api-scores-to-partido";
+import {
   buildMomentosMetadata,
   buildGolAnuladoMomento,
   findVarGoalCancelledForTeam,
@@ -93,6 +97,7 @@ import {
   type LiveSyncWindowConfig,
 } from "@/lib/partidos/live-sync-window";
 import type { SyncLiveResult } from "@/lib/partidos/sync-live-scores";
+import { syncKnockoutFixturesByDateInWindow } from "@/lib/partidos/sync-knockout-window-fixtures";
 import { PLACEHOLDER_FIXTURE_BASE, placeholderFixtureId } from "@/lib/world-cup/knockout-match-ids";
 import { runResolveKnockoutParticipants } from "@/lib/world-cup/run-resolve-knockout-participants";
 import {
@@ -185,12 +190,77 @@ async function syncOneApiSportsFixture(
         existing = candidate;
         break;
       }
+      if (
+        teamsMatchEitherOrder(
+          {
+            equipo_local_nombre: String(candidate.equipo_local_nombre),
+            equipo_visitante_nombre: String(candidate.equipo_visitante_nombre),
+          },
+          item,
+        )
+      ) {
+        existing = candidate;
+        break;
+      }
+    }
+  }
+
+  if (!existing && row.fase !== "grupos") {
+    const kickoffMs = new Date(row.fecha_kickoff).getTime();
+    const fromIso = new Date(kickoffMs - 3 * 60 * 60 * 1000).toISOString();
+    const toIso = new Date(kickoffMs + 3 * 60 * 60 * 1000).toISOString();
+    const { data: byFase, error: faseErr } = await supabase
+      .from("partidos")
+      .select(
+        "id, estatus, fase, equipo_local_nombre, equipo_visitante_nombre, marcador_local, marcador_visitante, metadata, api_football_fixture_id, fecha_kickoff",
+      )
+      .eq("fase", row.fase)
+      .gte("fecha_kickoff", fromIso)
+      .lte("fecha_kickoff", toIso);
+
+    if (faseErr) {
+      outcome = "db_error";
+      result.errors.push(faseErr.message);
+      return;
+    }
+
+    const teamMatches = (byFase ?? []).filter((candidate) =>
+      teamsMatchEitherOrder(
+        {
+          equipo_local_nombre: String(candidate.equipo_local_nombre),
+          equipo_visitante_nombre: String(candidate.equipo_visitante_nombre),
+        },
+        item,
+      ),
+    );
+
+    if (teamMatches.length === 1) {
+      existing = teamMatches[0];
+    } else if (teamMatches.length > 1) {
+      existing = teamMatches.sort(
+        (a, b) =>
+          Number(a.api_football_fixture_id ?? 0) -
+          Number(b.api_football_fixture_id ?? 0),
+      )[0];
+    } else if ((byFase ?? []).length === 1) {
+      existing = byFase![0];
     }
   }
 
   if (!existing) {
     outcome = "not_in_db";
     return;
+  }
+
+  if (
+    item.goals.home != null &&
+    item.goals.away != null &&
+    row.estatus !== "programado" &&
+    row.estatus !== "aplazado"
+  ) {
+    const mapped = mapFixtureScoresToPartido(existing, item);
+    row.marcador_local = mapped.marcador_local;
+    row.marcador_visitante = mapped.marcador_visitante;
   }
 
   const linkedFromPlaceholder =
@@ -904,8 +974,15 @@ export async function syncLiveScoresFromApiSports(
     apiRequests: 0,
   };
 
-  const liveItems = await fetchApiSportsLiveFixtures(apiKey, timezone, "all");
-  result.apiRequests = 1;
+  let liveItems: ApiFootballFixtureItem[] = [];
+  try {
+    liveItems = await fetchApiSportsLiveFixtures(apiKey, timezone, "all");
+    result.apiRequests = 1;
+  } catch (e) {
+    result.errors.push(
+      `live=all: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
   result.fetched = liveItems.length;
   result.liveFixtureCount = liveItems.length;
   logSyncLiveStart(liveItems.length);
@@ -925,6 +1002,30 @@ export async function syncLiveScoresFromApiSports(
     } catch (e) {
       result.errors.push(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  try {
+    await syncKnockoutFixturesByDateInWindow(
+      supabase,
+      apiKey,
+      timezone,
+      async (item) => {
+        await syncOneApiSportsFixture(
+          supabase,
+          item,
+          apiKey,
+          pilot.enabled,
+          pilot.label,
+          result,
+        );
+      },
+      result,
+      liveIds,
+    );
+  } catch (e) {
+    result.errors.push(
+      `knockout-window: ${e instanceof Error ? e.message : String(e)}`,
+    );
   }
 
   try {

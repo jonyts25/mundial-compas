@@ -18,10 +18,71 @@ export function normalizeTeamNameForMatch(name: string): string {
     .replace(/^curaçao$/i, "curacao")
     .replace(/\s+/g, " ");
 
-  return normalizeDrCongoAlias(normalized);
+  const aliased = normalizeDrCongoAlias(normalized);
+  return TEAM_MATCH_ALIASES[aliased] ?? aliased;
 }
 
-/** Congo DR / D.R. Congo / DR Congo → misma clave (apifootball vs api-sports). */
+/** ES/EN y variantes comunes para emparejar api-sports ↔ BD. */
+const TEAM_MATCH_ALIASES: Record<string, string> = {
+  francia: "france",
+  inglaterra: "england",
+  espana: "spain",
+  alemania: "germany",
+  italia: "italy",
+  brasil: "brazil",
+  mexico: "mexico",
+  "estados unidos": "united states",
+  "paises bajos": "netherlands",
+  "corea del sur": "south korea",
+  marruecos: "morocco",
+  croacia: "croatia",
+  portugal: "portugal",
+  belgica: "belgium",
+  suiza: "switzerland",
+  argentina: "argentina",
+  uruguay: "uruguay",
+  colombia: "colombia",
+  ecuador: "ecuador",
+  japon: "japan",
+  iran: "iran",
+  canada: "canada",
+  noruega: "norway",
+  paraguay: "paraguay",
+  ghana: "ghana",
+  nigeria: "nigeria",
+  senegal: "senegal",
+  camerun: "cameroon",
+  australia: "australia",
+  "arabia saudita": "saudi arabia",
+  "costa de marfil": "ivory coast",
+  "cabo verde": "cape verde",
+  curazao: "curacao",
+  haiti: "haiti",
+  qatar: "qatar",
+  panama: "panama",
+  "nueva zelanda": "new zealand",
+  "republica checa": "czech republic",
+  turquia: "turkey",
+  gales: "wales",
+  escocia: "scotland",
+  dinamarca: "denmark",
+  suecia: "sweden",
+  austria: "austria",
+  polonia: "poland",
+  hungria: "hungary",
+  serbia: "serbia",
+  ucrania: "ukraine",
+  egipto: "egypt",
+  tunez: "tunisia",
+  argelia: "algeria",
+  irak: "iraq",
+  jordania: "jordan",
+  bolivia: "bolivia",
+  chile: "chile",
+  peru: "peru",
+  venezuela: "venezuela",
+};
+
 function normalizeDrCongoAlias(name: string): string {
   if (!name.includes("congo")) return name;
 

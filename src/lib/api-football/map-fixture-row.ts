@@ -114,6 +114,16 @@ export function resolveFifaMatchNumber(item: ApiFootballFixtureItem): number | n
     }
   }
 
+  const { fase } = parseFaseAndGrupo(item.league.round);
+  if (fase === "tercer_lugar" || fase === "final") {
+    const entry = WORLD_CUP_KNOCKOUT_SCHEDULE.find(
+      (e) =>
+        (fase === "tercer_lugar" ? e.phase === "third" : e.phase === "final") &&
+        e.date === dateKey,
+    );
+    if (entry) return entry.matchNumber;
+  }
+
   return null;
 }
 

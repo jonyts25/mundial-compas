@@ -17,7 +17,7 @@ function knockoutPartido(
 ): Partido {
   return {
     id: `p-${matchNumber}`,
-    fase: "r32",
+    fase: "dieciseisavos",
     grupo: null,
     jornada: null,
     sede: "Test Stadium",
@@ -36,9 +36,6 @@ function knockoutPartido(
       marcador_penales_local: penHome,
       marcador_penales_visitante: penAway,
     },
-    api_football_fixture_id: 1_000_000 + matchNumber,
-    created_at: "",
-    updated_at: "",
   };
 }
 

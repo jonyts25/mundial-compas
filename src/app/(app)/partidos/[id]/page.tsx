@@ -8,6 +8,7 @@ import { PartidoInfoPanel } from "@/components/partidos/PartidoInfoPanel";
 import { PartidoMatchSummaryPanel } from "@/components/partidos/PartidoMatchSummaryPanel";
 import { PartidoPronosticoPitonisoBlock } from "@/components/partidos/PartidoPronosticoPitonisoBlock";
 import { PartidoHeader } from "@/components/partidos/PartidoHeader";
+import { PartidoLiveRefresh } from "@/components/partidos/PartidoLiveRefresh";
 import { PronosticoReminder } from "@/components/partidos/PronosticoReminder";
 import { PronosticosTodosPanel } from "@/components/quiniela/PronosticosTodosPanel";
 import { SilenciarNotificacionesPartido } from "@/components/partidos/SilenciarNotificacionesPartido";
@@ -107,6 +108,11 @@ export default async function PartidoPage({
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <PartidoLiveRefresh
+          partidoId={partido.id}
+          estatus={partido.estatus}
+          fechaKickoff={partido.fecha_kickoff}
+        />
         <PartidoHeader partido={partido} />
 
         {esPronosticable ? (
