@@ -107,6 +107,10 @@ import {
   type SyncLiveFixtureLog,
 } from "@/lib/partidos/sync-live-telemetry";
 
+function isSyncLiveEconomyMode(): boolean {
+  return process.env.SYNC_LIVE_ECONOMY_MODE?.toLowerCase() === "true";
+}
+
 async function syncOneApiSportsFixture(
   supabase: SupabaseClient,
   item: ApiFootballFixtureItem,
@@ -378,10 +382,15 @@ async function syncOneApiSportsFixture(
   let persistMetadata = false;
 
   const shouldSyncEvents =
-    row.estatus === "en_vivo" ||
-    row.estatus === "medio_tiempo" ||
-    row.estatus === "finalizado" ||
-    goalDetected;
+    (row.estatus === "en_vivo" ||
+      row.estatus === "medio_tiempo" ||
+      row.estatus === "finalizado" ||
+      goalDetected) &&
+    (!isSyncLiveEconomyMode() ||
+      goalDetected ||
+      existing.estatus !== row.estatus ||
+      existing.marcador_local !== row.marcador_local ||
+      existing.marcador_visitante !== row.marcador_visitante);
 
   let fetchedEvents: Awaited<ReturnType<typeof fetchApiSportsFixtureEvents>> | null =
     null;
@@ -1005,23 +1014,25 @@ export async function syncLiveScoresFromApiSports(
   }
 
   try {
-    await syncKnockoutFixturesByDateInWindow(
-      supabase,
-      apiKey,
-      timezone,
-      async (item) => {
-        await syncOneApiSportsFixture(
-          supabase,
-          item,
-          apiKey,
-          pilot.enabled,
-          pilot.label,
-          result,
-        );
-      },
-      result,
-      liveIds,
-    );
+    if (!isSyncLiveEconomyMode() || liveItems.length === 0) {
+      await syncKnockoutFixturesByDateInWindow(
+        supabase,
+        apiKey,
+        timezone,
+        async (item) => {
+          await syncOneApiSportsFixture(
+            supabase,
+            item,
+            apiKey,
+            pilot.enabled,
+            pilot.label,
+            result,
+          );
+        },
+        result,
+        liveIds,
+      );
+    }
   } catch (e) {
     result.errors.push(
       `knockout-window: ${e instanceof Error ? e.message : String(e)}`,

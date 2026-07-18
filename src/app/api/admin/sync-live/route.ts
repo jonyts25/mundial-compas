@@ -9,6 +9,7 @@ import {
   WORLD_CUP_CLOSING_VERSION,
 } from "@/lib/product/whats-new";
 import { drainPendingPushNotifications } from "@/lib/push/drain-pending";
+import { applyManualLiveSnapshots } from "@/lib/partidos/manual-live-snapshots";
 import { syncLiveScoresFromApi } from "@/lib/partidos/sync-live-scores";
 import { applyOfficialKnockoutKickoffs } from "@/lib/standings/apply-official-knockout-kickoffs";
 import { reconcileKnockoutPlaceholderFixtureIds } from "@/lib/world-cup/reconcile-knockout-fixture-ids";
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
   const pilotOnly = url.searchParams.get("pilot") !== "0";
   const force = url.searchParams.get("force") === "1";
   const supabase = createAdminClient();
+
+  // Sin API: snapshots operados (p. ej. cuota agotada).
+  const manualLive = await applyManualLiveSnapshots(supabase);
 
   // Antes de la ventana: horarios malos dejan el cron fuera y no llegan notificaciones.
   const kickoffFix = await applyOfficialKnockoutKickoffs(supabase);
@@ -60,9 +64,29 @@ export async function POST(request: Request) {
       skipped: true,
       reason: "sync-live ya en curso (lock)",
       provider: getFootballDataProvider(),
+      manualLive,
       kickoffFix,
       reconcile,
       lineups,
+    });
+  }
+
+  const apiPaused =
+    process.env.SYNC_LIVE_API_PAUSED?.toLowerCase() === "true" ||
+    process.env.SYNC_LIVE_PAUSED?.toLowerCase() === "true";
+
+  if (apiPaused) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      skipReason: "api_pausado",
+      reason: "SYNC_LIVE_API_PAUSED=true — solo snapshots manuales",
+      provider: getFootballDataProvider(),
+      manualLive,
+      kickoffFix,
+      reconcile,
+      lineups,
+      apiRequests: 0,
     });
   }
 
@@ -87,6 +111,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     provider: getFootballDataProvider(),
+    manualLive,
     kickoffFix,
     reconcile,
     lineups,
@@ -107,6 +132,12 @@ export async function GET() {
       skip: "0 API requests fuera de ventana",
     },
     force: "POST ?force=1 para ignorar ventana (debug)",
+    manualSnapshots:
+      "Aplica MANUAL_LIVE_SNAPSHOTS sin API (cuota agotada)",
+    apiPaused:
+      "SYNC_LIVE_API_PAUSED=true — no llama api-sports; solo snapshots manuales",
+    economy:
+      "SYNC_LIVE_ECONOMY_MODE=true — omite respaldo por fecha y /events si marcador estable",
     hint: "Polling api-sports live=all (pilot) o live=league (Mundial) — 1 req/sync en ventana",
   });
 }

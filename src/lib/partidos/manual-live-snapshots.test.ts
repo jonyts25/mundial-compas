@@ -1,0 +1,75 @@
+import { describe, expect, it } from "vitest";
+import {
+  applyManualLiveSnapshots,
+  MANUAL_LIVE_SNAPSHOTS,
+} from "@/lib/partidos/manual-live-snapshots";
+
+describe("MANUAL_LIVE_SNAPSHOTS M103", () => {
+  it("tiene marcador 3-4 (Francia-Inglaterra) en vivo", () => {
+    const m103 = MANUAL_LIVE_SNAPSHOTS.find((s) => s.fifaMatchNumber === 103);
+    expect(m103).toBeDefined();
+    expect(m103!.marcadorLocal).toBe(3);
+    expect(m103!.marcadorVisitante).toBe(4);
+    expect(m103!.estatus).toBe("en_vivo");
+    expect(m103!.eventosClave.filter((e) => e.tipo === "gol")).toHaveLength(7);
+  });
+});
+
+describe("applyManualLiveSnapshots", () => {
+  it("aplica snapshot y evita duplicados", async () => {
+    const rows = new Map([
+      [
+        "p103",
+        {
+          id: "p103",
+          estatus: "programado",
+          marcador_local: null,
+          marcador_visitante: null,
+          metadata: { fifa_match_number: 103 },
+        },
+      ],
+    ]);
+
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: (_col: string, val: number) => ({
+            maybeSingle: async () => ({
+              data:
+                val === 9_000_103
+                  ? rows.get("p103") ?? null
+                  : null,
+              error: null,
+            }),
+          }),
+          filter: () => ({
+            limit: () => ({
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+        }),
+        update: (patch: Record<string, unknown>) => ({
+          eq: (_col: string, id: string) => {
+            const row = rows.get(id);
+            if (row) Object.assign(row, patch);
+            return Promise.resolve({ error: null });
+          },
+        }),
+      }),
+    };
+
+    const first = await applyManualLiveSnapshots(
+      supabase as never,
+      [MANUAL_LIVE_SNAPSHOTS[0]!],
+    );
+    expect(first.applied).toBe(1);
+    expect(rows.get("p103")!.marcador_visitante).toBe(4);
+
+    const second = await applyManualLiveSnapshots(
+      supabase as never,
+      [MANUAL_LIVE_SNAPSHOTS[0]!],
+    );
+    expect(second.skipped).toBe(1);
+    expect(second.applied).toBe(0);
+  });
+});
