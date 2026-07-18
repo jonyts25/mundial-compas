@@ -5,13 +5,13 @@ import {
 } from "@/lib/partidos/manual-live-snapshots";
 
 describe("MANUAL_LIVE_SNAPSHOTS M103", () => {
-  it("tiene marcador 3-4 (Francia-Inglaterra) en vivo", () => {
+  it("tiene resultado final 4-6 (Francia-Inglaterra)", () => {
     const m103 = MANUAL_LIVE_SNAPSHOTS.find((s) => s.fifaMatchNumber === 103);
     expect(m103).toBeDefined();
-    expect(m103!.marcadorLocal).toBe(3);
-    expect(m103!.marcadorVisitante).toBe(4);
-    expect(m103!.estatus).toBe("en_vivo");
-    expect(m103!.eventosClave.filter((e) => e.tipo === "gol")).toHaveLength(7);
+    expect(m103!.marcadorLocal).toBe(4);
+    expect(m103!.marcadorVisitante).toBe(6);
+    expect(m103!.estatus).toBe("finalizado");
+    expect(m103!.eventosClave.filter((e) => e.tipo === "gol")).toHaveLength(10);
   });
 });
 
@@ -63,7 +63,8 @@ describe("applyManualLiveSnapshots", () => {
       [MANUAL_LIVE_SNAPSHOTS[0]!],
     );
     expect(first.applied).toBe(1);
-    expect(rows.get("p103")!.marcador_visitante).toBe(4);
+    expect(rows.get("p103")!.marcador_visitante).toBe(6);
+    expect(rows.get("p103")!.estatus).toBe("finalizado");
 
     const second = await applyManualLiveSnapshots(
       supabase as never,
