@@ -5,6 +5,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminEnv, getFootballDataProvider } from "@/lib/env";
 import { broadcastProductAnnouncement } from "@/lib/product/broadcast-announcement";
 import {
+  MUNDIAL_COMPAS_FAREWELL_ANNOUNCEMENT,
+  MUNDIAL_COMPAS_FAREWELL_VERSION,
+  SPAIN_CHAMPION_ANNOUNCEMENT,
+  SPAIN_CHAMPION_VERSION,
   WORLD_CUP_CLOSING_ANNOUNCEMENT,
   WORLD_CUP_CLOSING_VERSION,
 } from "@/lib/product/whats-new";
@@ -36,24 +40,41 @@ export async function POST(request: Request) {
   const reconcile = await reconcileKnockoutPlaceholderFixtureIds(supabase);
   const lineups = await syncPartidosLineupsInWindow(supabase);
 
-  // Anuncio de cierre: una sola vez (dedupe), aunque el sync esté en lock.
+  // Anuncios de producto: dedupe por announcement_key (aunque el sync esté en lock).
   after(async () => {
-    try {
-      const closing = await broadcastProductAnnouncement(supabase, {
+    const announcements = [
+      {
+        announcementKey: SPAIN_CHAMPION_VERSION,
+        announcement: SPAIN_CHAMPION_ANNOUNCEMENT,
+      },
+      {
+        announcementKey: MUNDIAL_COMPAS_FAREWELL_VERSION,
+        announcement: MUNDIAL_COMPAS_FAREWELL_ANNOUNCEMENT,
+      },
+      {
         announcementKey: WORLD_CUP_CLOSING_VERSION,
         announcement: WORLD_CUP_CLOSING_ANNOUNCEMENT,
-        url: "/",
-      });
-      if (!closing.skipped || closing.skipReason !== "ya_enviado") {
-        console.info(
-          `[announce] closing sentUsers=${closing.sentUsers} targets=${closing.targets} skipped=${closing.skipped} reason=${closing.skipReason ?? "—"}`,
+      },
+    ] as const;
+
+    for (const item of announcements) {
+      try {
+        const result = await broadcastProductAnnouncement(supabase, {
+          announcementKey: item.announcementKey,
+          announcement: item.announcement,
+          url: "/",
+        });
+        if (!result.skipped || result.skipReason !== "ya_enviado") {
+          console.info(
+            `[announce] key=${item.announcementKey} sentUsers=${result.sentUsers} targets=${result.targets} skipped=${result.skipped} reason=${result.skipReason ?? "—"}`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[announce] key=${item.announcementKey} error:`,
+          err instanceof Error ? err.message : err,
         );
       }
-    } catch (err) {
-      console.error(
-        "[announce] closing error:",
-        err instanceof Error ? err.message : err,
-      );
     }
   });
 

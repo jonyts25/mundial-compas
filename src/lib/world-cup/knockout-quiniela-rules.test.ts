@@ -62,7 +62,7 @@ describe("knockout quiniela scoring rules", () => {
 describe("announcement dedupe keys", () => {
   it("octavos sync version bumps whats-new", () => {
     expect(KNOCKOUT_OCTAVOS_SYNC_VERSION).toBe("2026-07-knockout-octavos-sync-v1");
-    expect(WHATS_NEW_VERSION).toBe(KNOCKOUT_OCTAVOS_SYNC_VERSION);
+    expect(WHATS_NEW_VERSION).toBe("2026-07-mundial-compas-farewell-v1");
     expect(KNOCKOUT_ROUND_QUINIELA_VERSION).toBe("2026-06-knockout-round-quiniela-v1");
   });
 

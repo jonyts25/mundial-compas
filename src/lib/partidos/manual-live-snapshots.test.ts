@@ -15,6 +15,17 @@ describe("MANUAL_LIVE_SNAPSHOTS M103", () => {
   });
 });
 
+describe("MANUAL_LIVE_SNAPSHOTS M104", () => {
+  it("tiene resultado final 1-0 (España-Argentina, prórroga)", () => {
+    const m104 = MANUAL_LIVE_SNAPSHOTS.find((s) => s.fifaMatchNumber === 104);
+    expect(m104).toBeDefined();
+    expect(m104!.marcadorLocal).toBe(1);
+    expect(m104!.marcadorVisitante).toBe(0);
+    expect(m104!.estatus).toBe("finalizado");
+    expect(m104!.reloj.period).toBe("AET");
+  });
+});
+
 describe("applyManualLiveSnapshots", () => {
   it("aplica snapshot y evita duplicados", async () => {
     const rows = new Map([

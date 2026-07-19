@@ -134,6 +134,42 @@ export const MANUAL_LIVE_SNAPSHOTS: ManualLiveSnapshot[] = [
       },
     ],
   },
+  {
+    id: "m104-ft-2026-07-19T2318Z",
+    fifaMatchNumber: 104,
+    estatus: "finalizado",
+    marcadorLocal: 1,
+    marcadorVisitante: 0,
+    minutoActual: null,
+    reloj: {
+      period: "AET",
+      anchorMinute: null,
+      anchoredAt: "2026-07-19T23:18:00.000Z",
+      ticking: false,
+    },
+    eventosClave: [
+      {
+        id: "roja:arg:enzo:92:0",
+        tipo: "tarjeta_roja",
+        jugador: "Enzo Fernández",
+        equipo: "Argentina",
+        minuto: 92,
+        extra: null,
+        detail: "Second Yellow",
+        es_local: false,
+      },
+      {
+        id: "gol:esp:torres:106:0",
+        tipo: "gol",
+        jugador: "Ferran Torres",
+        equipo: "España",
+        minuto: 106,
+        extra: null,
+        detail: "Normal Goal",
+        es_local: true,
+      },
+    ],
+  },
 ];
 
 export type ApplyManualLiveSnapshotsResult = {

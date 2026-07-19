@@ -1,4 +1,5 @@
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
+import { WorldCupChampionBanner } from "@/components/product/WorldCupChampionBanner";
 import { PushNotificationPrompt } from "@/components/push/PushNotificationPrompt";
 import { PushSilenciadosProvider } from "@/components/push/PushSilenciadosProvider";
 import { fetchPushPartidosSilenciadosIds } from "@/lib/push/partido-silenciado";
@@ -22,6 +23,7 @@ export default async function AppLayout({
     <PushSilenciadosProvider initialIds={silenciados}>
       <PageViewTracker />
       <div className="min-h-full flex-1 bg-zinc-950 text-zinc-100">
+        <WorldCupChampionBanner />
         <div className="mx-auto min-h-full w-full max-w-lg pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {children}
         </div>

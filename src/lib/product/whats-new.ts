@@ -28,8 +28,19 @@ export const KNOCKOUT_OCTAVOS_SYNC_VERSION = "2026-07-knockout-octavos-sync-v1";
 /** Cierre del Mundial — mensaje de despedida de la app de prueba. */
 export const WORLD_CUP_CLOSING_VERSION = "2026-07-world-cup-closing-v1";
 
+/** España campeona — push de felicitación. */
+export const SPAIN_CHAMPION_VERSION = "2026-07-spain-champion-v1";
+
+/** Despedida final de Mundial Compas. */
+export const MUNDIAL_COMPAS_FAREWELL_VERSION = "2026-07-mundial-compas-farewell-v1";
+
+/** Banner campeón en la app. */
+export const WORLD_CUP_CHAMPION_BANNER_KEY =
+  "mundial-compas:world-cup-champion-banner-seen";
+export const WORLD_CUP_CHAMPION_BANNER_VERSION = "2026-07-spain-champion-banner-v1";
+
 /** Bump al añadir/cambiar WHATS_NEW_ITEMS. */
-export const WHATS_NEW_VERSION = WORLD_CUP_CLOSING_VERSION;
+export const WHATS_NEW_VERSION = MUNDIAL_COMPAS_FAREWELL_VERSION;
 
 export interface WhatsNewItem {
   emoji: string;
@@ -72,7 +83,23 @@ export const WORLD_CUP_CLOSING_ANNOUNCEMENT: WhatsNewItem = {
     "Esperamos que hayan disfrutado esta app de prueba y que los tropiezos hayan sido mínimos. Si tienen algún comentario, háganlo saber a través de quien les compartió la app. ¡Disfruten la final y que gane el mejor!",
 };
 
+export const SPAIN_CHAMPION_ANNOUNCEMENT: WhatsNewItem = {
+  emoji: "🇪🇸",
+  title: "¡España, campeona del mundo!",
+  description:
+    "La Roja vence 1-0 a Argentina en la prórroga y levanta su segundo título mundial. ¡Felicidades a todos los españoles y a quienes la apoyaron!",
+};
+
+export const MUNDIAL_COMPAS_FAREWELL_ANNOUNCEMENT: WhatsNewItem = {
+  emoji: "👋",
+  title: "Gracias por jugar Mundial Compas",
+  description:
+    "Con la final concluida, esta experiencia de prueba llega a su fin. Gracias por su apoyo, sus pronósticos y por acompañarnos en el Mundial. ¡Hasta la próxima!",
+};
+
 export const WHATS_NEW_ITEMS: WhatsNewItem[] = [
+  MUNDIAL_COMPAS_FAREWELL_ANNOUNCEMENT,
+  SPAIN_CHAMPION_ANNOUNCEMENT,
   WORLD_CUP_CLOSING_ANNOUNCEMENT,
   KNOCKOUT_OCTAVOS_SYNC_ANNOUNCEMENT,
   KNOCKOUT_ROUND_QUINIELA_ANNOUNCEMENT,
